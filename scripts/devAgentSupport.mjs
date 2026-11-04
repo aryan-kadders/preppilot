@@ -1,0 +1,130 @@
+// scripts/devAgentSupport.mjs
+//
+// The decisions inside scripts/dev-agent.mjs that are worth asserting, kept
+// pure and platform-injectable so BOTH branches are exercised on either OS
+// (CLAUDE.md, "Testing requirements": a suite that only runs the current
+// platform's branch is insufficient for shared code).
+
+/**
+ * Ports we must never hand to an agent instance. 9222 is Chrome's own default
+ * remote-debugging port and 9229 is Node's inspector; attaching to either means
+ * attaching to whatever else on the machine already owns it, which is precisely
+ * the cross-session mix-up this launcher exists to stop.
+ */
+export const RESERVED_PORTS = Object.freeze([9222, 9229]);
+
+/** @param {number} port */
+export function isReservedPort(port) {
+  return RESERVED_PORTS.includes(port);
+}
+
+/**
+ * How to take a child process down.
+ *
+ * A POSIX signal does NOT take down a Windows process tree — the electron and
+ * vite children each spawn their own — and CLAUDE.md forbids using signals as
+ * the only shutdown mechanism for Windows processes. So win32 gets taskkill
+ * with /T (tree) and /F (force); everything else gets SIGTERM.
+ *
+ * Arguments are returned as an ARRAY, never an interpolated string, so a path
+ * or pid can never be re-parsed by a shell.
+ *
+ * @param {NodeJS.Platform|string} platform
+ * @param {number} pid
+ * @returns {{ kind: 'signal', signal: string } | { kind: 'spawn', command: string, args: string[] }}
+ */
+export function killPlan(platform, pid) {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    throw new Error(`killPlan: refusing to act on pid ${pid}`);
+  }
+  if (platform === 'win32') {
+    return { kind: 'spawn', command: 'taskkill', args: ['/pid', String(pid), '/T', '/F'] };
+  }
+  return { kind: 'signal', signal: 'SIGTERM' };
+}
+
+/**
+ * How a child the launcher started ended, as the launcher reports it
+ * (2026-11-02). A process ended from outside (macOS freeing memory, a kill,
+ * the shell that started it closing) has no exit code, only a signal; the
+ * launcher used to turn that into exit 0 and print nothing, so a killed app
+ * looked like a clean quit. Windows: a process ended by taskkill reports an
+ * exit code (1) and no signal, so it reads as a failure, never as clean.
+ *
+ * @param {string} name
+ * @param {number|null} code
+ * @param {string|null} signal
+ * @returns {{ exitCode: number, message: string|null }}
+ */
+export function childExitReport(name, code, signal) {
+  if (signal) {
+    return { exitCode: 1, message: `[dev:agent] ${name} was ended from outside by ${signal} (no quit ran: likely the OS freeing memory, or a kill)` };
+  }
+  const exitCode = Number.isInteger(code) ? code : 1;
+  return { exitCode, message: exitCode === 0 ? null : `[dev:agent] ${name} exited (${exitCode})` };
+}
+
+/**
+ * The renderer dev-server port the main process should use. Mirrors
+ * electron/devServerUrl.ts, which is the consumer — both must agree that a
+ * junk value falls back rather than pointing every window at port 0.
+ *
+ * @param {string|undefined|null} raw
+ * @param {number} fallback
+ */
+export function resolveDevPort(raw, fallback = 5180) {
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return fallback;
+  return n;
+}
+
+/**
+ * The Electron command line for an agent instance.
+ *
+ * `--user-data-dir` is what actually isolates the profile. main.ts also moves
+ * userData with app.setPath() from NATIVELY_AGENT_USER_DATA, but that line runs
+ * AFTER the bundle's module initialisers, and CredentialsManager captures the
+ * credentials.enc path in one of them. Without the switch an agent instance
+ * read the developer's real keys, and a key saved from it overwrote them.
+ * Chromium applies the switch before any JS runs, and it is the same flag on
+ * every platform.
+ *
+ * Returned as an ARRAY for spawn() without a shell, so a path with spaces stays
+ * one argument on Windows and macOS alike.
+ *
+ * @param {string} root
+ * @param {number} cdpPort
+ * @param {string} userDataDir
+ * @returns {string[]}
+ */
+export function electronArgs(root, cdpPort, userDataDir) {
+  if (!userDataDir) throw new Error('electronArgs: an agent instance needs its own userData dir');
+  return [root, `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${userDataDir}`];
+}
+
+/**
+ * The CDP port a previous launch wrote to agent-browser.json, or null when the
+ * file is missing, unreadable, or holds no usable port. The launcher then asks
+ * that port whether an instance is still running there (isLiveDevToolsReply):
+ * two launches in one worktree share agent-browser.json and the userData
+ * profile, so a second launch silently took the file over and the first
+ * session's agent-browser commands went to the wrong app (2026-10-31).
+ */
+export function previousCdpPort(configText) {
+  if (typeof configText !== 'string' || !configText.trim()) return null;
+  let parsed;
+  try { parsed = JSON.parse(configText); } catch { return null; }
+  const port = Number(parsed?.cdp);
+  return Number.isInteger(port) && port > 0 && port < 65536 && !isReservedPort(port) ? port : null;
+}
+
+/**
+ * Whether a /json/version reply comes from a running DevTools endpoint (an
+ * Electron or Chromium browser), not from an unrelated program that happens
+ * to have reused the port after the old instance exited.
+ */
+export function isLiveDevToolsReply(status, body) {
+  if (status !== 200 || !body || typeof body !== 'object') return false;
+  return typeof body.webSocketDebuggerUrl === 'string' && /^ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\//.test(body.webSocketDebuggerUrl);
+}

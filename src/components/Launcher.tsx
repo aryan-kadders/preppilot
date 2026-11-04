@@ -1,0 +1,1381 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useT } from '../i18n';
+import { ToggleLeft, ToggleRight, Search, Calendar, Globe, Clock, ChevronRight, LayoutGrid, RefreshCw, Eye, EyeOff, Ghost, Plus, Mail, Link as LinkIcon, ChevronDown, Bell, DownloadCloud, CheckCircle, AlertCircle, User, Sparkles, ArrowUpRight } from 'lucide-react';
+import { ProfileIntelligenceIcon } from './ProfileIntelligenceIcon';
+import { NativelyWordmark } from './NativelyWordmark';
+import mainui from "../UI_comp/mainui.png";
+import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
+import AssistToday from './assist/AssistToday';
+import type { AssistEvent } from '../types/assist';
+import { useToggleInit } from './settings/useToggleInit';
+import { noteUpcomingEvents, warmCalendarSnapshot } from '../lib/calendarSnapshot.mjs';
+import { plainMeetingTitle } from '../lib/codingAnswer.mjs';
+import MeetingDetails from './MeetingDetails';
+import TopSearchPill from './TopSearchPill';
+import GlobalChatOverlay from './GlobalChatOverlay';
+import { motion, AnimatePresence, useReducedMotion, type TargetAndTransition, type Variants } from 'framer-motion';
+import { FeatureSpotlight } from './FeatureSpotlight';
+import './LauncherCta.css';
+import { analytics } from '../lib/analytics/analytics.service'; // Added analytics import
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useResolvedTheme } from '../hooks/useResolvedTheme';
+import { isMac } from '../utils/platformUtils';
+import { APP_FEATURE_VERSION } from '../utils/appVersion';
+import WindowControls from './WindowControls';
+import { LiquidGlassBadge } from '../ui-components/LiquidGlassBadge';
+import { emitOrchestratorEvent, setUserState as setOrchestratorUserState } from './onboarding/OrchestratedToasterHost';
+
+interface Meeting {
+    id: string;
+    title: string;
+    date: string;
+    duration: string;
+    summary: string;
+    detailedSummary?: {
+        actionItems: string[];
+        keyPoints: string[];
+    };
+    transcript?: Array<{
+        speaker: string;
+        text: string;
+        timestamp: number;
+    }>;
+    usage?: Array<{
+        type: 'assist' | 'followup' | 'chat' | 'followup_questions';
+        timestamp: number;
+        question?: string;
+        answer?: string;
+        items?: string[];
+    }>;
+    active?: boolean; // UI state
+    time?: string; // Optional for compatibility
+}
+
+/**
+ * Something outside the Launcher asking it to open its search bar or a meeting
+ * (Settings › About). A new `seq` is a new request, so asking twice works.
+ */
+export type LauncherRequest =
+    | { kind: 'search'; seq: number }
+    | { kind: 'meeting'; id: string; seq: number }
+    // The calendar reminder's "Running late" (main: assist/reminderDraftWindow):
+    // back to the list, with that event's draft open.
+    | { kind: 'reminder-draft'; event: AssistEvent; draftKind: 'running_late' | 'no_show' | 'reschedule'; seq: number };
+
+interface LauncherProps {
+    request?: LauncherRequest | null;
+    onStartMeeting: () => void;
+    onOpenSettings: (tab?: string) => void;
+    onOpenProfile?: () => void;
+    onOpenModes?: () => void;
+    onPageChange?: (isMain: boolean) => void;
+    ollamaPullStatus?: 'idle' | 'downloading' | 'complete' | 'failed';
+    ollamaPullPercent?: number;
+    ollamaPullMessage?: string;
+}
+
+// Helper to format date groups
+const getGroupLabel = (dateStr: string) => {
+    if (dateStr === "Today") return "Today"; // Backward compatibility
+
+    const date = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    if (checkDate.getTime() === today.getTime()) return "Today";
+    if (checkDate.getTime() === yesterday.getTime()) return "Yesterday";
+
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+// Helper to format time (e.g. 3:14pm)
+const formatTime = (dateStr: string) => {
+    if (dateStr === "Today") return "Just now"; // Legacy
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+};
+
+const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSettings, onOpenProfile, onOpenModes, onPageChange, ollamaPullStatus = 'idle', ollamaPullPercent = 0, ollamaPullMessage = '' }) => {
+    const t = useT();
+    const [meetings, setMeetings] = useState<Meeting[]>([]);
+    const [isDetectable, setIsDetectable] = useState(false);
+    const [isMeetingActive, setIsMeetingActive] = useState(false);
+    const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+    // The notes page's "ask about this meeting" chat is open. See the details
+    // panel's z-index below.
+    const [meetingChatOpen, setMeetingChatOpen] = useState(false);
+    const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+    // The first calendar fetch has answered. Until then the calendar card shows
+    // skeletons, not "No upcoming events", which would flash on every launch.
+    const [eventsLoaded, setEventsLoaded] = useState(false);
+    const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showNotification, setShowNotification] = useState(false);
+
+    // Global search state (for AI chat overlay)
+    const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
+    const [submittedGlobalQuery, setSubmittedGlobalQuery] = useState('');
+
+    const [showModesOnboarding, setShowModesOnboarding] = useState(false);
+    const [showProfileOnboarding, setShowProfileOnboarding] = useState(false);
+    const [launchCount, setLaunchCount] = useState<number>(0);
+    // StrictMode-safe guard for mount-only side-effects: the dev build
+    // intentionally double-invokes effects to surface this class of bug.
+    const mountedOnceRef = useRef<boolean>(false);
+
+    const fetchMeetings = () => {
+        if (window.electronAPI && window.electronAPI.getRecentMeetings) {
+            window.electronAPI.getRecentMeetings().then(setMeetings).catch(err => console.error("Failed to fetch meetings:", err));
+        }
+    };
+
+    const fetchEvents = () => {
+        if (window.electronAPI && window.electronAPI.getUpcomingEvents) {
+            window.electronAPI.getUpcomingEvents()
+                .then((list) => { setUpcomingEvents(list); noteUpcomingEvents(list); })
+                .catch(err => console.error("Failed to fetch events:", err))
+                .finally(() => setEventsLoaded(true));
+        }
+    }
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        analytics.trackCommandExecuted('refresh_calendar');
+        try {
+            if (window.electronAPI && window.electronAPI.calendarRefresh) {
+                setShowNotification(true);
+                await window.electronAPI.calendarRefresh();
+                fetchEvents();
+                fetchMeetings();
+                setTimeout(() => {
+                    setShowNotification(false);
+                }, 3000);
+            } else {
+                console.warn("electronAPI.calendarRefresh not found");
+            }
+        } catch (e) {
+            console.error("Refresh failed in handleRefresh:", e);
+        } finally {
+            // Ensure distinct feedback provided (min 500ms spin)
+            setTimeout(() => setIsRefreshing(false), 500);
+        }
+    };
+
+    // Keybinds
+    const { isShortcutPressed } = useShortcuts();
+    const isLight = useResolvedTheme() === 'light';
+    useEffect(() => {
+        let mounted = true;
+        console.log("Launcher mounted");
+
+        // StrictMode guard: React 18 dev mode runs effects (mount→unmount→mount)
+        // so non-idempotent side-effects (localStorage writes, IPC round-trips,
+        // counters) must be gated. `mountedOnceRef` survives the second mount.
+        if (mountedOnceRef.current) {
+            // Second StrictMode mount — keep subscriptions fresh, skip writes.
+        } else {
+            mountedOnceRef.current = true;
+
+            // Track launch count for showing the "What's New" pill
+            const storedCount = localStorage.getItem('natively_launch_count_v2.7');
+            const currentCount = storedCount ? parseInt(storedCount, 10) : 0;
+            const newCount = currentCount + 1;
+            localStorage.setItem('natively_launch_count_v2.7', newCount.toString());
+            if (mounted) {
+                setLaunchCount(newCount);
+            }
+            // Seed demo data if needed (safe to call always — runs ONCE on mount)
+            if (window.electronAPI && window.electronAPI.seedDemo) {
+                window.electronAPI.seedDemo().catch(err => console.error("Failed to seed demo:", err));
+            }
+
+            // Onboarding state — push to orchestrator. The orchestrator handles
+            // sequencing and timing; Launcher no longer auto-shows popovers.
+            const hasSeenModesOnboarding = localStorage.getItem('natively_seen_modes_onboarding_v5');
+            const hasSeenProfileOnboarding = localStorage.getItem('natively_seen_profile_onboarding_v1');
+            setOrchestratorUserState({
+                seenModesOnboarding: hasSeenModesOnboarding === 'true',
+                seenProfileOnboarding: hasSeenProfileOnboarding === 'true',
+            });
+        }
+
+        // Sync initial undetectable state
+        if (window.electronAPI?.getUndetectable) {
+            window.electronAPI.getUndetectable().then((undetectable) => {
+                if (mounted) {
+                    setIsDetectable(!undetectable);
+                    analytics.setUndetectable(undetectable);
+                }
+            });
+        }
+
+        // Listen for undetectable changes
+        let removeUndetectableListener: (() => void) | undefined;
+        if (window.electronAPI?.onUndetectableChanged) {
+            removeUndetectableListener = window.electronAPI.onUndetectableChanged((undetectable) => {
+                if (mounted) {
+                    setIsDetectable(!undetectable);
+                    analytics.setUndetectable(undetectable);
+                }
+            });
+        }
+
+        fetchMeetings();
+        fetchEvents();
+
+        // Sync initial meeting active state — guarded so unmounted component isn't written to
+        if (window.electronAPI?.getMeetingActive) {
+            window.electronAPI.getMeetingActive()
+                .then((active) => { if (mounted) setIsMeetingActive(active); })
+                .catch(() => {});
+        }
+
+        // Listen for meeting state changes (e.g. meeting started/ended from overlay)
+        let removeMeetingStateListener: (() => void) | undefined;
+        if (window.electronAPI?.onMeetingStateChanged) {
+            removeMeetingStateListener = window.electronAPI.onMeetingStateChanged(({ isActive }) => {
+                setIsMeetingActive(isActive);
+                emitOrchestratorEvent({ type: 'meeting:state', isActive });
+            });
+        }
+
+        // Listen for background updates (e.g. after meeting processing finishes)
+        const removeMeetingsListener = window.electronAPI.onMeetingsUpdated(() => {
+            console.log("Received meetings-updated event");
+            fetchMeetings();
+        });
+
+        // Simple polling for events every minute (stealth-gated: no calendar egress while undetectable)
+        const interval = setInterval(() => { if (isDetectable) fetchEvents(); }, 60000);
+
+        // Orchestrator: foreground/background tracking via window blur/focus.
+        // On macOS Cmd+H and Cmd+Tab the BrowserWindow fires 'blur'/'focus'
+        // (mapped to window blur/focus in renderer).
+        const onFocus = () => emitOrchestratorEvent({ type: 'foreground:change', isForeground: true });
+        const onBlur  = () => emitOrchestratorEvent({ type: 'foreground:change', isForeground: false });
+        window.addEventListener('focus', onFocus);
+        window.addEventListener('blur', onBlur);
+
+        // Orchestrator: usage-time accumulator. Tick every 30s while launcher
+        // is mounted and the window is foregrounded.
+        //
+        // This gate samples document.hasFocus() rather than
+        // document.visibilityState. The launcher window is created with
+        // `backgroundThrottling: false` (see WindowHelper.createWindow and the
+        // boot-reveal bug it fixes), and that option makes the Page Visibility
+        // API report this window as 'visible' even while it is hidden — so a
+        // visibilityState gate here would accrue usage time for a launcher the
+        // user has Cmd+H'd or covered behind another window.
+        //
+        // hasFocus() is sampled at tick time rather than tracked through the
+        // focus/blur handlers above, so there is no seeded-state or missed-event
+        // window to get out of sync: it is the ground truth those events report.
+        //
+        // KNOWN NARROWING, deliberate: this is stricter than the old gate. A
+        // launcher that is on screen and being read, but does not hold keyboard
+        // focus, no longer accrues usage time — where visibilityState would have
+        // counted it. Under `backgroundThrottling: false` there is no renderer-
+        // side signal left that distinguishes "on screen but unfocused" from
+        // "hidden", and under-counting an unfocused window is the safer error
+        // for this counter than billing time for a hidden one.
+        const usageTimer = setInterval(() => {
+            if (document.hasFocus()) {
+                emitOrchestratorEvent({ type: 'usage:tick', deltaMs: 30_000 });
+            }
+        }, 30_000);
+
+        return () => {
+            mounted = false;
+            if (removeMeetingsListener) removeMeetingsListener();
+            if (removeUndetectableListener) removeUndetectableListener();
+            if (removeMeetingStateListener) removeMeetingStateListener();
+            clearInterval(interval);
+            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('blur', onBlur);
+            clearInterval(usageTimer);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Mount-only: stable setup that must run exactly once
+
+    // The card follows the connection wherever it changes: a disconnect in
+    // Settings › Calendar puts "Link your calendar" back, a connect there shows
+    // the linked card. Its meetings go with a disconnect at once.
+    useEffect(() => window.electronAPI?.onCalendarConnectionChanged?.((connected) => {
+        setIsCalendarConnected(connected);
+        if (connected) fetchEvents(); else setUpcomingEvents([]);
+        void warmCalendarSnapshot(window.electronAPI);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), []);
+
+    // Settings › Calendar opens from calendarSnapshot instead of fetching: fill
+    // it in the background once startup has settled (the minute poll above then
+    // keeps its meetings current).
+    useEffect(() => {
+        const timer = window.setTimeout(() => { void warmCalendarSnapshot(window.electronAPI); }, 2000);
+        return () => window.clearTimeout(timer);
+    }, []);
+
+    // Separate effect for keyboard listener — re-registers when isShortcutPressed changes
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isShortcutPressed(e, 'toggleVisibility')) {
+                e.preventDefault();
+                window.electronAPI.toggleWindow();
+            } else if (isShortcutPressed(e, 'moveWindowUp')) {
+                e.preventDefault();
+                window.electronAPI.moveWindowUp?.();
+            } else if (isShortcutPressed(e, 'moveWindowDown')) {
+                e.preventDefault();
+                window.electronAPI.moveWindowDown?.();
+            } else if (isShortcutPressed(e, 'moveWindowLeft')) {
+                e.preventDefault();
+                window.electronAPI.moveWindowLeft?.();
+            } else if (isShortcutPressed(e, 'moveWindowRight')) {
+                e.preventDefault();
+                window.electronAPI.moveWindowRight?.();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isShortcutPressed]);
+
+    // Declared above the `!window.electronAPI` early return below — a hook after
+    // that guard would break the rules of hooks on the error path.
+    const detectableToggleInit = useToggleInit();
+
+    // Upcoming meetings (in-progress up to 5 min ago, or any future event in the API's 7-day
+    // window), sorted soonest-first. Cap at 3 for the right-side calendar card peek stack.
+    const upcomingMeetings = upcomingEvents
+        .filter(e => new Date(e.startTime).getTime() - Date.now() > -5 * 60000)
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    const visibleMeetings = upcomingMeetings.slice(0, 3);
+    const nextMeeting = visibleMeetings[0];
+    const moreMeetingsCount = Math.max(0, upcomingMeetings.length - visibleMeetings.length);
+
+    const toggleDetectable = () => {
+        const newState = !isDetectable;
+        setIsDetectable(newState);
+        window.electronAPI?.setUndetectable(!newState); // Note: setUndetectable takes the *undetectable* state, which is inverse of *detectable*
+        analytics.trackModeSelected(newState ? 'launcher' : 'undetectable'); // If visible (detectable), mode is normal/launcher. If not detectable, mode is undetectable.
+    };
+
+    // Group meetings
+    const groupedMeetings = meetings.reduce((acc, meeting) => {
+        const label = getGroupLabel(meeting.date);
+        if (!acc[label]) acc[label] = [];
+        acc[label].push(meeting);
+        return acc;
+    }, {} as Record<string, Meeting[]>);
+
+    // Group order (Today, Yesterday, then others sorted new to old is implicit via API return order ideally, 
+    // but JS object key order isn't guaranteed. We can use a Map or just known keys.)
+    // Simple sort for keys:
+    const sortedGroups = Object.keys(groupedMeetings).sort((a, b) => {
+        if (a === 'Today') return -1;
+        if (b === 'Today') return 1;
+        if (a === 'Yesterday') return -1;
+        if (b === 'Yesterday') return 1;
+        // Approximation for others: parse date
+        return new Date(b).getTime() - new Date(a).getTime();
+    });
+
+
+    // A transcript moment to open the selected meeting at (a "Search past
+    // meetings" hit). Cleared by any other navigation so a later open starts on
+    // the summary as usual.
+    const [selectedMomentMs, setSelectedMomentMs] = useState<number | null>(null);
+
+    // Notify parent if we are on the main launcher list view; also feed the
+    // orchestrator's homepage-mounted clock.
+    useEffect(() => {
+        const isMain = !selectedMeeting && !isGlobalChatOpen;
+        if (onPageChange) onPageChange(isMain);
+        if (isMain) {
+            emitOrchestratorEvent({ type: 'launcher:mounted' });
+        } else {
+            emitOrchestratorEvent({ type: 'launcher:unmounted' });
+        }
+        // Cleanup on unmount: ensure unmount is fired
+        return () => emitOrchestratorEvent({ type: 'launcher:unmounted' });
+    }, [selectedMeeting, isGlobalChatOpen, onPageChange]);
+
+    const handleOpenMeeting = async (meeting: Meeting) => {
+        setSelectedMomentMs(null);
+        console.log("[Launcher] Opening meeting:", meeting.id);
+        analytics.trackCommandExecuted('open_meeting_details');
+
+        // Fetch full meeting details including transcript and usage
+        if (window.electronAPI && window.electronAPI.getMeetingDetails) {
+            try {
+                console.log("[Launcher] Fetching full meeting details...");
+                const fullMeeting = await window.electronAPI.getMeetingDetails(meeting.id);
+                console.log("[Launcher] Got meeting details:", fullMeeting);
+                console.log("[Launcher] Transcript count:", fullMeeting?.transcript?.length);
+                console.log("[Launcher] Usage count:", fullMeeting?.usage?.length);
+                if (fullMeeting) {
+                    setSelectedMeeting(fullMeeting);
+                    return;
+                }
+            } catch (err) {
+                console.error("[Launcher] Failed to fetch meeting details:", err);
+            }
+        } else {
+            console.warn("[Launcher] getMeetingDetails not available on electronAPI");
+        }
+        // Fallback to list-view data if fetch fails
+        setSelectedMeeting(meeting);
+    };
+
+    // The global chat sits over the notes and closes on the same Esc press.
+    // Stable identity: MeetingDetails re-subscribes its Esc listener whenever
+    // onBack changes, which was every Launcher render.
+    const handleBack = useCallback(() => {
+        if (isGlobalChatOpen) return;
+        setSelectedMeeting(null);
+        setSelectedMomentMs(null);
+    }, [isGlobalChatOpen]);
+    // Open a search hit BY ID at the moment it was said. The hit may be older than
+    // the 50 meetings this list holds, so it is fetched directly rather than looked
+    // up in `meetings`. Returns false when it cannot be opened (caller falls back).
+    const openMeetingAtMoment = async (meetingId: string, momentMs?: number): Promise<boolean> => {
+        try {
+            const full = await window.electronAPI?.getMeetingDetails?.(meetingId);
+            if (!full) return false;
+            setSelectedMomentMs(typeof momentMs === 'number' ? momentMs : null);
+            setSelectedMeeting(full);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    // Requests from outside (Settings › About). A meeting is fetched by id, as a
+    // search hit is; one that no longer exists (the demo meeting deleted, say)
+    // leaves the Launcher where it is.
+    const [searchOpenRequest, setSearchOpenRequest] = useState(0);
+    const [reminderDraftRequest, setReminderDraftRequest] = useState<{ event: AssistEvent; kind: 'running_late' | 'no_show' | 'reschedule'; seq: number } | null>(null);
+    const handledRequest = useRef(request?.seq ?? 0);
+    useEffect(() => {
+        if (!request || request.seq === handledRequest.current) return;
+        handledRequest.current = request.seq;
+        if (request.kind === 'search') setSearchOpenRequest(request.seq);
+        else if (request.kind === 'reminder-draft') {
+            setSelectedMeeting(null);
+            setSelectedMomentMs(null);
+            setIsGlobalChatOpen(false);
+            setReminderDraftRequest({ event: request.event, kind: request.draftKind, seq: request.seq });
+        }
+        else void openMeetingAtMoment(request.id);
+        // openMeetingAtMoment only reads setters and the IPC bridge.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [request]);
+
+    // Helper to format duration to mm:ss or mmm:ss
+    // Helper to format duration to mm:ss or mmm:ss
+    const formatDurationPill = (durationStr: string) => {
+        if (!durationStr) return "00:00";
+
+        // Check if it's already in colon format (e.g. "5:30", "105:20")
+        if (durationStr.includes(':')) {
+            const parts = durationStr.split(':');
+            const mins = parts[0];
+            const secs = parts[1] || "00";
+
+            // Allow 3 digits for mins if >= 100, otherwise pad to 2
+            const formattedMins = mins.length >= 3 ? mins : mins.padStart(2, '0');
+            return `${formattedMins}:${secs}`;
+        }
+
+        // Fallback for "X min" format (legacy)
+        const minutes = parseInt(durationStr.replace('min', '').trim()) || 0;
+        const mm = minutes.toString().padStart(2, '0');
+        return `${mm}:00`;
+    };
+
+    // ── List ⇄ meeting-notes navigation transition ─────────────────────────────
+    // Cover/uncover model: the details panel is ALWAYS the upper layer (z-20) and
+    // the list is ALWAYS the lower layer (z-10). The list never moves laterally,
+    // it only recedes by scaling *up* past the clip box. Scaling up (rather than
+    // the usual iOS scale down) is deliberate: the container clips the overflow,
+    // so no edge of the window is ever uncovered mid-transition — important
+    // because this is a transparent Electron surface where an uncovered edge is a
+    // hole to the desktop, not a background colour.
+    //
+    // Because direction is decided by *which layer mounts*, not by which meeting
+    // is selected, handleOpenMeeting / handleBack both produce the
+    // correct motion with no direction state to keep in sync.
+    //
+    // The details layer is split in two, and that split is the whole reason this
+    // reads as smooth. Fading one combined panel from opacity 0 meant the list
+    // stayed legible *through* the notes for the length of the fade — you read
+    // two documents stacked on each other, gradient promo card and all. Instead:
+    //
+    //   1. a veil painted in the meeting-notes grey covers the list first, fast.
+    //      A flat colour fading over content reads as a surface arriving; it has
+    //      no text of its own to ghost against.
+    //   2. the notes content settles onto that already-opaque surface. Because
+    //      MeetingDetails' own root is painted the SAME grey, fading the content
+    //      only ever fades the *text* — the background never flickers, and the
+    //      20px the content travels only ever uncovers more of the same colour.
+    const prefersReducedMotion = useReducedMotion();
+    // iOS/Ionic panel curve — strong ease-out, no overshoot. Used for the parts
+    // that are mechanical rather than expressive: the veil landing and lifting.
+    const NAV_EASE: [number, number, number, number] = [0.32, 0.72, 0, 1];
+
+    // Apple states its springs as duration + bounce rather than stiffness and
+    // damping, and this is the reason the motion reads as an object settling
+    // rather than a value being tweened: a spring decelerates asymmetrically and
+    // keeps a trace of momentum right at the end, where a bezier simply stops.
+    // Bounce stays near zero — a full-window surface that overshoots reads as
+    // sloppy, not playful. What is wanted is the settle, not the wobble.
+    const SETTLE = { type: 'spring' as const, duration: 0.62, bounce: 0.05 };
+    // Leaving is the system getting out of the way, so it is quicker and has no
+    // bounce at all.
+    const RELEASE = { type: 'spring' as const, duration: 0.46, bounce: 0 };
+
+    // Exactly the token MeetingDetails paints its own root with. If these two
+    // ever disagree the seam becomes visible as a tint shift mid-transition.
+    const NOTES_SURFACE = isLight ? 'bg-bg-secondary' : 'bg-bg-elevated';
+
+    // Nothing visual — this only carries the variant labels down to the two
+    // layers below and takes the panel out of the hit-testing path on the way out.
+    const panelVariants: Variants = {
+        hidden: {},
+        shown: {},
+        gone: { pointerEvents: 'none' },
+    };
+
+    // The grey. Deliberately NOT slowed along with everything else: it is the
+    // mechanical half of the transition, and it is also the thing standing
+    // between the notes and the list. It reaches full opacity around 160ms, and
+    // every frame after that the list is completely hidden — so time spent
+    // beyond this point would be spent on something nobody can see, while time
+    // added *before* it would put the list back underneath the notes text.
+    const veilVariants: Variants = prefersReducedMotion
+        ? {
+            hidden: { opacity: 0 },
+            shown: { opacity: 1, transition: { duration: 0.16, ease: 'linear' } },
+            gone: { opacity: 0, transition: { duration: 0.16, ease: 'linear' } },
+        }
+        : {
+            hidden: { opacity: 0 },
+            shown: { opacity: 1, transition: { duration: 0.16, ease: 'easeOut' } },
+            // Lingers well past the text, then lifts. Leaving in the other order
+            // would flash the list behind still-legible notes.
+            gone: { opacity: 0, transition: { duration: 0.3, ease: NAV_EASE, delay: 0.18 } },
+        };
+
+    // The notes. This is where the length lives — the part worth watching.
+    //
+    // The delay is tuned to one invariant, verified frame by frame: content must
+    // never be legible while the list still is. Whenever content opacity is above
+    // ~0.05, veil opacity is already above ~0.97.
+    //
+    // The scale is what separates this from a slide. Coming forward from 0.985
+    // while travelling the last 28px reads as the page arriving in depth rather
+    // than sliding along a rail; at full size the difference is a couple of
+    // pixels of text, which is exactly the amount you feel without seeing.
+    const contentVariants: Variants = prefersReducedMotion
+        ? {
+            hidden: { opacity: 0 },
+            shown: { opacity: 1, transition: { duration: 0.16, ease: 'linear', delay: 0.06 } },
+            gone: { opacity: 0, transition: { duration: 0.14, ease: 'linear' } },
+        }
+        : {
+            hidden: { opacity: 0, transform: 'translateX(28px) scale(0.985)' },
+            shown: {
+                opacity: 1,
+                transform: 'translateX(0px) scale(1)',
+                transition: {
+                    opacity: { duration: 0.34, ease: 'easeOut', delay: 0.15 },
+                    transform: SETTLE,
+                },
+            },
+            gone: {
+                opacity: 0,
+                transform: 'translateX(22px) scale(0.99)',
+                transition: {
+                    opacity: { duration: 0.18, ease: 'easeOut' },
+                    transform: RELEASE,
+                },
+            },
+        };
+
+    // The list keeps opacity 1 throughout — it is covered by an opaque surface,
+    // so cross-dissolving it too would only muddy the blend. It recedes a little
+    // further than before (4.5%) and on the same spring as the notes, so coming
+    // back the two halves settle as one movement rather than two.
+    //
+    // Under reduced motion it still needs *something* to animate even though it
+    // must not move: AnimatePresence drops an exiting child as soon as its exit
+    // animation finishes, and an empty target finishes on the first frame —
+    // measured, the list unmounted at 3ms and the veil then faded in over bare
+    // background. The 0.999 is imperceptible and holds the layer for the fade.
+    const listRecede: TargetAndTransition = prefersReducedMotion
+        ? { opacity: 0.999, transition: { duration: 0.16, ease: 'linear' } }
+        : { transform: 'scale(1.045)', transition: RELEASE };
+    const listSettle: TargetAndTransition = prefersReducedMotion
+        ? { opacity: 1, transition: { duration: 0.16, ease: 'linear' } }
+        : { transform: 'scale(1)', transition: SETTLE };
+
+    // After every hook: an early return above them would change the hook count between renders.
+    if (!window.electronAPI) {
+        return <div className="text-white p-10">Error: Electron API not initialized. Check preload script.</div>;
+    }
+
+    return (
+        <div className="h-full w-full flex flex-col bg-bg-primary text-text-primary font-sans overflow-hidden selection:bg-accent-secondary/30">
+            {/* 1. Header (Static) */}
+            <header className={`relative w-full h-[40px] shrink-0 flex items-center justify-between pl-0 drag-region select-none ${isLight ? 'bg-bg-primary' : 'bg-bg-secondary'} border-b border-border-subtle z-[200]`}>
+
+                {/* Center: Spotlight-style Search Pill */}
+                <TopSearchPill
+                    meetings={meetings}
+                    openRequest={searchOpenRequest}
+                    onAIQuery={(query) => {
+                        analytics.trackCommandExecuted('ai_query_search');
+                        emitOrchestratorEvent({ type: 'turn:done', surface: 'chat' });
+                        setSubmittedGlobalQuery(query);
+                        setIsGlobalChatOpen(true);
+                    }}
+                    onLiteralSearch={(query) => {
+                        analytics.trackCommandExecuted('literal_search');
+                        emitOrchestratorEvent({ type: 'turn:done', surface: 'chat' });
+                        // GLOBAL SEARCH V2 (Phase 9): real local-DB literal search behind
+                        // global_search_v2_enabled. When enabled and there's a match, open
+                        // the top-ranked meeting directly. Otherwise fall back to the
+                        // existing AI-query behavior (preserved). The backend returns
+                        // { enabled:false } when the flag is off, so this is a pure no-op then.
+                        // The handler stays synchronous (prop is `(q) => void`); the await
+                        // runs in an inner IIFE so we never return a floating Promise to the
+                        // event-handler prop.
+                        const runFallback = () => {
+                            setSubmittedGlobalQuery(query);
+                            setIsGlobalChatOpen(true);
+                        };
+                        void (async () => {
+                            try {
+                                const resp = await window.electronAPI.searchGlobalMeetings?.(query);
+                                if (resp?.enabled && Array.isArray(resp.results)) {
+                                    // Best hit that is a real meeting (long-term-memory hits
+                                    // carry a synthetic id), opened at the matching line.
+                                    const top = resp.results.find((r: any) => typeof r?.meetingId === 'string' && !r.meetingId.startsWith('hindsight:'));
+                                    if (top && await openMeetingAtMoment(top.meetingId, top.timestampMs)) {
+                                        analytics.trackCommandExecuted('open_meeting_from_search');
+                                        return;
+                                    }
+                                }
+                            } catch (_) { /* fall through to AI query */ }
+                            runFallback();
+                        })();
+                    }}
+                    onOpenMeeting={(meetingId) => {
+                        const meeting = meetings.find(m => m.id === meetingId);
+                        if (meeting) {
+                            handleOpenMeeting(meeting);
+                            analytics.trackCommandExecuted('open_meeting_from_search');
+                            return;
+                        }
+                        // A long-term memory can link to a meeting older than the 50
+                        // this list holds — open that one by id.
+                        void openMeetingAtMoment(meetingId).then((opened) => {
+                            if (opened) analytics.trackCommandExecuted('open_meeting_from_search');
+                        });
+                    }}
+                />
+
+                {/* Right: Actions */}
+                {/* ml-auto: sole in-flow child now that the nav arrows are gone (the pill is absolute). */}
+                <div className={`ml-auto flex items-center gap-1 no-drag shrink-0 ${isMac ? 'mr-1' : ''}`}>
+                    <div className="relative group/profile-btn select-none">
+                        <button
+                            data-testid="open-profile-intelligence"
+                            onClick={() => {
+                                setShowProfileOnboarding(false);
+                                localStorage.setItem('natively_seen_profile_onboarding_v1', 'true');
+                                window.electronAPI?.onboardingSetFlag?.('seenProfileOnboarding', true).catch(() => {});
+                                onOpenProfile?.();
+                            }}
+                            title={t("Profile Intelligence")}
+                            className={`p-2 text-text-secondary hover:text-text-primary transition-all duration-300 ${isLight ? 'hover:drop-shadow-[0_0_6px_rgba(0,0,0,0.25)]' : 'hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'}`}
+                        >
+                            <ProfileIntelligenceIcon size={18} />
+                        </button>
+                        
+                        <AnimatePresence>
+                            {showProfileOnboarding && (
+                                <motion.div
+                                    key="profile-onboarding-pill"
+                                    initial={{ opacity: 0, y: 6, scale: 0.96, filter: "blur(4px)" }}
+                                    animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                                    exit={{ opacity: 0, y: -2, scale: 0.98, filter: "blur(2px)", transition: { duration: 0.15, ease: "easeOut" } }}
+                                    transition={{ type: "spring", stiffness: 350, damping: 25, mass: 1 }}
+                                    className={`absolute top-[38px] right-2 w-[270px] rounded-[20px] p-4 z-[300] origin-top-right backdrop-blur-[40px] saturate-[180%] transform-gpu ${
+                                        isLight 
+                                        ? 'bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)]' 
+                                        : 'bg-[#18181A]/70 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.08)]'
+                                    }`}
+                                >
+                                    {/* Triangle Pointer */}
+                                    <div className={`absolute -top-[5px] right-[14px] w-2.5 h-2.5 rotate-45 rounded-tl-[3px] ${
+                                        isLight 
+                                        ? 'bg-white/70 border-t border-l border-black/5 backdrop-blur-[40px]' 
+                                        : 'bg-[#18181A]/70 border-t border-l border-white/5 backdrop-blur-[40px]'
+                                    }`} />
+                                    
+                                    <div className="relative flex gap-3">
+                                        <div className={`w-9 h-9 flex items-center justify-center shrink-0 rounded-full ${
+                                            isLight
+                                            ? 'bg-blue-500 bg-opacity-10 text-blue-500'
+                                            : 'bg-blue-500 bg-opacity-15 text-blue-400'
+                                        }`}>
+                                            <ProfileIntelligenceIcon size={18} />
+                                        </div>
+                                        <div className="flex-1 pt-[2px]">
+                                            <h3 className="text-[14px] font-semibold tracking-[-0.015em] mb-1 flex items-center gap-2">
+                                                <span className={isLight ? 'text-slate-900' : 'text-slate-100'}>{t('Profile Intel')}</span>
+                                            </h3>
+                                            <p className={`text-[12px] leading-[1.35] mb-3.5 tracking-[-0.01em] ${
+                                                isLight ? 'text-slate-500' : 'text-slate-400'
+                                            }`}>
+                                                {t('Manage your persona, career history, and active job description.')}
+                                            </p>
+                                            <div className="flex justify-end gap-1.5 isolate">
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        setShowProfileOnboarding(false); 
+                                                        localStorage.setItem('natively_seen_profile_onboarding_v1', 'true'); 
+                                                        window.electronAPI?.onboardingSetFlag?.('seenProfileOnboarding', true).catch(() => {});
+                                                    }}
+                                                    className={`text-[12px] font-medium px-3.5 py-[6px] rounded-full transition-all active:scale-95 ${
+                                                        isLight
+                                                        ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+                                                        : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {t('Dismiss')}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onOpenProfile?.();
+                                                        setShowProfileOnboarding(false);
+                                                        localStorage.setItem('natively_seen_profile_onboarding_v1', 'true');
+                                                        window.electronAPI?.onboardingSetFlag?.('seenProfileOnboarding', true).catch(() => {});
+                                                    }}
+                                                    className={`text-[12px] font-medium px-4 py-[6px] rounded-full transition-all active:scale-95 shadow-sm ${
+                                                        isLight
+                                                        ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                                        : 'bg-slate-100 text-slate-900 hover:bg-white'
+                                                    }`}
+                                                >
+                                                    {t('Try it out')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                    <div className="relative group/modes-btn select-none">
+                        <button
+                            data-testid="open-modes-manager"
+                            onClick={() => {
+                                setShowModesOnboarding(false);
+                                localStorage.setItem('natively_seen_modes_onboarding_v5', 'true');
+                                window.electronAPI?.onboardingSetFlag?.('seenModesOnboarding', true).catch(() => {});
+                                onOpenModes?.();
+                            }}
+                            title={t("Modes")}
+                            className={`p-2 text-text-secondary hover:text-text-primary transition-all duration-300 ${isLight ? 'hover:drop-shadow-[0_0_6px_rgba(0,0,0,0.25)]' : 'hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'}`}
+                        >
+                            <svg width={18} height={18} viewBox="0 0 14 14" fill="none">
+                                <rect x="1" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                <rect x="7.5" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                <rect x="1" y="7.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.35"/>
+                            </svg>
+                        </button>
+                        
+                        <AnimatePresence>
+                            {showModesOnboarding && (
+                                <motion.div
+                                    key="modes-onboarding-pill"
+                                    initial={{ opacity: 0, y: 6, scale: 0.96, filter: "blur(4px)" }}
+                                    animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                                    exit={{ opacity: 0, y: -2, scale: 0.98, filter: "blur(2px)", transition: { duration: 0.15, ease: "easeOut" } }}
+                                    transition={{ type: "spring", stiffness: 350, damping: 25, mass: 1 }}
+                                    className={`absolute top-[38px] right-2 w-[270px] rounded-[20px] p-4 z-[300] origin-top-right backdrop-blur-[40px] saturate-[180%] transform-gpu ${
+                                        isLight 
+                                        ? 'bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)]' 
+                                        : 'bg-[#18181A]/70 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.08)]'
+                                    }`}
+                                >
+                                    {/* Triangle Pointer */}
+                                    <div className={`absolute -top-[5px] right-[14px] w-2.5 h-2.5 rotate-45 rounded-tl-[3px] ${
+                                        isLight 
+                                        ? 'bg-white/70 border-t border-l border-black/5 backdrop-blur-[40px]' 
+                                        : 'bg-[#18181A]/70 border-t border-l border-white/5 backdrop-blur-[40px]'
+                                    }`} />
+                                    
+                                    <div className="relative flex gap-3">
+                                        <div className={`w-9 h-9 flex items-center justify-center shrink-0 rounded-full ${
+                                            isLight
+                                            ? 'bg-orange-500 bg-opacity-10 text-orange-500'
+                                            : 'bg-orange-500 bg-opacity-15 text-orange-400'
+                                        }`}>
+                                            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+                                                <rect x="1" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                                <rect x="7.5" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                                <rect x="1" y="7.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.9"/>
+                                                <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.4"/>
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1 pt-[2px]">
+                                            <h3 className="text-[14px] font-semibold tracking-[-0.015em] mb-1 flex items-center gap-2">
+                                                <span className={isLight ? 'text-slate-900' : 'text-slate-100'}>{t('Modes')}</span>
+                                                <LiquidGlassBadge variant="sky">{t('Beta')}</LiquidGlassBadge>
+                                            </h3>
+                                            <p className={`text-[12px] leading-[1.35] mb-3.5 tracking-[-0.01em] ${
+                                                isLight ? 'text-slate-500' : 'text-slate-400'
+                                            }`}>
+                                                {t('Custom instructions and formulas designed for different meeting contexts.')}
+                                            </p>
+                                            <div className="flex justify-end gap-1.5 isolate">
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        setShowModesOnboarding(false); 
+                                                        localStorage.setItem('natively_seen_modes_onboarding_v5', 'true'); 
+                                                        window.electronAPI?.onboardingSetFlag?.('seenModesOnboarding', true).catch(() => {});
+                                                    }}
+                                                    className={`text-[12px] font-medium px-3.5 py-[6px] rounded-full transition-all active:scale-95 ${
+                                                        isLight
+                                                        ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+                                                        : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {t('Dismiss')}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onOpenModes?.();
+                                                        setShowModesOnboarding(false); 
+                                                        localStorage.setItem('natively_seen_modes_onboarding_v5', 'true'); 
+                                                        window.electronAPI?.onboardingSetFlag?.('seenModesOnboarding', true).catch(() => {});
+                                                    }}
+                                                    className={`text-[12px] font-medium px-4 py-[6px] rounded-full transition-all active:scale-95 shadow-sm ${
+                                                        isLight
+                                                        ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                                        : 'bg-slate-100 text-slate-900 hover:bg-white'
+                                                    }`}
+                                                >
+                                                    {t('Try it out')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                    <button
+                        onClick={() => {
+                            onOpenSettings();
+                        }}
+                        title={t("Settings")}
+                        className={`p-2 text-text-secondary hover:text-text-primary transition-all duration-300 ${isLight ? 'hover:drop-shadow-[0_0_6px_rgba(0,0,0,0.25)]' : 'hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'}`}
+                    >
+                        <svg width={18} height={18} viewBox="1.2 1.2 21.6 21.6" fill="none">
+                            <path fillRule="evenodd" d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0Z" fill="currentColor" opacity="0.9"/>
+                        </svg>
+                    </button>
+                    {!isMac && <WindowControls />}
+                </div>
+            </header>
+
+            <div className="relative flex-1 flex flex-col overflow-hidden">
+                {!isDetectable && (
+                    <div className={`absolute inset-1 border-2 border-dashed rounded-2xl pointer-events-none z-[100] ${isLight ? 'border-black/15' : 'border-white/20'}`} />
+                )}
+                {/* initial={false} — the panel that is present on first paint must not
+                    animate in: the launcher is opened by a global shortcut many times a
+                    day, and an entrance animation there only makes it feel slower. */}
+                <AnimatePresence initial={false}>
+                    {selectedMeeting ? (
+                        <motion.div
+                            key="details"
+                            data-page="details"
+                            // z-20 is the cover/uncover order (above the list at
+                            // z-10). While the meeting chat is open the page goes
+                            // above the header (z-[200]) and the undetectable ring
+                            // (z-[100]) too: the chat's dim lives in this page, and
+                            // like the dim behind Settings and the toasters it has to
+                            // cover the whole window, header included.
+                            className={`absolute inset-0 overflow-hidden ${meetingChatOpen ? 'z-[250]' : 'z-20'}`}
+                            variants={panelVariants}
+                            initial="hidden"
+                            animate="shown"
+                            exit="gone"
+                        >
+                            {/* The grey, covering the list before any notes text
+                                is legible. Purely a surface — it holds no content,
+                                so there is nothing for the list to ghost against
+                                while it fades. */}
+                            <motion.div
+                                data-layer="veil"
+                                className={`absolute inset-0 ${NOTES_SURFACE}`}
+                                variants={veilVariants}
+                            />
+                            {/* Settles onto the surface above. MeetingDetails paints
+                                its own root the same grey, so the 20px of travel
+                                only ever uncovers more of that same colour. */}
+                            {/* While the meeting chat is open the settled
+                                transform is forced off (!transform-none beats
+                                Framer's inline style). translateX(0) scale(1) is
+                                invisible but still a transform, and a transformed
+                                ancestor is the containing block for every
+                                position:fixed inside it — it cut the chat's
+                                full-window dim to this layer, short of the header.
+                                Not via transitionEnd: Framer then animates the exit
+                                FROM 'none' as if from scale(0), and the page
+                                collapsed to 20% on the way back (measured). Only
+                                while the chat is open, so the exit always starts
+                                from Framer's own identity transform. */}
+                            <motion.div
+                                data-layer="content"
+                                className={`relative h-full w-full ${meetingChatOpen ? '!transform-none' : ''}`}
+                                variants={contentVariants}
+                            >
+                                {/* Keyed by meeting: the page copies its meeting into state once, so
+                                    opening another meeting over an open page (the notes window's
+                                    "Open meeting", a search hit) kept the old page and its Ask. */}
+                                <MeetingDetails
+                                    key={selectedMeeting.id}
+                                    meeting={selectedMeeting}
+                                    initialMomentMs={selectedMomentMs ?? undefined}
+                                    onBack={handleBack}
+                                    onOpenSettings={onOpenSettings}
+                                    onChatOpenChange={setMeetingChatOpen}
+                                    onTitleSaved={fetchMeetings}
+                                />
+                            </motion.div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="launcher"
+                            data-page="launcher"
+                            className="absolute inset-0 z-10 flex flex-col overflow-hidden"
+                            initial={listRecede}
+                            animate={listSettle}
+                            exit={listRecede}
+                        >
+
+                            {/* Main Area - Fixed Top, Scrollable Bottom */}
+                            {/* Top Section is now effectively static due to parent flex col */}
+
+                            {/* TOP SECTION: Grey Background (Scrolls with content) */}
+                            <section className={`${isLight ? 'bg-bg-secondary' : 'bg-bg-elevated'} px-8 pt-6 pb-8 border-b border-border-subtle shrink-0`}>
+                                <div className="max-w-4xl mx-auto space-y-6">
+                                    {/* 1.5. Hero Header (Title + Controls + CTA) */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            {/* The website's and the extension's "natively" wordmark, at the
+                                                navbar's 27px; currentColor, so it follows the theme. */}
+                                            <h1 className="m-0 shrink-0 text-text-primary">
+                                                <NativelyWordmark height={27} className="block" />
+                                            </h1>
+
+                                            {/* Refresh Button */}
+                                            <button
+                                                onClick={handleRefresh}
+                                                disabled={isRefreshing}
+                                                className={`p-2 text-text-secondary hover:text-text-primary rounded-full transition-colors ${isRefreshing ? 'animate-spin text-blue-400' : ''} ${isLight ? 'hover:bg-black/8' : 'hover:bg-white/10'}`}
+                                                title={t("Refresh State")}
+                                            >
+                                                <RefreshCw size={18} />
+                                            </button>
+
+                                            {/* Detectable Toggle Pill */}
+                                            <div className={`flex items-center gap-3 border rounded-full px-3 py-1.5 min-w-[140px] shrink-0 transition-colors ${isLight ? 'bg-bg-elevated border-border-muted shadow-sm' : 'bg-[#101011] border-border-muted'}`}>
+                                                {isDetectable ? (
+                                                    <Ghost
+                                                        size={14}
+                                                        strokeWidth={2}
+                                                        className="text-text-secondary transition-colors shrink-0"
+                                                    />
+                                                ) : (
+                                                    <svg
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        className="transition-colors shrink-0"
+                                                    >
+                                                        <path
+                                                            d="M12 2C7.58172 2 4 5.58172 4 10V22L7 19L9.5 21.5L12 19L14.5 21.5L17 19L20 22V10C20 5.58172 16.4183 2 12 2Z"
+                                                            fill={isLight ? '#48484A' : 'white'}
+                                                        />
+                                                        <circle cx="9" cy="10" r="1.5" fill={isLight ? 'white' : 'black'} />
+                                                        <circle cx="15" cy="10" r="1.5" fill={isLight ? 'white' : 'black'} />
+                                                    </svg>
+                                                )}
+                                                <span className="text-xs font-medium flex-1 transition-colors text-text-secondary">
+                                                    {isDetectable ? t("Detectable") : t("Undetectable")}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    role="switch"
+                                                    data-on={String(!isDetectable)}
+                                                    aria-checked={!isDetectable}
+                                                    aria-label={t("Undetectable")}
+                                                    onClick={() => { detectableToggleInit.arm(); toggleDetectable(); }}
+                                                    className={`t-toggle t-toggle-xs w-8 h-4 rounded-full p-0.5 flex items-center shrink-0 cursor-pointer ${!isDetectable ? 'bg-accent-primary' : 'bg-bg-toggle-switch'} ${detectableToggleInit.className}`}
+                                                >
+                                                    <span className="t-toggle-thumb" aria-hidden="true" />
+                                                </button>
+                                             </div>
+
+                                             {/* What's New Pill */}
+                                             {launchCount < 10 && (
+                                                 <button
+                                                     onClick={() => onOpenSettings('about')}
+                                                     className={`flex items-center gap-1 border rounded-full px-3 py-1.5 transition-all duration-200 cursor-pointer active:scale-95 text-xs font-semibold shrink-0 select-none group ${
+                                                         isLight 
+                                                             ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 text-emerald-600' 
+                                                             : 'bg-emerald-400/10 hover:bg-emerald-400/20 border-emerald-500/20 text-emerald-400'
+                                                     }`}
+                                                 >
+                                                     <span>{`${t("What's New in")} v${APP_FEATURE_VERSION}`}</span>
+                                                     <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                                 </button>
+                                             )}
+                                         </div>
+                                         {/* Center: Ollama Pull Status Pill (flex-1 to center evenly) */}
+                                        <div className="flex-1 flex justify-center mx-4">
+                                            <AnimatePresence>
+                                                {ollamaPullStatus !== 'idle' && (
+                                                    <motion.div
+                                                        key="ollama-pull-pill"
+                                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                                        className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl ${isLight ? 'bg-bg-elevated border border-border-muted shadow-[0_4px_16px_rgba(0,0,0,0.1)]' : 'bg-bg-elevated/80 border border-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.3)]'}`}
+                                                    >
+                                                        {ollamaPullStatus === 'downloading' ? (
+                                                            <DownloadCloud size={14} className="text-blue-400 animate-pulse shrink-0" />
+                                                        ) : ollamaPullStatus === 'complete' ? (
+                                                            <CheckCircle size={14} className="text-emerald-400 shrink-0" />
+                                                        ) : (
+                                                            <AlertCircle size={14} className="text-red-400 shrink-0" />
+                                                        )}
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[11px] font-medium text-text-secondary whitespace-nowrap">
+                                                                {ollamaPullStatus === 'downloading' ? `${t('Setting up AI memory...')} ${ollamaPullPercent}%` : ollamaPullMessage}
+                                                            </span>
+                                                            {ollamaPullStatus === 'downloading' && (
+                                                                <div className="w-full h-[3px] bg-white/10 rounded-full mt-1 overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                                                                        style={{ width: `${ollamaPullPercent}%` }}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+
+                                        {/* Unified CTA pill — plain <button> (no `layout`, no `initial`) so both
+                                            the pill AND its label appear in their final position on mount with
+                                            no fly-in or fade-up. The label swap (idle ↔ meeting-active) still
+                                            crossfades via AnimatePresence mode="wait" — exit 0.14s, enter 0.22s
+                                            with apple-ease — which reads as a soft label change, not a fly. */}
+                                        <button
+                                            onClick={() => {
+                                                if (isMeetingActive) {
+                                                    // inactive=true: overlay appears on top but doesn't activate
+                                                    // the Natively app or steal OS focus — preserves stealth.
+                                                    // setWindowMode (not showWindow) is required because
+                                                    // logo-click set currentWindowMode='launcher', so showWindow()
+                                                    // would re-show the launcher rather than switch to overlay.
+                                                    window.electronAPI?.setWindowMode?.('overlay', true);
+                                                    analytics.trackCommandExecuted('resume_meeting_from_launcher');
+                                                } else {
+                                                    emitOrchestratorEvent({ type: 'turn:done', surface: 'meeting' });
+                                                    onStartMeeting();
+                                                    analytics.trackCommandExecuted('start_natively_cta');
+                                                }
+                                            }}
+                                            className="launcher-cta relative overflow-hidden text-white px-6 py-3 rounded-full font-celeb font-medium tracking-normal flex items-center justify-center gap-3 backdrop-blur-xl shrink-0"
+                                            // Hover, press and the shadow all live in LauncherCta.css. Only the
+                                            // bloom colour is set here: no inline `transition`, which would
+                                            // override the stylesheet's and make the hover jump again.
+                                            style={{
+                                                '--cta-glow': isMeetingActive ? '16, 185, 129' : '14, 165, 233',
+                                                '--cta-glow-a': isMeetingActive ? '0.45' : '0.4',
+                                            } as React.CSSProperties}
+                                        >
+                                            {/* Blue gradient layer (idle) */}
+                                            <div
+                                                className="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-500 to-blue-600 transition-opacity duration-[360ms] ease-apple-ease"
+                                                style={{ opacity: isMeetingActive ? 0 : 1 }}
+                                            />
+                                            {/* Green gradient layer (meeting active) */}
+                                            <div
+                                                className="absolute inset-0 bg-gradient-to-b from-emerald-400 via-emerald-500 to-green-600 transition-opacity duration-[360ms] ease-apple-ease"
+                                                style={{ opacity: isMeetingActive ? 1 : 0 }}
+                                            />
+
+                                            {/* Top highlight band — shared between both states */}
+                                            <div className="absolute inset-x-3 top-0 h-[40%] bg-gradient-to-b from-white/40 to-transparent blur-[2px] rounded-b-lg opacity-80 pointer-events-none z-10" />
+                                            {/* Internal suspended-light hover glow */}
+                                            <div className="launcher-cta-light absolute inset-0 pointer-events-none z-10" />
+
+                                            {/* Button content — crossfade between idle and meeting states.
+                                                popLayout pops the exiting block out of flow the instant it starts
+                                                exiting, so the button's `layout` resize isn't blocked waiting on the
+                                                220ms exit fade to finish — shape and content move together instead
+                                                of resize-then-fade. `layout` on each variant div prevents the text
+                                                from visibly stretching/squishing while the parent's width tweens. */}
+                                            <div className="relative z-20 flex items-center gap-3">
+                                                <AnimatePresence mode="wait" initial={false}>
+                                                    {isMeetingActive ? (
+                                                        <motion.div
+                                                            key="meeting"
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            exit={{ opacity: 0, transition: { duration: 0.14, ease: [0.25, 1, 0.5, 1] } }}
+                                                            transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                                                            className="flex items-center gap-3"
+                                                        >
+                                                            {/* Ping live-indicator dot */}
+                                                            <span className="relative flex h-[9px] w-[9px] shrink-0">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                                                                <span className="relative inline-flex rounded-full h-[9px] w-[9px] bg-white" />
+                                                            </span>
+                                                            <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] text-[20px] leading-none">
+                                                                {t('Meeting ongoing')}
+                                                            </span>
+                                                        </motion.div>
+                                                    ) : (
+                                                        <motion.div
+                                                            key="start"
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            exit={{ opacity: 0, transition: { duration: 0.14, ease: [0.25, 1, 0.5, 1] } }}
+                                                            transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                                                            className="flex items-center gap-3"
+                                                        >
+                                                            {/* The brand mark (brand/natively-mark-white.svg) drawn
+                                                                inline: its ring and strokes are heavier than icon.png's,
+                                                                which read thin at 18px on this button. icon.png stays
+                                                                as it is for the other screens that use it. */}
+                                                            <svg
+                                                                viewBox="106 106 812 812" aria-hidden
+                                                                className="w-[18px] h-[18px] shrink-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)] opacity-90"
+                                                            >
+                                                                <path fill="currentColor" d="M512 106 A406 406 0 1 1 512 918 A406 406 0 1 1 512 106 Z M512 181 A331 331 0 1 0 512 843 A331 331 0 1 0 512 181 Z M288 194.91 H363 V829.09 H288 Z M661 194.91 H736 V829.09 H661 Z M269.75 211 L359.44 211 L754.25 813 L664.56 813 Z" />
+                                                            </svg>
+                                                            <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] text-[20px] leading-none">
+                                                                {t('Start Natively')}
+                                                            </span>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    {/* 2. Hero Section Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-[198px]">
+                                        {/* Default Intro — natively support & upcoming features.
+                                            Calendar "Up Next" lives in Settings → Calendar, not here. */}
+                                        <div className="md:col-span-2 h-full">
+                                            <FeatureSpotlight />
+                                        </div>
+
+
+
+                                        {/* Right Secondary Card — violet-tinted, "Calendar Connected" + peeking next meeting */}
+                                        <UpcomingCalendarCard
+                                            className="md:col-span-1"
+                                            isConnected={isCalendarConnected}
+                                            // Re-fetch: the events loaded at mount were fetched before the
+                                            // connection existed, so the card would stay empty until a Refresh.
+                                            onConnect={(info) => { setIsCalendarConnected(true); if (info.fresh) setEventsLoaded(false); fetchEvents(); void warmCalendarSnapshot(window.electronAPI); }}
+                                            meetings={visibleMeetings}
+                                            totalCount={upcomingMeetings.length}
+                                            loading={!eventsLoaded}
+                                            onOpenSettings={() => onOpenSettings('calendar')}
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* BOTTOM SECTION: Black Background (Scrollable content) */}
+                            <main className="flex-1 overflow-y-auto custom-scrollbar bg-bg-primary">
+                                <section className="px-8 py-8 min-h-full">
+                                    <div className="max-w-4xl mx-auto space-y-8">
+
+                                        {/* The list holds meeting names only. The one thing above it is
+                                            the calendar reminder's "Running late" draft, shown only when
+                                            the reminder asks for it (assist/AssistToday). */}
+                                        <AssistToday
+                                            isLight={isLight}
+                                            draftRequest={reminderDraftRequest}
+                                        />
+
+                                        {/* Iterating Date Groups */}
+                                        {sortedGroups.map((label) => (
+                                            <section key={label}>
+                                                <h3 className="text-[13px] font-medium text-text-secondary mb-3 pl-1">{label}</h3>
+                                                <div className="space-y-1">
+                                                    {/* A deleted row fades and folds its height away (a close:
+                                                        --duration-fast on --ease-smooth-out) so the rows below
+                                                        slide up instead of jumping. Reduced motion just fades. */}
+                                                    <AnimatePresence initial={false}>
+                                                    {groupedMeetings[label].map((m) => (
+                                                        <motion.div
+                                                            key={m.id}
+                                                            layoutId={`meeting-${m.id}`}
+                                                            exit={prefersReducedMotion
+                                                                ? { opacity: 0, pointerEvents: 'none', transition: { duration: 0.15 } }
+                                                                : { opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, pointerEvents: 'none', transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
+                                                            className="group relative flex items-center justify-between px-3 py-2 rounded-lg bg-transparent hover:bg-bg-elevated transition-colors overflow-hidden"
+                                                            onClick={() => handleOpenMeeting(m)}
+                                                        >
+                                                            <div className={`font-medium text-[14px] max-w-[60%] truncate ${m.title === 'Processing...' ? 'text-blue-400 italic animate-pulse' : 'text-text-primary'}`}>
+                                                                {plainMeetingTitle(m.title)}
+                                                            </div>
+
+                                                            {/* Time & Duration Section */}
+                                                            <div className="flex items-center gap-4">
+                                                                {m.title === 'Processing...' ? (
+                                                                    <div className="flex items-center gap-2 transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
+                                                                        <RefreshCw size={12} className="animate-spin text-blue-500" />
+                                                                        <span className="text-xs text-blue-500 font-medium">{t('Finalizing...')}</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="relative z-10 bg-bg-elevated text-text-secondary text-[9px] px-1.5 py-0.5 rounded-full font-medium min-w-[35px] text-center tracking-wide">
+                                                                            {formatDurationPill(m.duration)}
+                                                                        </span>
+
+                                                                        {/* Time Text (Should fade out on hover) */}
+                                                                        <span className="text-[13px] text-text-secondary font-medium min-w-[60px] text-right transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
+                                                                            {formatTime(m.date)}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Delete (slides in on hover). Export lives inside the meeting
+                                                                note, so the row only carries delete, and one click deletes.
+                                                                Hover-in is a 250ms slide from 8px with a 2px blur while the
+                                                                time steps 4px aside in 150ms; hover-out is a quick 150ms
+                                                                with no blur so it gets out of the way. */}
+                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 translate-x-2 blur-[2px] transition-[opacity,transform,filter] duration-150 ease-sculpted group-hover:duration-[250ms] group-hover:opacity-100 group-hover:translate-x-0 group-hover:blur-0 motion-reduce:translate-x-0 motion-reduce:blur-0">
+                                                                <button
+                                                                    className={`h-[23px] px-3 rounded-full text-[12px] font-medium leading-none whitespace-nowrap text-text-secondary transition-[color,background-color,transform] duration-150 ease-sculpted active:scale-[0.96] motion-reduce:active:scale-100 ${isLight ? 'bg-black/[0.05] hover:bg-red-500/10 hover:text-red-500' : 'bg-white/[0.08] hover:bg-red-500/15 hover:text-red-400'}`}
+                                                                    onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        if (window.electronAPI && window.electronAPI.deleteMeeting) {
+                                                                            const success = await window.electronAPI.deleteMeeting(m.id);
+                                                                            if (success) {
+                                                                                setMeetings(prev => prev.filter(meeting => meeting.id !== m.id));
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {t('Delete')}
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </section>
+                                        ))}
+
+                                        {meetings.length === 0 && (
+                                            <div className="p-4 text-text-tertiary text-sm">{t('No recent meetings.')}</div>
+                                        )}
+
+                                    </div>
+                                </section>
+                            </main>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+
+
+            {/* Notification Toast - Liquid Glass (macOS 26 Tahoe Concept) */}
+            <AnimatePresence>
+                {showNotification && (
+                    <motion.div
+                        key="refresh-toast"
+                        // The corner notices' slide (genieMotion.mjs SLIDE, where the
+                        // numbers are explained): in from past the right edge, seen
+                        // travelling; out as a swipe that is fastest at the edge.
+                        // The travel is the toast's own width plus its 40px inset, so
+                        // a long translation still starts and ends past the edge.
+                        // Reduced motion: the plain fade, in place.
+                        initial={prefersReducedMotion ? { opacity: 0 } : { x: 'calc(100% + 40px)', opacity: 0, filter: 'blur(2px)' }}
+                        animate={prefersReducedMotion
+                            ? { opacity: 1, transition: { duration: 0.15, ease: 'linear' } }
+                            : { x: 'calc(0% + 0px)', opacity: 1, filter: 'blur(0px)', transition: { x: { duration: 0.5, ease: [0.33, 1, 0.68, 1] }, opacity: { duration: 0.25, ease: [0.33, 1, 0.68, 1] }, filter: { duration: 0.35, ease: [0.33, 1, 0.68, 1] } } }}
+                        exit={prefersReducedMotion
+                            ? { opacity: 0, transition: { duration: 0.15, ease: 'linear' } }
+                            : { x: 'calc(100% + 40px)', opacity: 0, filter: 'blur(2px)', transition: { x: { duration: 0.4, ease: [0.4, 0.2, 1, 0.8] }, opacity: { duration: 0.4, ease: [0.7, 0, 1, 1] }, filter: { duration: 0.4, ease: [0.7, 0, 1, 1] } } }}
+                        className={`fixed bottom-10 right-10 z-[2000] flex items-center gap-4 pl-4 pr-6 py-3.5 rounded-[18px] backdrop-blur-xl saturate-[180%] ring-1 ring-black/10 ${isLight ? 'bg-bg-elevated/90 border border-border-muted shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.9)]' : 'bg-[#2A2A2E]/40 border border-white/10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(255,255,255,0.05)]'}`}
+                    >
+                        {/* Liquid Icon Orb */}
+                        <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-b from-blue-400/20 to-blue-600/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] border border-white/5">
+                            <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-md" />
+                            {/* Light: a darker blue and no glow, as ProviderChangeNotice's ORB does;
+                                the dark theme's pale blue-300 vanished into the pale disc. */}
+                            <RefreshCw size={15} className={`relative animate-[spin_2s_linear_infinite] ${isLight ? 'text-blue-600' : 'text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.6)]'}`} />
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[14px] font-semibold text-text-primary leading-none tracking-tight">{t('Refreshed')}</span>
+                            <span className="text-[11px] text-text-tertiary font-medium leading-none tracking-wide">{t('Synced with calendar')}</span>
+                        </div>
+
+                        {/* Specular Highlight Overlay */}
+                        <div className="absolute inset-0 rounded-[18px] bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Global Chat Overlay */}
+            <GlobalChatOverlay
+                isOpen={isGlobalChatOpen}
+                onClose={() => {
+                    setIsGlobalChatOpen(false);
+                    setSubmittedGlobalQuery('');
+                }}
+                initialQuery={submittedGlobalQuery}
+            />
+
+        </div >
+    );
+};
+
+export default Launcher;
