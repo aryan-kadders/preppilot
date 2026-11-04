@@ -61,11 +61,11 @@ export function dictationNotice(kind: DictationNoticeKind, platform: string, acc
         case 'nothing-heard':
             return { title: 'Nothing to copy', body: 'No speech was heard. Check your microphone in Settings › Audio.' };
         case 'meeting-running':
-            return { title: 'Dictation is off during a meeting', body: 'Natively is using your microphone for the meeting. Try again after it ends.' };
+            return { title: 'Dictation is off during a meeting', body: 'PrepPilot is using your microphone for the meeting. Try again after it ends.' };
         case 'no-provider':
             return { title: 'Dictation needs a speech provider', body: 'Choose one in Settings › Audio.' };
         case 'mic-failed':
-            return { title: 'Couldn\'t use your microphone', body: 'Check the microphone in Settings › Audio and that Natively may use it.' };
+            return { title: 'Couldn\'t use your microphone', body: 'Check the microphone in Settings › Audio and that PrepPilot may use it.' };
         case 'transcribe-failed':
             return { title: 'Couldn\'t transcribe that', body: 'Your speech provider didn\'t answer. Check it in Settings › Audio.' };
         case 'busy':

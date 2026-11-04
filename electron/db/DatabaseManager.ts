@@ -5086,7 +5086,7 @@ support@heynatively.com`;
 
         const demoMeeting: Meeting = {
             id: demoId,
-            title: "Natively Demo & Guide",
+            title: "PrepPilot Demo & Guide",
             date: today.toISOString(),
             duration: "5:00",
             summary: "Complete guide to using Natively - your real-time AI meeting assistant.",
@@ -5168,7 +5168,7 @@ support@heynatively.com`;
                 followUpDraft: {
                     type: 'email',
                     subject: "Getting started with Natively",
-                    body: "Hi there,\n\nThanks for trying Natively! A quick recap: start a session from the dashboard, use the five quick actions during your call, and press Cmd + B to hide the widget anytime. Notes, transcript, and follow-ups are waiting for you after every meeting.\n\nBest,\nThe Natively team",
+                    body: "Hi there,\n\nThanks for trying PrepPilot! A quick recap: start a session from the dashboard, use the five quick actions during your call, and press Cmd + B to hide the widget anytime. Notes, transcript, and follow-ups are waiting for you after every meeting.\n\nBest,\nThe PrepPilot team",
                     tone: 'professional',
                 },
             },

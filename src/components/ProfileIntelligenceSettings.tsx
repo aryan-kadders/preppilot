@@ -928,7 +928,7 @@ const PI_CSS = `
     /*
       The panel's primary actions (Open Identity, Analyse Role, Research Now,
       Generate Letter, and Role Insight's out-of-date Re-analyse) are the
-      onboarding's "Start using Natively" glass: variant="lavender" + .lg-sm
+      onboarding's "Start using PrepPilot" glass: variant="lavender" + .lg-sm
       .lg-wide, fed the same per-theme colours. The values are a COPY of
       WELCOME_BUTTON_TOKENS (src/components/onboarding/welcomeButtonTokens.ts),
       written out here because this stylesheet is read as plain text by the

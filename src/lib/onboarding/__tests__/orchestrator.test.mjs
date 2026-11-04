@@ -138,15 +138,6 @@ test('linux user: browser_extension skipped, profile_intelligence downstream sta
   assert.equal(shouldShowToaster(stageById['profile_intelligence'], ctxProfile), true);
 });
 
-test('skipped prerequisite: natively_api_new fires even if browser_extension was skipped', () => {
-  const completed = { permissions: 1, profile_intelligence: 3, modes_manager: 4 };
-  const skippedSet = new Set(['browser_extension']);
-  // Someone whose trial is used and who still has no AI of their own.
-  const userState = { ...DEFAULT_USER_STATE, trialClaimed: true, adsAvailable: true };
-  const ctx = makeCtx({ completed, skipped: skippedSet, userState, homepageMountedFor: 7_000 });
-  assert.equal(shouldShowToaster(stageById['natively_api_new'], ctx), true);
-});
-
 test('homepageMountedFor only matters when homepageCurrentlyMounted', () => {
   // If homepage is unmounted, all stages with requiresHomepageMounted fail
   const ctx = makeCtx({

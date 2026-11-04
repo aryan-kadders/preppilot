@@ -31,8 +31,8 @@ export const FollowMicDeviceSettings: React.FC = () => {
             icon={<Headphones size={20} />}
             title={t("Use the meeting app's microphone")}
             description={enabled
-                ? t('On from your next meeting. When you have not chosen a microphone yourself, Natively records from the one the call app is using.')
-                : t('Off. Natively records from your chosen microphone, or the system default.')}
+                ? t('On from your next meeting. When you have not chosen a microphone yourself, PrepPilot records from the one the call app is using.')
+                : t('Off. PrepPilot records from your chosen microphone, or the system default.')}
             descriptionKey={enabled ? 'on' : 'off'}
             control={<SettingsSwitch checked={enabled} onChange={() => void toggle()} label={t("Use the meeting app's microphone")} />}
         />

@@ -2406,7 +2406,7 @@ const MeetingDetails: React.FC<MeetingDetailsProps> = ({ meeting: initialMeeting
     const resumeProblem = (code?: string): string => (
         code === 'meeting-running' ? t('Stop the meeting that is running first.')
             : code === 'not-found' ? t('This meeting could not be found.')
-                    : code === 'mic-permission-denied' ? t('Natively needs microphone access to record.')
+                    : code === 'mic-permission-denied' ? t('PrepPilot needs microphone access to record.')
                         : t('Could not resume this meeting.')
     );
     // Overlay meetings resume here; a notepad meeting resumes in the notepad (and

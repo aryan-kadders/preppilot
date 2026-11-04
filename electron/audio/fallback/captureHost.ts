@@ -207,7 +207,7 @@ class CaptureHost {
       skipTaskbar: true,
       focusable: false,
       paintWhenInitiallyHidden: false,
-      title: 'Natively audio',
+      title: 'PrepPilot audio',
       webPreferences: {
         preload: path.join(dir, 'captureWindowPreload.js'),
         partition: PARTITION,

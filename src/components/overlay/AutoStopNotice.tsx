@@ -66,7 +66,7 @@ export const AutoStopNoticeBanner: React.FC<{ notice: MeetingAutoStopNotice }> =
       className="mx-4"
       tone="warning"
       icon={<Timer strokeWidth={2.2} />}
-      message={t('Natively stops in 1 minute because nothing has been said.')}
+      message={t('PrepPilot stops in 1 minute because nothing has been said.')}
       actions={
         <OverlayBannerButton variant="primary" onClick={notice.keepGoing}>
           {t('Keep going')}

@@ -38,7 +38,7 @@ function englishStrings() {
 
 test('the scan finds the strings it should', () => {
   const found = englishStrings();
-  for (const s of ['Welcome to Natively', 'Step {n} of {total}', 'Get the answer', 'What should I say?', 'Thinking', '{n} screenshots attached']) {
+  for (const s of ['Welcome to PrepPilot', 'Step {n} of {total}', 'Get the answer', 'What should I say?', 'Thinking', '{n} screenshots attached']) {
     assert.ok(found.includes(s), `scan missed ${s}`);
   }
   assert.ok(found.filter(s => s.startsWith('I’d ') || s.startsWith('From what’s')).length === 3, 'the three canned answers');

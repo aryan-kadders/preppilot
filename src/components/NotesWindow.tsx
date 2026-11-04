@@ -429,8 +429,8 @@ const NotesWindow: React.FC<{ preview?: NotesWindowPreview }> = ({ preview }) =>
                 if (!p?.terminal && !p?.stuck) return;
                 const key = `capture:${p.channel}`;
                 const msg = p.channel === 'mic'
-                    ? 'Natively can’t hear your microphone. Check Settings › Audio.'
-                    : 'Natively can’t hear the call. Check Settings › Audio.';
+                    ? 'PrepPilot can’t hear your microphone. Check Settings › Audio.'
+                    : 'PrepPilot can’t hear the call. Check Settings › Audio.';
                 setProblems((prev) => (prev[key] === msg ? prev : { ...prev, [key]: msg }));
             }),
         ];
@@ -982,7 +982,7 @@ const NotesWindow: React.FC<{ preview?: NotesWindowPreview }> = ({ preview }) =>
             const result = await resumeSavedMeeting(meetingId);
             if (!result.success) {
                 setResumeNotice(result.code === 'meeting-running' ? 'Stop the meeting that is running first.'
-                        : result.code === 'mic-permission-denied' ? 'Natively needs microphone access to record.'
+                        : result.code === 'mic-permission-denied' ? 'PrepPilot needs microphone access to record.'
                             : 'Could not resume this meeting.');
             }
         } catch {
@@ -1338,7 +1338,7 @@ const NotesWindow: React.FC<{ preview?: NotesWindowPreview }> = ({ preview }) =>
                         {/* The meeting's status: the overlay is hidden in a notepad meeting. */}
                         {phase === 'live' && stopsAt !== null && (
                             <div className="np-elevated rounded-[20px] pl-4 pr-1.5 py-1.5 flex items-center justify-between gap-3" role="status">
-                                <p className="text-[13px] leading-[18px]" style={ink('--np-red')}>Natively stops in 1 minute because nothing has been said.</p>
+                                <p className="text-[13px] leading-[18px]" style={ink('--np-red')}>PrepPilot stops in 1 minute because nothing has been said.</p>
                                 <button
                                     type="button"
                                     onClick={() => { setStopsAt(null); window.electronAPI?.meetingAutoStopKeepGoing?.()?.catch?.(() => {}); }}

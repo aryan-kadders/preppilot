@@ -158,7 +158,7 @@ export const HELP_CLIPS = {
   },
   // A demo week (example.com people), served to the recording instance in memory.
   calendar: {
-    label: "Settings, Calendar: Connect on Google Calendar links a demo account, the week's meetings appear by day, Start Natively shows on the meeting about to begin, then Detect meetings.",
+    label: "Settings, Calendar: Connect on Google Calendar links a demo account, the week's meetings appear by day, Start PrepPilot shows on the meeting about to begin, then Detect meetings.",
     dark: { src: calendarDark, size: [972, 694], duration: 17.2, chapters: [{ at: 0.51, label: "Connect it" }, { at: 4.19, label: "See your week" }, { at: 9.44, label: "Start a meeting" }, { at: 12.91, label: "Detect meetings" }] },
     light: { src: calendarLight, size: [972, 694], duration: 17.23, chapters: [{ at: 0.51, label: "Connect it" }, { at: 4.2, label: "See your week" }, { at: 9.45, label: "Start a meeting" }, { at: 12.91, label: "Detect meetings" }] },
   },

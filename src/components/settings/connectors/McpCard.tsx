@@ -276,7 +276,7 @@ export const McpCard: React.FC<{ mcp: McpServerStatus; onStatus: (s: McpServerSt
                     // One sentence, on or off: the address is kept, so it is there to
                     // copy before the server is on, as Granola's public URL is.
                     <>
-                        {t('Add Natively using its local address')}
+                        {t('Add PrepPilot using its local address')}
                         {mcp.url ? <AddressChip url={mcp.url} /> : '.'}
                     </>,
                     t('Sign in with your token. The setup for each app already carries it.'),

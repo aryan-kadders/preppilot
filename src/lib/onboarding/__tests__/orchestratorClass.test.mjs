@@ -401,18 +401,17 @@ test('dismissing permissions does NOT wedge other toaster stages', () => {
       cardLedger: { version: 1, firstLaunchAt: Date.now() - 2 * 86_400_000, launchCount: 1, lastPromoShownAt: null, imported: {}, cards: {} },
     },
   });
-  // > plans requiresHomepageDuration (6 s) AND the 60 s spacing
+  // > browser_extension requiresHomepageDuration (6 s) AND the 60 s spacing
   // after the previous card closed (toaster policy §3.2, CARD_SPACING_MS).
   mockNow += 61_000;
   flushOneFrame();
   flushOneFrame();
 
-  // The next onboarding card for a user not on a plan is Natively Plans, the
-  // first card after getting started (permissions → plans → API offer →
-  // extension).
+  // The next onboarding card after getting started is the browser extension
+  // (permissions → extension).
   assert.equal(
     orch.getSnapshot().activeToasterId,
-    'plans',
+    'browser_extension',
     'the next stage must still be reachable — the session guard is per-stage, not global',
   );
 });

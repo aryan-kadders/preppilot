@@ -114,7 +114,7 @@ export function toRuleInfo(r: AutoSendRuleRecord): AutoSendRuleInfo {
 const UNREADABLE: OutputResult = {
     ok: false,
     kind: 'storage_unavailable',
-    message: 'Your automatic sending rules could not be read right now, so nothing was changed. Try again, or restart Natively.',
+    message: 'Your automatic sending rules could not be read right now, so nothing was changed. Try again, or restart PrepPilot.',
 };
 
 export class AutoSendRules {

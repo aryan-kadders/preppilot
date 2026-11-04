@@ -83,9 +83,9 @@ export const OFFER_EXPIRE_MS = 120_000;
 
 /** The notification's text for an offer (exported for the tests). */
 export function offerNotificationText(body: string, autoStart: boolean, countdownMs: number): { title: string; body: string; action: string } {
-    if (!autoStart) return { title: 'Start Natively?', body, action: 'Start Natively' };
+    if (!autoStart) return { title: 'Start PrepPilot?', body, action: 'Start PrepPilot' };
     const seconds = Math.max(1, Math.round(countdownMs / 1000));
-    return { title: 'Starting Natively', body: `${body}\nNatively starts in ${seconds} seconds.`, action: 'Start now' };
+    return { title: 'Starting PrepPilot', body: `${body}\nPrepPilot starts in ${seconds} seconds.`, action: 'Start now' };
 }
 
 /**

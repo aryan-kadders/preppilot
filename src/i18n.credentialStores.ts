@@ -179,11 +179,11 @@ const ROWS: Record<string, Row> = {
     '選択を保存できなかったため、何も変更されていません。',
     'No se pudo guardar tu elección, así que no se cambió nada.',
   ],
-  'Choose again. If it keeps failing, restart Natively.': [
-    'Выберите ещё раз. Если ошибка повторяется, перезапустите Natively.',
-    '请重新选择。如果仍然失败，请重启 Natively。',
-    'もう一度選択してください。失敗が続く場合は Natively を再起動してください。',
-    'Vuelve a elegir. Si sigue fallando, reinicia Natively.',
+  'Choose again. If it keeps failing, restart PrepPilot.': [
+    'Выберите ещё раз. Если ошибка повторяется, перезапустите PrepPilot.',
+    '请重新选择。如果仍然失败，请重启 PrepPilot。',
+    'もう一度選択してください。失敗が続く場合は PrepPilot を再起動してください。',
+    'Vuelve a elegir. Si sigue fallando, reinicia PrepPilot.',
   ],
   'The {store} set could not be read, so nothing was changed.': [
     'Набор «{store}» не удалось прочитать, поэтому ничего не изменено.',
@@ -227,11 +227,11 @@ const ROWS: Record<string, Row> = {
     'このセッションではキーの保管先を利用できないため、何も変更されていません。',
     'El almacén de claves no está disponible en esta sesión, así que no se cambió nada.',
   ],
-  'Restart Natively and try again.': [
-    'Перезапустите Natively и повторите попытку.',
-    '请重启 Natively 后重试。',
-    'Natively を再起動して、もう一度お試しください。',
-    'Reinicia Natively y vuelve a intentarlo.',
+  'Restart PrepPilot and try again.': [
+    'Перезапустите PrepPilot и повторите попытку.',
+    '请重启 PrepPilot 后重试。',
+    'PrepPilot を再起動して、もう一度お試しください。',
+    'Reinicia PrepPilot y vuelve a intentarlo.',
   ],
   'That choice could not be applied, so nothing was changed.': [
     'Не удалось применить этот выбор, поэтому ничего не изменено.',

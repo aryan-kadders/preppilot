@@ -167,7 +167,7 @@ export const WebhooksPanel: React.FC<{ kind: 'webhook' | 'zapier'; endpoints: We
         <>
             {!available && (
                 <SettingsNotice tone={tones.warn} icon={<AlertCircle size={14} />}>
-                    {t('This part of Natively is still starting. Reopen Settings in a moment.')}
+                    {t('This part of PrepPilot is still starting. Reopen Settings in a moment.')}
                 </SettingsNotice>
             )}
             <ActionArea
@@ -221,7 +221,7 @@ export const WebhooksPanel: React.FC<{ kind: 'webhook' | 'zapier'; endpoints: We
                     title={zapier ? 'Your Zaps' : 'Endpoints'}
                     subtitle={zapier
                         ? t('Each Zap gets a meeting’s notes, summary and action items as soon as they are ready.')
-                        : t('Each address gets a signed request with the meeting’s notes. Requests go out from this computer while Natively is open.')}
+                        : t('Each address gets a signed request with the meeting’s notes. Requests go out from this computer while PrepPilot is open.')}
                 >
                     <ListCard>
                         {mine.map((e) => <EndpointRow key={e.id} endpoint={e} folders={folders} onChanged={onChanged} />)}

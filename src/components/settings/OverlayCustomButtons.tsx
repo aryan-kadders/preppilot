@@ -105,9 +105,9 @@ const Editor: React.FC<{
             ? t('Reads the last hour')
             : t('Reads the last {{n}} minutes').replace('{{n}}', String(readMinutes));
     const saveLabel = isNew ? t('Add') : t('Save');
-    const hintSaving = t('Natively is turning your lines into a button, the way its own buttons are written.');
+    const hintSaving = t('PrepPilot is turning your lines into a button, the way its own buttons are written.');
     const hintTask = t('Say what the button gives you after "What it does:".');
-    const hintIdle = t('Answer each line in a plain sentence. Natively turns it into a button when you save.');
+    const hintIdle = t('Answer each line in a plain sentence. PrepPilot turns it into a button when you save.');
     const hintId = saving ? 'saving' : problem === 'task' ? 'task' : 'idle';
 
     // preventScroll: the editor is still folding open from zero height, and a
@@ -207,7 +207,7 @@ const Editor: React.FC<{
                 is padding inside the fold, so it goes with it. */}
             <Collapse open={!!contract}>
                 <div className="pt-6">
-                    <h4 className={LABEL}>{t('How Natively runs it')}</h4>
+                    <h4 className={LABEL}>{t('How PrepPilot runs it')}</h4>
                     <p className={`${BOX} px-4 py-3.5 text-xs leading-[1.6] text-text-secondary select-text`}>{contract || lastContract.current}</p>
                     <p className="mt-2 px-1 text-xs leading-relaxed text-text-tertiary">
                         {t('Written from your lines. Change one and it is written again when you save.')}

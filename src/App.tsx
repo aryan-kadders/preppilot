@@ -12,12 +12,6 @@ import { EXIT_MS, launcherLanding } from "./components/startup/splashTimeline"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import UpdateBanner from "./components/UpdateBanner"
 import MeetingOfferToast from "./components/MeetingOfferToast"
-import { NativelyQuotaBanner } from "./components/NativelyQuotaBanner"
-import { useTrialExpiry }       from "./components/trial/useTrialExpiry"
-import { TrialMeterToaster }    from "./components/trial/TrialMeterToaster"
-import type { TrialUsage, TrialLimits } from './types/nativelyUsage';
-import { FreeTrialModal }       from "./components/trial/FreeTrialModal"
-import { usageForEndedCard }    from "./lib/trial/endedTrialUsage.mjs"
 import { OrchestratorProvider, OrchestratedToasterHost, setUserState as setOrchestratorUserState, emitOrchestratorEvent } from "./components/onboarding/OrchestratedToasterHost"
 // NOTE: explicit `.ts` extension is load-bearing. Vite's default resolver
 // tries `.mjs` before `.ts` (see DEFAULT_EXTENSIONS in vite/dist/node/constants.js),
@@ -38,7 +32,6 @@ import { clampOverlayOpacity, OVERLAY_OPACITY_DEFAULT, getDefaultOverlayOpacity 
 import { getMeetingInterfaceTheme, resolveMeetingInterfaceTheme, type MeetingInterfaceTheme } from './lib/meetingInterfaceTheme'
 import { permissionsNeedAttention } from './lib/permissionAttentionPolicy.mjs'
 import { collectRendererLegacy } from './lib/cards/rendererLegacy.mjs'
-import { resetRendererTrialClaim } from './lib/trialCampaign.mjs'
 import { cardInputsFromSources } from './lib/cards/cardInputs.mjs'
 import { forcedCardFromQuery } from './lib/onboarding/devOverrides.ts'
 import { isMac } from "./utils/platformUtils"
@@ -459,41 +452,6 @@ const App: React.FC = () => {
   // ── Onboarding toasters now handled by OnboardingOrchestrator ──
   // (No local state for permissions / trial promo toasters.)
 
-  // ── Free Trial global state ────────────────────────────────
-  const [activeTrial, setActiveTrial] = useState<{
-    expiresAt: string;
-    usage: TrialUsage;
-    /** The trial's allowances, carried from /v1/trial/status. */
-    limits?: TrialLimits;
-  } | null>(null);
-  // Dev-only: `?forceTrialEnded=1` opens the end-of-trial card for a design check.
-  const [showTrialExpiredModal, setShowTrialExpiredModal] = useState(() =>
-    import.meta.env.DEV && new URLSearchParams(window.location.search).has('forceTrialEnded')
-  );
-  // The last live trial the launcher saw, kept past its end for the ended
-  // card's usage sentence, and what ended it.
-  const lastSeenTrialRef = useRef<typeof activeTrial>(null);
-  useEffect(() => { if (activeTrial) lastSeenTrialRef.current = activeTrial; }, [activeTrial]);
-  const [trialEndedReason, setTrialEndedReason] = useState<'clock' | 'allowance'>('clock');
-  // The card is due (expired at launch) but still inside its 10 s delay: it
-  // already owns the card slot, so no other card can open under it.
-  const [trialEndedDue, setTrialEndedDue] = useState(false);
-  // 0:00: settle the expiry from the LOCAL clock and open the card at once,
-  // offline included, instead of waiting for the next poll (toaster policy §5
-  // row 2).
-  const handleTrialClockExpired = useCallback(() => {
-    window.electronAPI?.getLocalTrial?.().then((local: any) => {
-      if (local?.showEndedCard) { setActiveTrial(null); setShowTrialExpiredModal(true); }
-    }).catch(() => {});
-  }, []);
-  // Launcher only, like the trial poll (toaster policy §7.5). Nothing is drawn
-  // here: the time left is on Home's small trial card (TrialMeterToaster) and
-  // on the trial card in Settings › Plans.
-  useTrialExpiry(
-    !isolateGlobalSurfaces && (isLauncherWindow || isDefault) && activeTrial ? activeTrial.expiresAt : null,
-    handleTrialClockExpired,
-  );
-
   const isManagerOpen = activeManagerPanel !== null;
   const managerContentVariants = {
     initial: reduceManagerMotion ? { opacity: 0 } : { opacity: 0, x: 10 },
@@ -555,8 +513,6 @@ const App: React.FC = () => {
     // every import after the first), then load the ledger. Until it loads, no
     // card stage shows.
     let legacy = {};
-    // The trial campaign first: a stale claimed flag would retire the trial promo again.
-    try { resetRendererTrialClaim(localStorage); } catch { /* storage unavailable */ }
     try { legacy = collectRendererLegacy(localStorage); } catch { /* storage unavailable */ }
     Promise.resolve(api?.cardsImportLegacy?.(legacy))
       .catch(() => undefined)
@@ -594,12 +550,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isSettingsOpen && !isManagerOpen) refreshCardInputsRef.current();
   }, [isSettingsOpen, isManagerOpen]);
-
-  // The Trial ended card owns the screen while it is open.
-  useEffect(() => {
-    if (!isLauncherWindow && !isDefault) return;
-    setOrchestratorUserState({ trialEndedOpen: showTrialExpiredModal || trialEndedDue });
-  }, [showTrialExpiredModal, trialEndedDue, isLauncherWindow, isDefault]);
 
   // Start the onboarding orchestrator (launcher window only). Stages are
   // registered lazily; the drain loop only runs while foreground + homepage
@@ -650,9 +600,9 @@ const App: React.FC = () => {
       isPremium: isPremiumActive,
       hasProfile,
       hasNativelyKey: hasNativelyApi,
-      hasTrialToken: !!activeTrial,
+      hasTrialToken: false,
     });
-  }, [isPremiumActive, hasProfile, hasNativelyApi, activeTrial]);
+  }, [isPremiumActive, hasProfile, hasNativelyApi]);
 
   // Pause the orchestrator while a foreground settings surface is open so
   // toasters never appear over the user's settings interaction. On the way
@@ -792,111 +742,6 @@ const App: React.FC = () => {
     window.electronAPI?.getStoredCredentials?.()
       .then((creds) => setHasNativelyApi(!!creds?.hasNativelyKey))
       .catch(() => {});
-
-    // ── Trial: check stored token and start polling if active ──
-    // Only the launcher keeps the trial clock (toaster policy §7.5): App also
-    // mounts in the overlay, and every poll there could settle the expiry too.
-    const ownsTrialClock = isLauncherWindow || isDefault;
-    let trialPollId: ReturnType<typeof setInterval> | null = null;
-    let trialEndedTimer: ReturnType<typeof setTimeout> | null = null;
-    const checkTrial = async () => {
-      try {
-        const res = await window.electronAPI?.getTrialStatus?.();
-        if (!res?.ok) return;
-        if (res.expired) {
-          setActiveTrial(null);
-          // Main settles the expiry: the profile wipe runs there, once per trial
-          // and never for a licensed user, and main says whether the user still
-          // has to choose (toaster policy Phase 0, settleExpiredTrial).
-          if (res.showEndedCard) setShowTrialExpiredModal(true);
-          if (trialPollId) { clearInterval(trialPollId); trialPollId = null; }
-        } else {
-          setActiveTrial({
-            expiresAt: res.expires_at ?? '',
-            usage:     res.usage     ?? { ai: 0, ai_tokens: 0, stt_seconds: 0, search: 0 },
-            limits:    (res as { limits?: TrialLimits }).limits,
-          });
-        }
-      } catch { /* ignore — non-critical */ }
-    };
-    if (ownsTrialClock) window.electronAPI?.getLocalTrial?.().then((local: any) => {
-      if (!local?.hasToken) return;
-      if (local.expired) {
-        // Already expired at launch. Main has settled it (wiped once if due) and
-        // says whether the user still has to choose; a licence or key replaced
-        // the trial otherwise, and the token is already gone.
-        if (local.showEndedCard) {
-          setTrialEndedDue(true);
-          trialEndedTimer = setTimeout(() => { trialEndedTimer = null; setShowTrialExpiredModal(true); }, 10_000);
-        }
-        return;
-      }
-      // Seed the trial from the LOCAL token before the first poll answers.
-      //
-      // This is the "closed the app and reopened it inside the 30 minutes and
-      // the trial was gone" report. The trial was fine — the countdown just
-      // had nothing to render: activeTrial was only ever set from
-      // checkTrial(), a network call, so on every relaunch the banner stayed
-      // absent until /v1/trial/status came back, and stayed absent FOREVER if
-      // that call failed (it returns early on !ok, offline included).
-      //
-      // expiresAt is stored locally at start, so the clock is already knowable
-      // offline. Usage starts at zero and is replaced by the poll below —
-      // the settings panel has seeded itself exactly this way all along.
-      setActiveTrial({
-        expiresAt: local.expiresAt ?? '',
-        usage: { ai: 0, ai_tokens: 0, stt_seconds: 0, search: 0 },
-      });
-      checkTrial();
-      trialPollId = setInterval(checkTrial, 30_000);
-    }).catch(() => {});
-
-    // Listen for trial-ended event (emitted by trial:end-byok IPC)
-    const removeTrialListener = window.electronAPI?.onTrialEnded?.((data) => {
-      setActiveTrial(null);
-      // The trial's AI allowance ran out before its clock (main:
-      // endTrialForUsedAllowance): the same end as at 30 minutes, card included,
-      // now rather than at the next poll.
-      if (data?.choice === 'allowance') {
-        setTrialEndedReason('allowance');
-        if (data.showEndedCard && ownsTrialClock) setShowTrialExpiredModal(true);
-        if (trialEndedTimer) { clearTimeout(trialEndedTimer); trialEndedTimer = null; }
-        if (trialPollId) { clearInterval(trialPollId); trialPollId = null; }
-        return;
-      }
-      // The BYOK exit is announced while its card is still Cleaning up; that
-      // card closes itself once the user leaves "All set". Every other ending
-      // (a licence or key superseded the trial) takes the card away.
-      if (data?.choice !== 'byok') {
-        setShowTrialExpiredModal(false);
-        setTrialEndedDue(false);
-      }
-      if (trialEndedTimer) { clearTimeout(trialEndedTimer); trialEndedTimer = null; }
-      if (trialPollId) { clearInterval(trialPollId); trialPollId = null; }
-    });
-
-    // …and for a trial STARTED mid-session (trial:start IPC). Until this existed
-    // the trial state above was read exactly once, on mount, so pressing Start
-    // anywhere — the settings card or the promo toaster — left this component
-    // believing there was no trial: no countdown banner, and both Pro managers
-    // (Modes, Profile Intelligence) still showing their gate, until a relaunch.
-    const removeTrialStartedListener = window.electronAPI?.onTrialStarted?.((data) => {
-      setActiveTrial({
-        expiresAt: data?.expiresAt ?? '',
-        usage: data?.usage ?? { ai: 0, ai_tokens: 0, stt_seconds: 0, search: 0 },
-        limits: data?.limits as TrialLimits | undefined,
-      });
-      setShowTrialExpiredModal(false);
-      setTrialEndedDue(false);
-      // Start the status poll if the mount path did not (it only starts one when
-      // a token already existed). Guarded so a re-issue of the same trial — the
-      // API is idempotent per hardware id — cannot leak a second interval, which
-      // would also be the only thing that ever notices this trial expiring.
-      if (ownsTrialClock && !trialPollId) {
-        checkTrial();
-        trialPollId = setInterval(checkTrial, 30_000);
-      }
-    });
 
     // ── Onboarding orchestrator — push user-state patches ─────
     // The orchestrator owns scheduling; we just feed it the latest user state.
@@ -1061,10 +906,6 @@ const App: React.FC = () => {
       if (embeddingNoticeTimer) clearTimeout(embeddingNoticeTimer);
       if (removeReindexProgress) removeReindexProgress();
       if (removeLicenseListener) removeLicenseListener();
-      if (trialPollId) clearInterval(trialPollId);
-      if (trialEndedTimer) clearTimeout(trialEndedTimer);
-      if (removeTrialListener) removeTrialListener();
-      if (removeTrialStartedListener) removeTrialStartedListener();
       if (removeOpenSettingsTab) removeOpenSettingsTab();
     }
   }, []);
@@ -1496,13 +1337,13 @@ const App: React.FC = () => {
                           onClose={closeManagerPanel}
                           isPremium={isPremiumActive}
                           isLoaded={hasLoadedLicense}
-                          isTrialActive={!!activeTrial}
+                          isTrialActive={false}
                           onOpenNativelyAPI={() => openSettingsExclusive('plans')}
                         />
                       ) : (
                         <ProfileIntelligenceSettings
                           onClose={closeManagerPanel}
-                          isTrialActive={!!activeTrial}
+                          isTrialActive={false}
                           onOpenNativelyAPI={() => openSettingsExclusive('plans')}
                         />
                       )}
@@ -1530,11 +1371,8 @@ const App: React.FC = () => {
 
       <div data-opacity-preview-surface="">
         {!isolateGlobalSurfaces && <UpdateBanner />}
-        {!isolateGlobalSurfaces && <NativelyQuotaBanner />}
         {/* A call was detected: Start / Not now, and the countdown when Start automatically is on. */}
         {!isolateGlobalSurfaces && (isLauncherWindow || isDefault) && <MeetingOfferToast />}
-        {/* The running trial's clock and its two allowances, on Home only. */}
-        {!isolateGlobalSurfaces && (isLauncherWindow || isDefault) && <TrialMeterToaster trial={activeTrial} ready={isAppReady && !showTrialExpiredModal} onSeePlans={() => openSettingsExclusive('plans')} />}
 
         {/* Orchestrated onboarding toasters (single-slot, controlled by OnboardingOrchestrator) */}
         {/* Not under the first-launch welcome: its cards follow Get started. */}
@@ -1545,34 +1383,6 @@ const App: React.FC = () => {
         )}
 
 
-        {/* Post-trial upgrade modal — shown when trial expires */}
-        {!isolateModals && (isLauncherWindow || isDefault) && showTrialExpiredModal && (
-          <FreeTrialModal
-            // activeTrial is already cleared when the card opens: the last
-            // figures seen, never zeros (src/lib/trial/endedTrialUsage.mjs).
-            usage={activeTrial?.usage ?? usageForEndedCard(lastSeenTrialRef.current, trialEndedReason)}
-            onByok={async (opts) => {
-              // A wipe that did not finish must not read as "All set": the card
-              // shows the error with Try again (toaster policy §5 row 5). After
-              // repeated failures it may end the trial anyway (opts.force).
-              const res = await window.electronAPI?.endTrialByok?.(opts);
-              if (!res?.success) throw new Error('wipe_failed');
-              return { wipeIncomplete: !!res.wipeIncomplete };
-            }}
-            onStandard={async () => {
-              // The profile wipe already ran once, at expiry (main,
-              // settleExpiredTrial). Standard has no modes access.
-              await window.electronAPI?.modesSetActive?.(null).catch(() => {});
-            }}
-            onDone={(reason) => {
-              setShowTrialExpiredModal(false);
-              setTrialEndedDue(false);
-              setActiveTrial(null);
-              // "Add my keys" after a finished BYOK exit.
-              if (reason === 'byok') openSettingsExclusive('ai-providers');
-            }}
-          />
-        )}
 
       </div>
     </div>

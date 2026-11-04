@@ -448,8 +448,6 @@ import RollingTranscript from './ui/RollingTranscript';
 import SwapText from './ui/SwapText';
 import ScreenshotTray from './overlay/ScreenshotTray';
 import ChromeFold from './overlay/ChromeFold';
-import { useOverlayTrial } from './overlay/useOverlayTrial';
-import { TrialChip, TrialNoticeBanner } from './overlay/TrialNotice';
 import { AutoStopNoticeBanner, useMeetingAutoStopNotice } from './overlay/AutoStopNotice';
 import { useAmbientChatMeeting } from './overlay/AmbientChatNotice';
 import { LastTimeRecapBanner, useLastTimeRecap } from './overlay/LastTimeRecapNotice';
@@ -1456,8 +1454,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const shellRef = React.useRef<HTMLDivElement>(null);
   const t = useT();
   const [isExpanded, setIsExpanded] = useState(true);
-  // The free trial that starts by itself with a meeting: what to say about it.
-  const trial = useOverlayTrial();
   // The automatic stop's "stops in 1 minute" notice, and typing reported to main.
   const autoStop = useMeetingAutoStopNotice();
   // Ambient AI Chat: this meeting captures no audio (overlay/AmbientChatNotice.tsx).
@@ -11378,13 +11374,6 @@ Provide only the answer, nothing else.`;
   // hard failure with the fix, so the STT failure banner stands down rather
   // than saying the same thing twice.
   const audioFailureBannerActive = systemAudioWarning?.kind === 'audio-capture-failure';
-  // With no keys the transcription provider is 'none', so "Transcription Not
-  // Configured" is true in three moments where saying it would be wrong: the
-  // second it takes the automatic trial to arrive; after the trial has run out
-  // (the expiry reverts the provider to 'none'); and when the trial could not
-  // start. In the last two the trial banner already says what happened and
-  // what to do, and "open Settings → Audio" beside it is the wrong advice.
-  const trialExplainsNoStt = trial.pending || trial.banner === 'ended' || trial.banner === 'failed';
   const sttFailed = sttUserStatus === 'failed' || sttInterviewerStatus === 'failed';
   const sttReconnecting = sttUserStatus === 'reconnecting' || sttInterviewerStatus === 'reconnecting';
   const shouldShowSttSummaryPill =
@@ -11398,8 +11387,8 @@ Provide only the answer, nothing else.`;
       sttUserStatus === 'failed' || sttUserStatus === 'reconnecting' ? sttUserError : '',
       sttInterviewerStatus === 'failed' || sttInterviewerStatus === 'reconnecting' ? sttInterviewerError : '',
     ]);
-    if (cause === 'secure-connection') return t('Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow Natively in your antivirus, or turn off its HTTPS scanning for Natively.');
-    if (cause === 'unreachable') return t('Natively cannot reach the transcription service. Check your internet connection, and allow Natively in your firewall and antivirus.');
+    if (cause === 'secure-connection') return t('Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow PrepPilot in your antivirus, or turn off its HTTPS scanning for PrepPilot.');
+    if (cause === 'unreachable') return t('PrepPilot cannot reach the transcription service. Check your internet connection, and allow PrepPilot in your firewall and antivirus.');
     return null;
   })();
   // An on-device model has no key and no provider to check (issue #707: a
@@ -11645,10 +11634,8 @@ Provide only the answer, nothing else.`;
 
               {/* Chrome that comes and goes folds open and shut (ChromeFold)
                   instead of jumping the card and the window. */}
-              <ChromeFold show={hasStatusPill || !!trial.chip} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} testId="fold-status-pills">
+              <ChromeFold show={hasStatusPill} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} testId="fold-status-pills">
               <div className="relative no-drag flex flex-wrap items-center justify-center gap-1.5 px-4 pt-3 pb-1">
-                {/* The free trial's countdown, for as long as one is running. */}
-                {trial.chip && <TrialChip minutesLeft={trial.chip.minutesLeft} tone={trial.chip.tone} />}
                 {/* Muted in the meeting app: Natively hears silence on the mic until you unmute there. */}
                 {meetingMute.muted && (
                   <div
@@ -11886,7 +11873,7 @@ Provide only the answer, nothing else.`;
                                   : t('Open macOS Screen Recording privacy settings')
                                 : warningAction.type === 'mic-privacy'
                                 ? t('Open Windows microphone privacy settings')
-                                : t('Open Natively audio settings')
+                                : t('Open PrepPilot audio settings')
                             }
                           >
                             {deepLinkUrl
@@ -11923,13 +11910,6 @@ Provide only the answer, nothing else.`;
               {lastTime.recap && <LastTimeRecapBanner state={lastTime} />}
               </ChromeFold>
 
-              {/* The free trial that starts by itself with a meeting: it began,
-                  it is nearly over, it ran out, or it could not start
-                  (overlay/TrialNotice.tsx). Never blocks the overlay. */}
-              <ChromeFold show={!!trial.banner} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} innerClassName="pt-3 pb-1" testId="fold-trial-notice">
-              {trial.banner && <TrialNoticeBanner trial={trial} />}
-              </ChromeFold>
-
               {/* Nothing said for a while: Natively stops in a minute unless
                   something is said or the user keeps going
                   (overlay/AutoStopNotice.tsx; main: MeetingEndDetector). */}
@@ -11964,8 +11944,8 @@ Provide only the answer, nothing else.`;
               </ChromeFold>
 
               {/* PR #173: STT Not Configured Warning Banner */}
-              <ChromeFold show={sttNotConfigured && !trialExplainsNoStt} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} innerClassName="pt-3 pb-1" testId="fold-stt-not-configured">
-              {sttNotConfigured && !trialExplainsNoStt && (
+              <ChromeFold show={sttNotConfigured} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} innerClassName="pt-3 pb-1" testId="fold-stt-not-configured">
+              {sttNotConfigured && (
                 /*
                   The shared banner, as an error: with no provider nothing is
                   transcribed at all. It was a hand-rolled orange box (orange
@@ -12145,7 +12125,7 @@ Provide only the answer, nothing else.`;
                     the existing key, which has shipped ja/ru translations.
                   */
                   title={t('Accessibility Access Needed')}
-                  message={t('Stealth typing needs Accessibility access. Grant it in System Settings, then restart Natively.')}
+                  message={t('Stealth typing needs Accessibility access. Grant it in System Settings, then restart PrepPilot.')}
                   onDismiss={() => setStealthPermissionMissing(false)}
                   dismissLabel={t('Dismiss')}
                   dismissButtonProps={{ 'data-stealth-ignore': 'true' }}
@@ -12195,7 +12175,7 @@ Provide only the answer, nothing else.`;
                   className="mx-4"
                   data-stealth-ignore="true"
                   title={t('Stealth Typing Blocked')}
-                  message={t('Windows did not let Natively capture typing. This is usually security software blocking the keyboard hook. Allow Natively there, then try again.')}
+                  message={t('Windows did not let PrepPilot capture typing. This is usually security software blocking the keyboard hook. Allow PrepPilot there, then try again.')}
                   onDismiss={() => setStealthPermissionMissing(false)}
                   dismissLabel={t('Dismiss')}
                   dismissButtonProps={{ 'data-stealth-ignore': 'true' }}

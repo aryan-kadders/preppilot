@@ -510,7 +510,7 @@ const PairingCountdown: React.FC<{ deadline: number; total: number; onExpired: (
         <p className="text-xs text-text-secondary mt-0.5">
           {t('Click')}{' '}
           <span className="font-medium" style={{ color: textInk }}>
-            {t('Connect to Natively')}
+            {t('Connect to PrepPilot')}
           </span>{' '}
           {t('in the extension popup.')}
         </p>
@@ -1234,17 +1234,17 @@ export const PhoneMirrorSettings: React.FC = () => {
         {/* ── Browser Extension: talks to the same local server, so it needs
             Phone Mirror running before it can pair. ── */}
         <section>
-          <SectionHeading title={t('Browser Extension')} subtitle={t("Send the page you're reading to Natively.")} />
+          <SectionHeading title={t('Browser Extension')} subtitle={t("Send the page you're reading to PrepPilot.")} />
 
           <CompanionRow
             icon={<NativelyGlyph size={20} />}
-            title="Natively Companion"
+            title="PrepPilot Companion"
             badge={extBadge}
             descriptionKey={shownRunning ? 'ext-on' : 'ext-off'}
             description={
               shownRunning ? (
                 <>
-                  {t('Sends your active tab to Natively.')}{' '}
+                  {t('Sends your active tab to PrepPilot.')}{' '}
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-input border border-border-subtle font-mono text-[10px] text-text-primary">
                     {isMac ? '⌘' : 'Ctrl'}+Y
                   </kbd>{' '}

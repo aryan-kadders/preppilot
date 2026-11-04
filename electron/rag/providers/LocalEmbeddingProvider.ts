@@ -503,7 +503,7 @@ export class LocalEmbeddingProvider implements IEmbeddingProvider {
       health: 'missing_required_asset',
       requiredForStartup: false,
       requiredForCoreFallback: true,
-      message: 'Natively local embedding fallback assets are missing or corrupted. Please reinstall Natively.',
+      message: 'PrepPilot local embedding fallback assets are missing or corrupted. Please reinstall PrepPilot.',
       recoverable: false,
       details: { reason: 'worker-died-before-ready', error: message },
     });

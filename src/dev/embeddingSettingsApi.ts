@@ -78,7 +78,7 @@ const CATALOG = {
         {
             id: 'local', name: 'Built-in', cloud: false, available: true,
             models: [
-                { id: 'Xenova/all-MiniLM-L6-v2', label: 'MiniLM', dimensions: 384, dimensionsVerified: true, lightweight: true, note: 'Bundled with Natively. Small and fast; weaker retrieval on large projects.' },
+                { id: 'Xenova/all-MiniLM-L6-v2', label: 'MiniLM', dimensions: 384, dimensionsVerified: true, lightweight: true, note: 'Bundled with PrepPilot. Small and fast; weaker retrieval on large projects.' },
                 { id: 'nomic-embed-text', label: 'nomic-embed-text', dimensions: 768, dimensionsVerified: true, note: 'Pulled automatically when Ollama is available.' },
             ],
         },

@@ -25,10 +25,10 @@
 // around it, pouring into a slot straight below itself. No kept picture
 // unless `&keep=1` (the Hindsight card keeps one).
 //
-// `?notices=1` mounts the REAL corner notices (NativelyQuotaBanner,
+// `?notices=1` mounts the REAL corner notices (
 // HindsightStatusBanner's floating card, ProviderChangeNotice) over whatever
 // backdrop the probe sets, fed by stand-ins for the IPC they listen to, and
-// driven by window.__notices: quota(), hindsight(state, reason?),
+// driven by window.__notices: hindsight(state, reason?),
 // provider(), progress(done, total), clearProgress(), degraded(kind?),
 // clearDegraded().
 //
@@ -44,7 +44,6 @@ import { createRoot } from 'react-dom/client';
 import { motion } from 'framer-motion';
 import '../index.css';
 import { GenieModal } from '../components/ui/GenieModal';
-import { NativelyQuotaBanner } from '../components/NativelyQuotaBanner';
 import { HindsightStatusBanner } from '../components/HindsightStatusBanner';
 import { ProviderChangeNotice, type ProviderChangeWarning, type ReindexProgress, type EmbeddingDegradedNotice } from '../components/ProviderChangeNotice';
 import { NativelyApiPromoToaster } from '../premium';
@@ -120,14 +119,11 @@ function CardsStage() {
 }
 
 function NoticesStage() {
-  const [quotaKey, setQuotaKey] = useState(0);
   const [warning, setWarning] = useState<ProviderChangeWarning | null>(null);
   const [progress, setProgress] = useState<ReindexProgress | null>(null);
   const [degraded, setDegraded] = useState<EmbeddingDegradedNotice | null>(null);
   useEffect(() => {
     (window as any).__notices = {
-      // A fresh quota banner: it checks usage 3 s after it mounts, as at start-up.
-      quota: () => setQuotaKey(k => k + 1),
       hindsight: (state: string, reason?: string) =>
         pushHindsight?.({ state, reason, logPath: state === 'spawning' || state === 'ready' ? undefined : '~/Library/Logs/Natively/hindsight-server.log' }),
       provider: () => setWarning({ count: 12, oldProvider: 'OpenAI', newProvider: 'Gemini' }),
@@ -139,7 +135,6 @@ function NoticesStage() {
   }, []);
   return (
     <>
-      {quotaKey > 0 && <NativelyQuotaBanner key={quotaKey} />}
       <HindsightStatusBanner variant="floating-card" />
       <ProviderChangeNotice
         open={!!warning || !!progress || !!degraded}

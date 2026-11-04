@@ -38,7 +38,7 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         howItWorks: [
             'Before a meeting, its brief can mention recent email threads with the people you are meeting.',
             'After a meeting, send the follow-up email from your own Gmail: press Send with Gmail, then confirm.',
-            'Natively reads only threads with the people in your meetings, and sends only when you press Send.',
+            'PrepPilot reads only threads with the people in your meetings, and sends only when you press Send.',
         ],
     },
     {
@@ -61,18 +61,18 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
     },
     {
         key: 'zapier', group: 'automation', title: 'Zapier', mark: 'zapier',
-        description: 'Connect Natively to thousands of apps',
+        description: 'Connect PrepPilot to thousands of apps',
         howItWorks: [
             'Make a Zap that starts with Webhooks by Zapier, Catch Hook.',
             'Paste its address here, and pick which meetings go to it.',
-            'When a meeting’s notes are ready, Natively sends them to your Zap.',
+            'When a meeting’s notes are ready, PrepPilot sends them to your Zap.',
         ],
     },
     {
         key: 'affinity', group: 'crm', title: 'Affinity', mark: 'affinity',
         description: 'Sync meeting notes to Affinity',
         howItWorks: [
-            'Natively finds the people you met in Affinity by their email.',
+            'PrepPilot finds the people you met in Affinity by their email.',
             'You see who matched before anything is written, then the notes land as one note on all of them.',
         ],
     },
@@ -80,7 +80,7 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         key: 'hubspot', group: 'crm', title: 'HubSpot', mark: 'hubspot',
         description: 'Add meeting notes to the contacts you met',
         howItWorks: [
-            'Natively finds the contacts you met in HubSpot by their email.',
+            'PrepPilot finds the contacts you met in HubSpot by their email.',
             'Send from a meeting’s Share menu after checking who matched, or automatically when notes are ready.',
         ],
     },
@@ -88,7 +88,7 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         key: 'salesforce', group: 'crm', title: 'Salesforce', mark: 'salesforce',
         description: 'Log meetings on the contacts you met',
         howItWorks: [
-            'Natively finds the contacts you met in Salesforce by their email.',
+            'PrepPilot finds the contacts you met in Salesforce by their email.',
             'Each meeting is logged as a completed activity on each of them.',
         ],
     },
@@ -96,7 +96,7 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         key: 'attio', group: 'crm', title: 'Attio', mark: 'attio',
         description: 'Add meeting notes to the people you met',
         howItWorks: [
-            'Natively finds the people you met in Attio by their email.',
+            'PrepPilot finds the people you met in Attio by their email.',
             'The notes land as a note on each person’s record.',
         ],
     },
@@ -104,7 +104,7 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         key: 'pipedrive', group: 'crm', title: 'Pipedrive', mark: 'pipedrive',
         description: 'Add meeting notes to the people you met',
         howItWorks: [
-            'Natively finds the people you met in Pipedrive by their email.',
+            'PrepPilot finds the people you met in Pipedrive by their email.',
             'The notes land as a note on each person.',
         ],
     },
@@ -120,9 +120,9 @@ export const CONNECTOR_CATALOG: readonly ConnectorEntry[] = [
         key: 'webhooks', group: 'automation', title: 'Webhooks', mark: 'webhooks',
         description: 'Automatically send notes to other tools',
         howItWorks: [
-            'Natively sends a signed request to your address when a meeting’s notes are ready, or when you edit them.',
+            'PrepPilot sends a signed request to your address when a meeting’s notes are ready, or when you edit them.',
             'Each request carries the notes themselves, so your tool needs nothing else to use them.',
-            'Requests go out from this computer while Natively is open.',
+            'Requests go out from this computer while PrepPilot is open.',
         ],
     },
 ];

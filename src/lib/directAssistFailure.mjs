@@ -42,7 +42,7 @@ const ANSWERED_BY = 'Answered by {provider}';
 const TRYING = 'Trying {provider}…';
 const NOBODY_ANSWERED = 'None of your providers could answer';
 const CUT_OFF = 'Answer cut off';
-const APP_FAULT = 'Natively lost track of this answer. Ask again.';
+const APP_FAULT = 'PrepPilot lost track of this answer. Ask again.';
 const NOT_COMPLETED = "The request couldn't be completed.";
 const NO_PROVIDER = 'No AI provider is set up yet';
 // An answer Natively itself stopped (2026-10-04): the output reached the

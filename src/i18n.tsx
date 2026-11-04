@@ -72,17 +72,17 @@ const RU: Record<string, string> = {
     'Intelligence': 'Интеллект',
     'Setup & Help': 'Настройка и помощь',
     'About': 'О программе',
-    'Quit Natively': 'Выйти из Natively',
+    'Quit PrepPilot': 'Выйти из PrepPilot',
     'Close': 'Закрыть',
     'Settings': 'Настройки',
     'Language': 'Язык',
     'English': 'Английский',
     'Russian': 'Русский',
-    'Interface language for Natively': 'Язык интерфейса Natively',
+    'Interface language for PrepPilot': 'Язык интерфейса PrepPilot',
 
     // ── Launcher (home) ──
-    'My Natively': 'Мой Natively',
-    'Start Natively': 'Запустить Natively',
+    'My PrepPilot': 'Мой PrepPilot',
+    'Start PrepPilot': 'Запустить PrepPilot',
     'Detectable': 'Виден при захвате экрана',
     'Undetectable': 'Скрыт от захвата',
     'Today': 'Сегодня',
@@ -118,8 +118,8 @@ const RU: Record<string, string> = {
     'Fetching...': 'Загрузка...',
     'Model fetch error:': 'Ошибка загрузки моделей:',
     'Fast Response Mode': 'Режим быстрого ответа',
-    'Routes responses through the fastest available provider (Codex fast mode model, Groq, or Natively). Turn off to use your selected model above.':
-        'Направляет ответы через самый быстрый доступный провайдер (быстрый режим Codex, Groq или Natively). Выключите, чтобы использовать выбранную выше модель.',
+    'Routes responses through the fastest available provider (Codex fast mode model, Groq, or PrepPilot). Turn off to use your selected model above.':
+        'Направляет ответы через самый быстрый доступный провайдер (быстрый режим Codex, Groq или PrepPilot). Выключите, чтобы использовать выбранную выше модель.',
     'Requires Groq, Natively API, or Codex CLI to be configured.':
         'Требуется настроенный Groq, Natively API или Codex CLI.',
     'No models available': 'Нет доступных моделей',
@@ -133,8 +133,8 @@ const RU: Record<string, string> = {
     'Add your own AI endpoints via cURL.': 'Добавьте свои AI-эндпоинты через cURL.',
     'No custom providers added yet.': 'Свои провайдеры пока не добавлены.',
     'Screen understanding': 'Понимание экрана',
-    'Pick how Natively reads what is on your screen. All paths use the vision-capable AI provider directly; OCR is no longer used.':
-        'Выберите, как Natively читает содержимое экрана. Все режимы используют vision-модель напрямую; OCR больше не используется.',
+    'Pick how PrepPilot reads what is on your screen. All paths use the vision-capable AI provider directly; OCR is no longer used.':
+        'Выберите, как PrepPilot читает содержимое экрана. Все режимы используют vision-модель напрямую; OCR больше не используется.',
     'Vision first': 'Сначала vision',
     'Vision only': 'Только vision',
     'Private vision (local only)': 'Приватный vision (только локально)',
@@ -182,17 +182,17 @@ const RU: Record<string, string> = {
     'No calendars': 'Нет календарей',
     'Theme': 'Тема',
     'Meeting Interface Style': 'Стиль интерфейса встречи',
-    'Disguise Natively as another application to prevent detection during screen sharing.':
-        'Маскирует Natively под другое приложение, чтобы избежать обнаружения при демонстрации экрана.',
+    'Disguise PrepPilot as another application to prevent detection during screen sharing.':
+        'Маскирует PrepPilot под другое приложение, чтобы избежать обнаружения при демонстрации экрана.',
 
     // ── About ──
-    'About Natively': 'О программе Natively',
+    'About PrepPilot': 'О программе PrepPilot',
     'Designed to be invisible, intelligent, and trusted.': 'Создано быть незаметным, умным и надёжным.',
     // Version-free stem: the version is appended at the call site, so this key
     // survives every release instead of going stale (and orphaning itself) the
     // way "What's New in v2.8" / "What's New in 2.8" both did.
     "What's New in": 'Что нового в',
-    'How Natively Works': 'Как работает Natively',
+    'How PrepPilot Works': 'Как работает PrepPilot',
     'Privacy & Data': 'Приватность и данные',
     'Stealth & Control': 'Скрытность и контроль',
     'No Recording': 'Без записи',
@@ -206,23 +206,23 @@ const RU: Record<string, string> = {
     'Follow Page': 'Подписаться',
     'Creator': 'Автор',
     'Star on GitHub': 'Звезда на GitHub',
-    'Love Natively? Support us by starring the repo.': 'Нравится Natively? Поддержите нас звездой репозиторию.',
+    'Love PrepPilot? Support us by starring the repo.': 'Нравится PrepPilot? Поддержите нас звездой репозиторию.',
     'Report an Issue': 'Сообщить о проблеме',
     'Found a bug? Let us know so we can fix it.': 'Нашли баг? Сообщите нам, и мы исправим.',
     'Get in Touch': 'Связаться',
     'Open for professional collaborations and job offers.': 'Открыт для сотрудничества и предложений о работе.',
     'Contact Me': 'Написать мне',
     'Support Development': 'Поддержать разработку',
-    'Natively is independent source-available software.': 'Natively — независимое ПО с открытым исходным кодом.',
+    'PrepPilot is independent source-available software.': 'PrepPilot — независимое ПО с открытым исходным кодом.',
     'Support Project': 'Поддержать проект',
     // Settings > About, the affiliate row (2026-10-14).
     'Affiliate Program': 'Партнёрская программа',
-    'Recommend Natively and earn a commission on every sale.': 'Рекомендуйте Natively и получайте комиссию с каждой продажи.',
+    'Recommend PrepPilot and earn a commission on every sale.': 'Рекомендуйте PrepPilot и получайте комиссию с каждой продажи.',
     'Affiliate': 'Партнёрам',
     // Settings > About, the Reviews section (2026-10-11).
     'Reviews': 'Отзывы',
-    'Tell us how Natively is working for you.': 'Расскажите, как вам работается с Natively.',
-    'Rate Natively': 'Оценить Natively',
+    'Tell us how PrepPilot is working for you.': 'Расскажите, как вам работается с PrepPilot.',
+    'Rate PrepPilot': 'Оценить PrepPilot',
     'A star rating and a few words, if you like.': 'Оценка в звёздах и, если хотите, пара слов.',
     'This install has already sent a review. Thank you.': 'С этой установки отзыв уже отправлен. Спасибо.',
     'Write a review': 'Написать отзыв',
@@ -240,8 +240,8 @@ const RU: Record<string, string> = {
     'Microphone & Speaker Loopback Selection': 'Выбор микрофона и захвата звука динамиков',
     'Language & Regional Accents': 'Язык и региональные акценты',
     'Settings > Privacy > Microphone': 'Параметры > Конфиденциальность > Микрофон',
-    'Natively can capture both what you say and what you hear globally. At the top of the Audio Settings, use the Dropdowns to explicitly select your hardware Input (e.g. your physical microphone) and Output capture (what the speakers play). By default, Natively uses the System Default, so audio routing automatically follows your OS preferences.':
-        'Natively может захватывать и то, что вы говорите, и то, что вы слышите. В верхней части настроек звука в выпадающих списках явно выберите аппаратный вход (например, ваш микрофон) и захват вывода (то, что играют динамики). По умолчанию используется «Системный по умолчанию», поэтому маршрутизация звука следует настройкам ОС.',
+    'PrepPilot can capture both what you say and what you hear globally. At the top of the Audio Settings, use the Dropdowns to explicitly select your hardware Input (e.g. your physical microphone) and Output capture (what the speakers play). By default, PrepPilot uses the System Default, so audio routing automatically follows your OS preferences.':
+        'PrepPilot может захватывать и то, что вы говорите, и то, что вы слышите. В верхней части настроек звука в выпадающих списках явно выберите аппаратный вход (например, ваш микрофон) и захват вывода (то, что играют динамики). По умолчанию используется «Системный по умолчанию», поэтому маршрутизация звука следует настройкам ОС.',
     "The recommended backend for macOS 13.0+. Uses Apple's modern, highly optimized internal framework for 0-latency loopback speaker capture securely.":
         'Рекомендуемый бэкенд для macOS 13.0+. Использует современный оптимизированный фреймворк Apple для безопасного захвата звука динамиков с нулевой задержкой.',
     'Fallback engine for older hardware. Relies on internal device aggregation to trap output audio. Only use this if SCK repeatedly drops speaker packets.':
@@ -250,8 +250,8 @@ const RU: Record<string, string> = {
         'Под списком провайдеров укажите язык, на котором будете говорить (например, русский). Важнее всего — выберите конкретный регион/акцент (напр. en-US, en-GB, en-IN): STT-движки используют это, чтобы заметно повысить точность распознавания с учётом региональных особенностей речи.',
     'Required to capture what you say during meetings. Windows prompts the first time you start a meeting.':
         'Нужно для захвата вашей речи во время встреч. Windows запросит доступ при первом запуске встречи.',
-    'Natively supports over 8 different Audio engines to transcribe what you hear and say. From the Audio tab in settings, use the overarching dropdown to switch the active engine.':
-        'Natively поддерживает более 8 движков распознавания того, что вы слышите и говорите. На вкладке «Звук» переключайте активный движок через основной выпадающий список.',
+    'PrepPilot supports over 8 different Audio engines to transcribe what you hear and say. From the Audio tab in settings, use the overarching dropdown to switch the active engine.':
+        'PrepPilot поддерживает более 8 движков распознавания того, что вы слышите и говорите. На вкладке «Звук» переключайте активный движок через основной выпадающий список.',
     'We strongly recommend testing connections before jumping into a live meeting. The system shows successful pings or explicit errors if credits/permissions fail.':
         'Настоятельно рекомендуем проверить соединение перед реальной встречей. Система покажет успешный отклик или явную ошибку, если не хватает кредитов/прав.',
 
@@ -275,16 +275,16 @@ const RU: Record<string, string> = {
 
     // ── General settings ──
     'General settings': 'Основные настройки',
-    'Customize how Natively works for you': 'Настройте Natively под себя',
-    'Natively is currently detectable by screen-sharing.': 'Сейчас Natively виден при демонстрации экрана.',
+    'Customize how PrepPilot works for you': 'Настройте PrepPilot под себя',
+    'PrepPilot is currently detectable by screen-sharing.': 'Сейчас PrepPilot виден при демонстрации экрана.',
     'Mouse Passthrough': 'Сквозные клики мыши',
     'Overlay stays visible but lets all mouse clicks pass through to the app beneath.':
         'Оверлей остаётся видимым, но все клики мыши проходят сквозь него в приложение под ним.',
-    'Open Natively when you log in': 'Открывать Natively при входе в систему',
-    'Natively will open automatically when you log in to your computer.':
-        'Natively будет открываться автоматически при входе в систему.',
-    'Natively will open automatically when you log in to your computer':
-        'Natively будет открываться автоматически при входе в систему',
+    'Open PrepPilot when you log in': 'Открывать PrepPilot при входе в систему',
+    'PrepPilot will open automatically when you log in to your computer.':
+        'PrepPilot будет открываться автоматически при входе в систему.',
+    'PrepPilot will open automatically when you log in to your computer':
+        'PrepPilot будет открываться автоматически при входе в систему',
     'When enabled, live assistance works but transcripts, summaries, and history are discarded when the meeting ends':
         'Когда включено, живая помощь работает, но транскрипты, резюме и история удаляются по завершении встречи',
     'Do not save meetings': 'Не сохранять встречи',
@@ -316,7 +316,7 @@ const ZH: Record<string, string> = {
     'Chinese': '中文',
     'Japanese': '日语',
     'Spanish': '西班牙语',
-    'Interface language for Natively': 'Natively 界面语言',
+    'Interface language for PrepPilot': 'PrepPilot 界面语言',
     'Settings': '设置',
     'General': '通用',
     'Close': '关闭',
@@ -340,7 +340,7 @@ const JA: Record<string, string> = {
     'Chinese': '中国語',
     'Japanese': '日本語',
     'Spanish': 'スペイン語',
-    'Interface language for Natively': 'Natively のインターフェース言語',
+    'Interface language for PrepPilot': 'PrepPilot のインターフェース言語',
     'Settings': '設定',
     'General': '一般',
     'Close': '閉じる',
@@ -363,7 +363,7 @@ const ES: Record<string, string> = {
     'Chinese': 'Chino',
     'Japanese': 'Japonés',
     'Spanish': 'Español',
-    'Interface language for Natively': 'Idioma de la interfaz de Natively',
+    'Interface language for PrepPilot': 'Idioma de la interfaz de PrepPilot',
     'Settings': 'Ajustes',
     'General': 'General',
     'Close': 'Cerrar',

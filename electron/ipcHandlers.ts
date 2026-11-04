@@ -14,7 +14,9 @@ import { resolveMacScreenStatus } from '../src/lib/permissionAttentionPolicy.mjs
 import { hasOwnAiKey, resolveExpiredTrial } from '../src/lib/trialPolicy.mjs';
 import { CARDS, OUTCOMES } from '../src/lib/cards/cardPolicy.mjs';
 import { TRIAL_CAMPAIGN, TRIAL_PROMO_ID, runTrialCampaignReset } from '../src/lib/trialCampaign.mjs';
-import { autoTrialFollowUp, runAutoTrial, shouldAutoStartTrial } from '../src/lib/trial/autoTrial.mjs';
+
+/** PrepPilot: upstream's server-issued free trial is never requested. */
+const TRIALS_DISABLED: boolean = true;
 import { shouldEndTrialForUsedAllowance, isTrialAllowanceLow } from '../src/lib/trial/trialAllowance.mjs';
 import { onNativelyPlanLimit } from './llm/nativelyPlanLimitEvents';
 import { stripGistTrailer } from '../src/lib/displayMarkup';
@@ -1246,34 +1248,12 @@ export function initializeIpcHandlers(appState: AppState): void {
       return { success: false, error: 'Premium features not available in this build.' };
     }
   });
-  safeHandle('license:check-premium', async () => {
-    try {
-      const { LicenseManager } = require('../premium/electron/services/LicenseManager');
-      return LicenseManager.getInstance().isPremium();
-    } catch {
-      return false;
-    }
-  });
+  // PrepPilot: no paid tier. The licence queries answer from the one local
+  // gate (services/proAccess.ts), which unlocks every local feature.
+  safeHandle('license:check-premium', async () => isProOrTrialActive());
 
-  safeHandle('license:get-details', async () => {
-    try {
-      const { LicenseManager } = require('../premium/electron/services/LicenseManager');
-      return LicenseManager.getInstance().getLicenseDetails();
-    } catch {
-      return { isPremium: false };
-    }
-  });
-  // Async variant: performs Dodo server-side revocation check on startup.
-  // Returns false only if the server definitively revokes the key.
-  // Network errors fail-open (returns cached sync result).
-  safeHandle('license:check-premium-async', async () => {
-    try {
-      const { LicenseManager } = require('../premium/electron/services/LicenseManager');
-      return await LicenseManager.getInstance().isPremiumAsync();
-    } catch {
-      return false;
-    }
-  });
+  safeHandle('license:get-details', async () => ({ isPremium: isProOrTrialActive(), plan: 'personal' }));
+  safeHandle('license:check-premium-async', async () => isProOrTrialActive());
   safeHandle('license:deactivate', async () => {
     try {
       const { LicenseManager } = require('../premium/electron/services/LicenseManager');
@@ -12500,6 +12480,9 @@ export function initializeIpcHandlers(appState: AppState): void {
   // One body for both ways a trial starts: asked for (Settings, the overlay's
   // fallback button) and by itself with a meeting (the hook further down).
   async function startTrialFlow(surface?: unknown) {
+    // PrepPilot: the free trial was issued by the upstream Natively API and
+    // billed to its owners. This fork never requests one.
+    if (TRIALS_DISABLED) return { ok: false as const, error: 'trial_unavailable' };
     const startSurface = funnelSurface(surface);
     const reportStart = (r: Parameters<typeof mapTrialStartResult>[0]) =>
       funnelTelemetry.track('trial_start_result', { surface: startSurface, result: mapTrialStartResult(r) });
@@ -12813,75 +12796,11 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
-  // ── The trial starts by itself with a meeting ──────────────────────────────
-  // A meeting that starts with no AI to answer it starts the free trial
-  // (src/lib/trial/autoTrial.mjs has the rule and why). AppState calls this
-  // from startMeetingTransition, the one place every meeting start goes
-  // through. It returns at once: a meeting never waits on the network.
-  let autoTrialInFlight = false;
-  // After a refusal that is not about this device (autoTrialFollowUp), the hook
-  // does not ask again for a while. In memory only: a new launch may ask.
-  let autoTrialQuietUntil = 0;
-  const autoStartTrialForMeeting = async (): Promise<void> => {
-    if (autoTrialInFlight) return;
-    autoTrialInFlight = true;
-    const tell = (data: { state: 'pending' | 'settled' } | { state: 'failed'; reason: 'unreachable' | 'rate_limited' }) => {
-      BrowserWindow.getAllWindows().forEach((win) => {
-        if (!win.isDestroyed()) win.webContents.send('trial-auto-start', data);
-      });
-    };
-    let told = false;
-    try {
-      // The one-time "everyone may try again" reset decides `trialClaimed`.
-      await applyTrialCampaignReset();
-      const { CredentialsManager } = require('./services/CredentialsManager');
-      const cm = CredentialsManager.getInstance();
-      const snap = funnelSnapshot();
-      // The overlay's model picker is for the session only and is never
-      // stored, so the snapshot's stored default can say "nothing" for someone
-      // working on a local model right now. That is their own AI.
-      const sessionLocalModel = !!appState.processingHelper?.getLLMHelper?.()?.isUsingOllama?.();
-      const eligible = shouldAutoStartTrial({
-        meetingAi: sessionLocalModel ? 'own' : snap.meetingAi,
-        hasRealNativelyKey: snap.hasApiKey,
-        licensed: snap.hasPro,
-        trialClaimed: cm.getTrialClaimed(),
-        hasTrialToken: !!cm.getTrialToken(),
-        // An unread keychain looks like "nothing set up, never had a trial".
-        credentialsReadable: !cm.isCredentialStoreDegraded(),
-      });
-      if (!eligible) return;
-      if (Date.now() < autoTrialQuietUntil) return;
-
-      // 'pending' lets the overlay hold back "Transcription Not Configured",
-      // which is true for the second it takes the trial to arrive.
-      tell({ state: 'pending' });
-      told = true;
-      // A meeting that has already ended must not spend the device's one trial.
-      const meetingLive = () => appState.getIsMeetingActive?.() !== false;
-      let meetingEnded = false;
-      const outcome = await runAutoTrial(async () => {
-        if (!meetingLive()) { meetingEnded = true; return { ok: false, error: 'meeting_ended' }; }
-        return startTrialFlow('meeting_start');
-      });
-      const next = autoTrialFollowUp(outcome);
-      if (next.markClaimed && cm.markTrialClaimed().changed) broadcastCredentialsChanged();
-      if (next.quietMs > 0) autoTrialQuietUntil = Date.now() + next.quietMs;
-      if (next.notify && !meetingEnded && meetingLive()) {
-        tell({ state: 'failed', reason: next.notify });
-        told = false;
-      }
-    } catch (e: any) {
-      console.warn('[IPC] automatic trial start failed:', e?.message);
-    } finally {
-      // Every 'pending' is closed, whatever happened, so the overlay never
-      // waits on a start that is no longer running.
-      if (told) tell({ state: 'settled' });
-      autoTrialInFlight = false;
-    }
-  };
-  appState.autoStartTrialForMeeting = () => { void autoStartTrialForMeeting(); };
-  appState.autoTrialSettled = () => !autoTrialInFlight;
+  // PrepPilot: upstream started a server-issued free trial when a meeting
+  // began with no AI configured. This fork never requests one; AppState still
+  // calls these hooks, so they stay as no-ops.
+  appState.autoStartTrialForMeeting = () => {};
+  appState.autoTrialSettled = () => true;
 
   // Record the user's post-trial choice in analytics and clean up local state.
   safeHandle('trial:convert', async (_, choice: string) => {

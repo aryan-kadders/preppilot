@@ -144,9 +144,9 @@ const StartupSequence: React.FC<StartupSequenceProps> = ({ onComplete }) => {
     return (
         <div ref={boxRef} className="fixed inset-0 z-[100] bg-[#000000] flex items-center justify-center overflow-hidden">
             {plain ? (
-                <img src={appIcon} alt="Natively" className="w-24 h-24 object-contain" />
+                <img src={appIcon} alt="PrepPilot" className="w-24 h-24 object-contain" />
             ) : (
-                <canvas ref={canvasRef} role="img" aria-label="Natively" className="absolute inset-0 w-full h-full block" />
+                <canvas ref={canvasRef} role="img" aria-label="PrepPilot" className="absolute inset-0 w-full h-full block" />
             )}
         </div>
     );

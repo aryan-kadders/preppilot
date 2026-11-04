@@ -407,8 +407,8 @@ const StylePicker: React.FC<{ theme: MeetingInterfaceTheme; onChange: (theme: Me
 
 type Surface = 'overlay' | 'notepad';
 const SURFACES: { id: Surface; label: string; Icon: typeof AppWindow }[] = [
-    { id: 'overlay', label: 'Natively overlay', Icon: AppWindow },
-    { id: 'notepad', label: 'Natively notepad', Icon: NotebookPen },
+    { id: 'overlay', label: 'PrepPilot overlay', Icon: AppWindow },
+    { id: 'notepad', label: 'PrepPilot notepad', Icon: NotebookPen },
 ];
 /**
  * What meetings open, saved in main and read at every meeting start. Shown

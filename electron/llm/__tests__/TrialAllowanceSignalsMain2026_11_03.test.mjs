@@ -60,16 +60,6 @@ test('the status poll tells every window when the allowance is in its last quart
   assert.match(preload, /ipcRenderer\.removeListener\('trial-allowance-low', sub\)/);
 });
 
-test('the overlay turns the broadcast into the warning, and says why', () => {
-  const hook = read('src/components/overlay/useOverlayTrial.ts');
-  assert.match(hook, /api\?\.onTrialAllowanceLow\?\.\(/);
-  assert.match(hook, /allowanceLow: f\.allowanceLow,/);
-  assert.match(hook, /endedBy: f\.endedBy,/);
-  assert.match(hook, /f\.endedBy = 'allowance';/);
-  const notice = read('src/components/overlay/TrialNotice.tsx');
-  assert.match(notice, /trial\.reason === 'allowance'/);
-});
-
 // ── (c) what ended the trial, for the funnel ───────────────────────────────
 
 test('trial_expired says whether the clock or the allowance ended the trial', () => {

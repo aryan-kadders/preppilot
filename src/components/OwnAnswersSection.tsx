@@ -218,7 +218,7 @@ export function OwnAnswersSection({ hasResume, hasAccess }: { hasResume: boolean
                 <div>
                     <h3 className="pi-section-label" style={{ margin: 0 }}>Cue Cards</h3>
                     <p style={{ fontSize: 12, color: 'var(--pi-secondary)', margin: '4px 0 0', lineHeight: 1.5, maxWidth: 420 }}>
-                        Questions only you can answer. When one comes up in a meeting, Natively answers with what you saved here.
+                        Questions only you can answer. When one comes up in a meeting, PrepPilot answers with what you saved here.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -246,7 +246,7 @@ export function OwnAnswersSection({ hasResume, hasAccess }: { hasResume: boolean
 
             {loaded && draftKeys.length > 0 && (
                 <p style={{ fontSize: 11, color: 'var(--pi-secondary)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                    Natively drafted {draftKeys.length === 1 ? 'one answer' : `${draftKeys.length} answers`} from your résumé. A draft is not used in a meeting until you press Use or edit it.
+                    PrepPilot drafted {draftKeys.length === 1 ? 'one answer' : `${draftKeys.length} answers`} from your résumé. A draft is not used in a meeting until you press Use or edit it.
                 </p>
             )}
 
@@ -282,7 +282,7 @@ export function OwnAnswersSection({ hasResume, hasAccess }: { hasResume: boolean
                                     maxLength={q.maxChars}
                                     value={value}
                                     disabled={!hasAccess}
-                                    placeholder={q.drafted ? q.hint : `${q.hint} Only you know this, so Natively never drafts it.`}
+                                    placeholder={q.drafted ? q.hint : `${q.hint} Only you know this, so PrepPilot never drafts it.`}
                                     onChange={(e) => setText((prev) => ({ ...prev, [q.key]: e.target.value }))}
                                     onBlur={(e) => { if (dirty) void save(q.key, e.currentTarget.value); }}
                                 />

@@ -425,7 +425,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({
     } else {
         left = <>
             {eyebrow(`${t('Update available')} · ${displayVersion}`)}
-            {headline(t('New in Natively.\nReady when you are.'))}
+            {headline(t('New in PrepPilot.\nReady when you are.'))}
             {/* A release can run to thirty paragraphs of markdown; the card
                 shows its summary (or, without one, a few headlines), counts
                 the rest and links to the full notes. See releaseNotesDigest. */}
@@ -638,7 +638,7 @@ export const UpdateCornerToast: React.FC<UpdateCornerToastProps> = ({
     );
     const eyebrowLine = (
         <span style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: ink.quiet }}>
-            {version ? fill(t('Updating to {version}'), { version: `v${version}` }) : t('Updating Natively')}
+            {version ? fill(t('Updating to {version}'), { version: `v${version}` }) : t('Updating PrepPilot')}
         </span>
     );
 

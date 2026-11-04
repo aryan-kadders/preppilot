@@ -32,10 +32,6 @@ const root = path.resolve(__dirname, '../../..');
 
 const mainSrc = fs.readFileSync(path.join(root, 'electron/main.ts'), 'utf8');
 const ipcSrc = fs.readFileSync(path.join(root, 'electron/ipcHandlers.ts'), 'utf8');
-const settingsSrc = fs.readFileSync(
-  path.join(root, 'src/components/settings/NativelyApiSettings.tsx'),
-  'utf8',
-);
 
 describe('Fix #1: reconfigureSttProvider is serialized (source contract)', () => {
   it('declares a serialization chain field', () => {
@@ -155,25 +151,8 @@ describe('Fix #1: serialization semantics (behavioral)', () => {
 });
 
 describe('Fix #2: renderer no longer double-fires; server compensates the UI refresh', () => {
-  it('handleSave does not call setSttProvider/setDefaultModel after saving the key', () => {
-    const start = settingsSrc.indexOf('const handleSave');
-    assert.ok(start >= 0, 'handleSave must exist in NativelyApiSettings.tsx');
-    const end = settingsSrc.indexOf('const handleClear', start);
-    const handleSaveBody = settingsSrc.slice(start, end > start ? end : start + 1500);
-    // Match the actual IPC CALL form (`electronAPI?.setSttProvider`), not bare
-    // mentions — the explanatory comment legitimately names the removed calls.
-    assert.ok(
-      !/electronAPI\s*\?\.\s*setSttProvider/.test(handleSaveBody),
-      'BUG: handleSave fires electronAPI.setSttProvider again after set-natively-api-key. The main ' +
-        'process already promotes + reconfigures STT server-side; the redundant call races a SECOND ' +
-        'audio-pipeline rebuild — the crash/hang this whole fix removes.',
-    );
-    assert.ok(
-      !/electronAPI\s*\?\.\s*setDefaultModel/.test(handleSaveBody),
-      'BUG: handleSave fires electronAPI.setDefaultModel again after set-natively-api-key. The main ' +
-        'process already syncs the default model server-side; the redundant call is unnecessary work.',
-    );
-  });
+  // PrepPilot: the Natively API settings screen (and its handleSave) was removed,
+  // so the renderer half of this fix has nothing left to check.
 
   it("set-natively-api-key broadcasts 'credentials-changed' so the SettingsOverlay STT dropdown refreshes", () => {
     // The SettingsOverlay STT dropdown re-reads credentials ONLY on the

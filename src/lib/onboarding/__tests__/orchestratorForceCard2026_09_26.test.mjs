@@ -47,19 +47,20 @@ function fresh(user = {}) {
 }
 
 test('forceCard takes the empty slot and marks the showing forced', () => {
-  const orch = fresh();
-  assert.equal(orch.forceCard('profile_ad'), true);
+  // Connected: the extension card is not otherwise eligible, only forced.
+  const orch = fresh({ extensionConnected: true });
+  assert.equal(orch.forceCard('browser_extension'), true);
   const snap = orch.getSnapshot();
-  assert.equal(snap.activeToasterId, 'profile_ad');
-  assert.equal(snap.forcedToasterId, 'profile_ad');
+  assert.equal(snap.activeToasterId, 'browser_extension');
+  assert.equal(snap.forcedToasterId, 'browser_extension');
 });
 
 test('forceCard never overlaps an open card', () => {
   const orch = fresh({ cardLedger: policy.emptyLedger(Date.now()) });
   mockNow += 10_000; flush();
-  assert.equal(orch.getSnapshot().activeToasterId, 'demo_video', 'precondition: a real card is open');
-  assert.equal(orch.forceCard('profile_ad'), false);
-  assert.equal(orch.getSnapshot().activeToasterId, 'demo_video');
+  assert.equal(orch.getSnapshot().activeToasterId, 'browser_extension', 'precondition: a real card is open');
+  assert.equal(orch.forceCard('permissions'), false);
+  assert.equal(orch.getSnapshot().activeToasterId, 'browser_extension');
   assert.equal(orch.getSnapshot().forcedToasterId, null);
 });
 
@@ -69,17 +70,18 @@ test('forceCard refuses a stage that does not exist', () => {
 
 test('closing a forced card clears the mark', () => {
   const orch = fresh();
-  orch.forceCard('support');
-  orch.markDismissed('support');
+  assert.equal(orch.forceCard('browser_extension'), true);
+  orch.markDismissed('browser_extension');
   assert.equal(orch.getSnapshot().activeToasterId, null);
   assert.equal(orch.getSnapshot().forcedToasterId, null);
 });
 
 test('the drain never replaces a forced card', () => {
   const orch = fresh({ cardLedger: policy.emptyLedger(Date.now()) });
-  orch.forceCard('jd_ad');
+  // The extension card would be eligible by now; the forced one stays.
+  orch.forceCard('permissions');
   mockNow += 120_000; flush();
-  assert.equal(orch.getSnapshot().activeToasterId, 'jd_ad');
+  assert.equal(orch.getSnapshot().activeToasterId, 'permissions');
 });
 
 test('forcedCardFromQuery: ?forceCard, and the older ?forceAd / ?review / ?extToaster names', () => {

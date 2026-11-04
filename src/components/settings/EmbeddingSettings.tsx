@@ -526,7 +526,7 @@ export const EmbeddingSettings: React.FC<EmbeddingSettingsProps> = ({ renderPart
                 const repaired = res.repaired?.length ?? 0;
                 const found = repaired === 0 ? t('Files are intact') : repaired === 1 ? t('Repaired 1 damaged file') : `${t('Repaired damaged files')}: ${repaired}`;
                 // The running index keeps the copy it already loaded.
-                setFileCheckNotes(prev => ({ ...prev, [id]: res.restartToApply ? `${found}. ${t('Restart Natively to use the repaired files.')}` : found }));
+                setFileCheckNotes(prev => ({ ...prev, [id]: res.restartToApply ? `${found}. ${t('Restart PrepPilot to use the repaired files.')}` : found }));
             }
             await loadLocalEmbeddingModels();
         } finally {
@@ -1480,7 +1480,7 @@ export const EmbeddingSettings: React.FC<EmbeddingSettingsProps> = ({ renderPart
 
                 <div className="flex items-center justify-between gap-3 flex-wrap text-[10px] aip-muted px-1">
                     <p className="min-w-0 flex-1">
-                        {t('Runs on this device with zero data sent externally. Built-in MiniLM model shipped with Natively, or download open models directly from Hugging Face.')}
+                        {t('Runs on this device with zero data sent externally. Built-in MiniLM model shipped with PrepPilot, or download open models directly from Hugging Face.')}
                     </p>
                     <span className="shrink-0 inline-flex items-center gap-2">
                         <span className="font-medium tabular-nums aip-text">
@@ -1550,7 +1550,7 @@ export const EmbeddingSettings: React.FC<EmbeddingSettingsProps> = ({ renderPart
                 )}
 
                 <div className="aip-well aip-scroll-y p-2.5 space-y-3.5" style={{ maxHeight: 380 }}>
-                    {renderLocalEmbeddingSection(t('Bundled with Natively'), filteredLocalModels.filter(m => m.bundled))}
+                    {renderLocalEmbeddingSection(t('Bundled with PrepPilot'), filteredLocalModels.filter(m => m.bundled))}
                     {renderLocalEmbeddingSection(t('Hugging Face ONNX Models'), filteredLocalModels.filter(m => !m.bundled && m.runtime === 'onnx'))}
                     {renderLocalEmbeddingSection(t('Hugging Face GGUF Models'), filteredLocalModels.filter(m => !m.bundled && m.runtime === 'gguf'))}
                     {filteredLocalModels.length === 0 && (
@@ -1578,7 +1578,7 @@ export const EmbeddingSettings: React.FC<EmbeddingSettingsProps> = ({ renderPart
                                 ? `${activeModelDetails.dims} dimensions · ${t('Changing model re-indexes your project')}`
                                 : active.configured
                                     ? `${t('Configured')} · ${t('Changing model re-indexes your project')}`
-                                    : t('Natively could not resolve an embedding provider.')}
+                                    : t('PrepPilot could not resolve an embedding provider.')}
                         </p>
                     </div>
 

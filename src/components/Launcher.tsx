@@ -14,7 +14,6 @@ import MeetingDetails from './MeetingDetails';
 import TopSearchPill from './TopSearchPill';
 import GlobalChatOverlay from './GlobalChatOverlay';
 import { motion, AnimatePresence, useReducedMotion, type TargetAndTransition, type Variants } from 'framer-motion';
-import { FeatureSpotlight } from './FeatureSpotlight';
 import './LauncherCta.css';
 import { analytics } from '../lib/analytics/analytics.service'; // Added analytics import
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -1190,7 +1189,7 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                                                 <path fill="currentColor" d="M512 106 A406 406 0 1 1 512 918 A406 406 0 1 1 512 106 Z M512 181 A331 331 0 1 0 512 843 A331 331 0 1 0 512 181 Z M288 194.91 H363 V829.09 H288 Z M661 194.91 H736 V829.09 H661 Z M269.75 211 L359.44 211 L754.25 813 L664.56 813 Z" />
                                                             </svg>
                                                             <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] text-[20px] leading-none">
-                                                                {t('Start Natively')}
+                                                                {t('Start PrepPilot')}
                                                             </span>
                                                         </motion.div>
                                                     )}
@@ -1200,18 +1199,11 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                     </div>
 
                                     {/* 2. Hero Section Cards */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-[198px]">
-                                        {/* Default Intro — natively support & upcoming features.
-                                            Calendar "Up Next" lives in Settings → Calendar, not here. */}
-                                        <div className="md:col-span-2 h-full">
-                                            <FeatureSpotlight />
-                                        </div>
-
-
-
-                                        {/* Right Secondary Card — violet-tinted, "Calendar Connected" + peeking next meeting */}
+                                    <div className="grid grid-cols-1 gap-3 h-[198px]">
+                                        {/* PrepPilot: upstream's sponsor/promo carousel (FeatureSpotlight)
+                                            was removed; the calendar card takes the row. */}
                                         <UpcomingCalendarCard
-                                            className="md:col-span-1"
+                                            className="h-full"
                                             isConnected={isCalendarConnected}
                                             // Re-fetch: the events loaded at mount were fetched before the
                                             // connection existed, so the card would stay empty until a Refresh.

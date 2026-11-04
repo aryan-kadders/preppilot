@@ -62,17 +62,17 @@ const ROWS: Record<string, Row> = {
     '再試行しています。',
     'Reintentando.',
   ],
-  'Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow Natively in your antivirus, or turn off its HTTPS scanning for Natively.': [
-    'Проверка HTTPS в антивирусе или сетевой фильтр перехватывает соединение. Разрешите Natively в антивирусе или отключите для Natively проверку HTTPS.',
-    '杀毒软件的 HTTPS 扫描或网络过滤器正在拦截连接。请在杀毒软件中允许 Natively，或为 Natively 关闭 HTTPS 扫描。',
-    'ウイルス対策ソフトの HTTPS スキャンまたはネットワークフィルターが接続を傍受しています。ウイルス対策ソフトで Natively を許可するか、Natively の HTTPS スキャンをオフにしてください。',
-    'El análisis HTTPS de tu antivirus o un filtro de red está interceptando la conexión. Permite Natively en tu antivirus o desactiva su análisis HTTPS para Natively.',
+  'Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow PrepPilot in your antivirus, or turn off its HTTPS scanning for PrepPilot.': [
+    'Проверка HTTPS в антивирусе или сетевой фильтр перехватывает соединение. Разрешите PrepPilot в антивирусе или отключите для PrepPilot проверку HTTPS.',
+    '杀毒软件的 HTTPS 扫描或网络过滤器正在拦截连接。请在杀毒软件中允许 PrepPilot，或为 PrepPilot 关闭 HTTPS 扫描。',
+    'ウイルス対策ソフトの HTTPS スキャンまたはネットワークフィルターが接続を傍受しています。ウイルス対策ソフトで PrepPilot を許可するか、PrepPilot の HTTPS スキャンをオフにしてください。',
+    'El análisis HTTPS de tu antivirus o un filtro de red está interceptando la conexión. Permite PrepPilot en tu antivirus o desactiva su análisis HTTPS para PrepPilot.',
   ],
-  'Natively cannot reach the transcription service. Check your internet connection, and allow Natively in your firewall and antivirus.': [
-    'Natively не может связаться с сервисом расшифровки. Проверьте подключение к интернету и разрешите Natively в брандмауэре и антивирусе.',
-    'Natively 无法连接到转录服务。请检查您的网络连接，并在防火墙和杀毒软件中允许 Natively。',
-    'Natively が文字起こしサービスに接続できません。インターネット接続を確認し、ファイアウォールとウイルス対策ソフトで Natively を許可してください。',
-    'Natively no puede conectarse al servicio de transcripción. Revisa tu conexión a internet y permite Natively en tu firewall y antivirus.',
+  'PrepPilot cannot reach the transcription service. Check your internet connection, and allow PrepPilot in your firewall and antivirus.': [
+    'PrepPilot не может связаться с сервисом расшифровки. Проверьте подключение к интернету и разрешите PrepPilot в брандмауэре и антивирусе.',
+    'PrepPilot 无法连接到转录服务。请检查您的网络连接，并在防火墙和杀毒软件中允许 PrepPilot。',
+    'PrepPilot が文字起こしサービスに接続できません。インターネット接続を確認し、ファイアウォールとウイルス対策ソフトで PrepPilot を許可してください。',
+    'PrepPilot no puede conectarse al servicio de transcripción. Revisa tu conexión a internet y permite PrepPilot en tu firewall y antivirus.',
   ],
   // An on-device model (issue #707): no key and no provider to check.
   'There is not enough free memory for the local model. Close other apps, or choose a smaller local model in Settings → Audio.': [

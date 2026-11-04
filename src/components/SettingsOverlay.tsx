@@ -13,7 +13,6 @@ import {
     Plug, AppWindow
 } from 'lucide-react';
 import { AutoAnswerIcon } from './AutoAnswerIcon';
-import { HiCreditCard } from 'react-icons/hi2';
 import { analytics } from '../lib/analytics/analytics.service';
 import { AboutSection } from './AboutSection';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -22,7 +21,6 @@ import { AIProvidersSettings, AIP_CSS, AipModelList, AipPassedCheck } from './se
 import { SpeechDictionarySettings } from './settings/SpeechDictionarySettings';
 import { RoomSpeakersSettings } from './settings/RoomSpeakersSettings';
 import { FollowMicDeviceSettings } from './settings/FollowMicDeviceSettings';
-import { PlansSettings } from './settings/PlansSettings';
 import { PhoneMirrorSettings } from './settings/PhoneMirrorSettings';
 import { RetrievalSettings } from './settings/RetrievalSettings';
 import { IntelligenceSettings } from './settings/IntelligenceSettings';
@@ -450,9 +448,13 @@ const ProviderSelect: React.FC<ProviderSelectProps> = ({ value, options, onChang
    from above, so the motion stays spatially consistent with the nav. Any id not
    in this list (deep-links from HelpSettings) falls back to the downward
    direction rather than guessing. Keep in sync with the <nav> below. */
+/** PrepPilot: Plans & Billing was removed; its old tab ids open General. */
+function withoutRemovedTab<T extends string>(tab: T): T | 'general' {
+    return tab === 'plans' || tab === 'natively-api' || tab === 'natively-pro' ? 'general' : tab;
+}
+
 const SETTINGS_NAV_ORDER = [
     'general',
-    'plans',
     'ai-providers',
     'retrieval',
     'audio',
@@ -534,7 +536,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     onClose,
     initialTab = 'general',
     initialTabSeq = 0,
-    initialIsPremium = null,
     initialHasNativelyKey = false,
     closeInstantly = false,
     onOpenModes,
@@ -545,7 +546,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     const resolvedTheme = useResolvedTheme();
     const isLight = resolvedTheme === 'light';
     const { t, lang, setLang } = useLanguage();
-    const [activeTab, setActiveTab] = useState(initialTab);
+    const [activeTab, setActiveTab] = useState(() => withoutRemovedTab(initialTab));
     // In-window confirms only: see ConfirmDialog.tsx for why never confirm().
     const { confirm: askConfirm, dialog: confirmDialog } = useConfirmDialog();
 
@@ -653,8 +654,11 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                to stop. Suppress that one transition. The `!==` matters: setting
                this on a same-tab open would never clear and would swallow the
                user's first real tab click. */
-            if (initialTab !== activeTab) suppressPanelAnimRef.current = true;
-            setActiveTab(initialTab);
+            /* PrepPilot: the Plans & Billing panel was removed; old deep links
+               to it ('plans' / 'natively-api' / 'natively-pro') land on General. */
+            const requestedTab = withoutRemovedTab(initialTab);
+            if (requestedTab !== activeTab) suppressPanelAnimRef.current = true;
+            setActiveTab(requestedTab);
             setRetrievalRequest({
                 tab: initialTab === 'reranker' ? 'reranker'
                     : initialTab === 'embedding' ? 'embedding'
@@ -2342,14 +2346,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                         <Monitor size={16} /> {t('General')}
                                     </button>
                                     <button
-                                        onClick={() => setActiveTab('plans')}
-                                        className={navItemClass(activeTab === 'plans' || activeTab === 'natively-api' || activeTab === 'natively-pro')}
-                                    >
-                                        {(activeTab === 'plans' || activeTab === 'natively-api' || activeTab === 'natively-pro') && navActivePill}
-                                        <HiCreditCard size={16} />
-                                        <span>{t('Plans & Billing')}</span>
-                                    </button>
-                                    <button
                                         onClick={() => setActiveTab('ai-providers')}
                                         className={navItemClass(activeTab === 'ai-providers')}
                                     >
@@ -2439,7 +2435,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                     onClick={() => window.electronAPI.quitApp()}
                                     className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
                                 >
-                                    <LogOut size={16} /> {t('Quit Natively')}
+                                    <LogOut size={16} /> {t('Quit PrepPilot')}
                                 </button>
                             </div>
                         </div>
@@ -2500,7 +2496,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                     <div className="space-y-3.5">
                                         <div data-settings-stagger>
                                             <h3 className="text-lg font-bold text-text-primary mb-1">{t('General settings')}</h3>
-                                            <p className="text-xs text-text-secondary mb-2">{t('Customize how Natively works for you')}</p>
+                                            <p className="text-xs text-text-secondary mb-2">{t('Customize how PrepPilot works for you')}</p>
 
                                             <div className="rounded-xl border bg-transparent border-transparent divide-y divide-border-subtle/20">
                                             <div className="space-y-0">
@@ -2539,7 +2535,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                             </h3>
                                                             <p className="text-xs text-text-secondary mt-0.5">
                                                                 <Presence kind="text" id={isUndetectable ? 'undetectable' : 'detectable'}>
-                                                                    {isUndetectable ? t('Natively is currently undetectable by screen-sharing.') : t('Natively is currently detectable by screen-sharing.')}
+                                                                    {isUndetectable ? t('PrepPilot is currently undetectable by screen-sharing.') : t('PrepPilot is currently detectable by screen-sharing.')}
                                                                 </Presence>{' '}
                                                                 {/* The underline fades in with the hover rather than snapping on. */}
                                                                 <button onClick={() => window.electronAPI?.openExternal?.('https://natively.software/supportedapps')} className="text-accent-primary underline decoration-transparent hover:decoration-current transition-colors duration-150 ease-out">{t('Supported apps here')}</button>
@@ -2567,13 +2563,13 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                             <Power size={20} />
                                                         </div>
                                                         <div>
-                                                            <h3 className="text-sm font-bold text-text-primary">{t('Open Natively when you log in')}</h3>
-                                                            <p className="text-xs text-text-secondary mt-0.5">{t('Natively will open automatically when you log in to your computer')}</p>
+                                                            <h3 className="text-sm font-bold text-text-primary">{t('Open PrepPilot when you log in')}</h3>
+                                                            <p className="text-xs text-text-secondary mt-0.5">{t('PrepPilot will open automatically when you log in to your computer')}</p>
                                                         </div>
                                                     </div>
                                                     <SettingsToggle
                                                         checked={openOnLogin}
-                                                        label={t('Open Natively when you log in')}
+                                                        label={t('Open PrepPilot when you log in')}
                                                         onChange={() => {
                                                             const newState = !openOnLogin;
                                                             setOpenOnLogin(newState);
@@ -2594,13 +2590,13 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                                 <Keyboard size={20} />
                                                             </div>
                                                             <div>
-                                                                <h3 className="text-sm font-bold text-text-primary">{t('Protect Natively shortcuts')}</h3>
+                                                                <h3 className="text-sm font-bold text-text-primary">{t('Protect PrepPilot shortcuts')}</h3>
                                                                 <p className="text-xs text-text-secondary mt-0.5">{t('Keeps shortcuts from typing into the app below. Turn off if antivirus flags it.')}</p>
                                                             </div>
                                                         </div>
                                                         <SettingsToggle
                                                             checked={shortcutGuard}
-                                                            label={t('Protect Natively shortcuts')}
+                                                            label={t('Protect PrepPilot shortcuts')}
                                                             onChange={async () => {
                                                                 const previous = shortcutGuard;
                                                                 const newState = !previous;
@@ -2693,7 +2689,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                         </div>
                                                         <div>
                                                             <h3 className="text-sm font-bold text-text-primary">{t('Theme')}</h3>
-                                                            <p className="text-xs text-text-secondary mt-0.5">{t('Customize how Natively looks on your device')}</p>
+                                                            <p className="text-xs text-text-secondary mt-0.5">{t('Customize how PrepPilot looks on your device')}</p>
                                                         </div>
                                                     </div>
 
@@ -2755,7 +2751,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                         </div>
                                                         <div>
                                                             <h3 className="text-sm font-bold text-text-primary">{t('Language')}</h3>
-                                                            <p className="text-xs text-text-secondary mt-0.5">{t('Interface language for Natively')}</p>
+                                                            <p className="text-xs text-text-secondary mt-0.5">{t('Interface language for PrepPilot')}</p>
                                                         </div>
                                                     </div>
 
@@ -2822,7 +2818,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                         <div>
                                                             <h3 className="text-sm font-bold text-text-primary">{t('Version')}</h3>
                                                             <p className="text-xs text-text-secondary mt-0.5">
-                                                                {t('You are currently using Natively version')} {packageJson.version}
+                                                                {t('You are currently using PrepPilot version')} {packageJson.version}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -3164,7 +3160,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                 <h3 className="text-lg font-bold text-text-primary">{t('Process Disguise')}</h3>
                                             </div>
                                             <p className="text-xs text-text-secondary">
-                                                {t('Disguise Natively as another application to prevent detection during screen sharing.')}
+                                                {t('Disguise PrepPilot as another application to prevent detection during screen sharing.')}
                                                 <span className="block mt-1 text-text-tertiary">
                                                     {t('Select a disguise to be automatically applied when Undetectable mode is on.')}
                                                 </span>
@@ -3248,15 +3244,12 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                     aiLangDropdownRef={aiLangDropdownRef}
                                 />
                             )}
-                            {(activeTab === 'plans' || activeTab === 'natively-api' || activeTab === 'natively-pro') && (
-                                <PlansSettings initialIsPremium={initialIsPremium} initialHasNativelyKey={hasNativelyKey} />
-                            )}
                             {activeTab === 'keybinds' && (
                                 <div className="space-y-5 animated fadeIn select-text pb-4">
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <h3 className="text-lg font-bold text-text-primary mb-1">{t('Keyboard shortcuts')}</h3>
-                                            <p className="text-xs text-text-secondary">{t('Natively works with these easy to remember commands.')}</p>
+                                            <p className="text-xs text-text-secondary">{t('PrepPilot works with these easy to remember commands.')}</p>
                                         </div>
                                         <button
                                             onClick={resetShortcuts}
@@ -3277,7 +3270,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                 <DescriptionSwap id={globalShortcutsEnabled ? 'global' : 'focused'}>
                                                     {globalShortcutsEnabled
                                                         ? t('Shortcuts work even when another app is focused.')
-                                                        : t('Shortcuts work only while Natively is focused. Toggle Visibility stays global so you can always bring Natively back.')}
+                                                        : t('Shortcuts work only while PrepPilot is focused. Toggle Visibility stays global so you can always bring PrepPilot back.')}
                                                 </DescriptionSwap>
                                             </p>
                                         </div>
@@ -4062,7 +4055,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                                 />
                                                             </div>
                                                             <p className="text-[11px] text-text-secondary mt-2">
-                                                                {t('macOS is fetching this language. You can keep using Natively; the download continues in the background.')}
+                                                                {t('macOS is fetching this language. You can keep using PrepPilot; the download continues in the background.')}
                                                             </p>
                                                         </>
                                                     ) : (
@@ -4383,7 +4376,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                         </div>
                                                         <div>
                                                             <h3 className="text-sm font-bold text-text-primary">{t("Follow the meeting app's mute")}</h3>
-                                                            <p className="text-xs text-text-secondary mt-0.5">{t("While you're muted in Zoom, Teams or Meet, Natively doesn't transcribe your microphone.")}</p>
+                                                            <p className="text-xs text-text-secondary mt-0.5">{t("While you're muted in Zoom, Teams or Meet, PrepPilot doesn't transcribe your microphone.")}</p>
                                                         </div>
                                                     </div>
                                                     <SettingsToggle
@@ -4414,7 +4407,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                         <div>
                                                             <h3 className="text-sm font-bold text-text-primary">{t('Dictation')}</h3>
                                                             <p className="text-xs text-text-secondary mt-0.5">
-                                                                {t('Press {keys}, speak, then press it again. Natively tidies what you said and copies it, ready to paste with {paste}. Not during a meeting.')
+                                                                {t('Press {keys}, speak, then press it again. PrepPilot tidies what you said and copies it, ready to paste with {paste}. Not during a meeting.')
                                                                     .replace('{keys}', (shortcuts.dictation ?? []).join(isMac ? '' : '+') || t('the dictation shortcut'))
                                                                     .replace('{paste}', isMac ? '⌘V' : 'Ctrl+V')}
                                                             </p>

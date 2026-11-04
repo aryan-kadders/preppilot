@@ -55,8 +55,15 @@ const guardsBroadcast = (text) => {
   const region = text.slice(save, text.indexOf('} catch (error)', save));
   const send = region.indexOf("send('meetings-updated')");
   if (send < 0) return false;
-  // The broadcast must sit inside a try opened after the save.
-  return /try\s*\{[\s\S]{0,300}$/.test(region.slice(0, send));
+  // The broadcast must sit inside a try opened after the save that is still
+  // OPEN at the send: the nearest `try {` before it, with no `} catch` between.
+  // (A bare "a try within 300 chars" also matched the Hindsight block's try just
+  // above, so it kept passing with this broadcast's own try removed.)
+  const before = region.slice(0, send);
+  const tries = [...before.matchAll(/try\s*\{/g)];
+  if (!tries.length) return false;
+  const lastTry = tries[tries.length - 1].index;
+  return !/\}\s*catch\b/.test(before.slice(lastTry));
 };
 
 describe('the destructive failure path is gated on the save not having happened', () => {
@@ -88,7 +95,11 @@ describe('the destructive failure path is gated on the save not having happened'
     assert.ok(!guardsMarker(withoutGuard),
       'the !meetingSaved pin still passes with the guard removed — it is vacuous');
 
-    const withoutTry = source.replace(
+    // Mutate the broadcast AFTER the save. A whole-file replace hit the first
+    // such block in the file (the resumed-meeting path, far above the save),
+    // so the probe was removing a try this pin never looks at.
+    const saveAt = source.indexOf('DatabaseManager.getInstance().saveMeeting(meetingData');
+    const withoutTry = source.slice(0, saveAt) + source.slice(saveAt).replace(
       /try\s*\{\s*\n(\s*)const wins = require\('electron'\)\.BrowserWindow\.getAllWindows\(\);/,
       '$1const wins = require(\'electron\').BrowserWindow.getAllWindows();',
     );

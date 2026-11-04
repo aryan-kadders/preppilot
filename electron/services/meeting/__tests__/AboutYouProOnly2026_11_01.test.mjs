@@ -79,7 +79,9 @@ describe('MeetingPersistence.profileForNotes, end to end', async () => {
   }
   const read = (allowed) => MeetingPersistence.prototype.profileForNotes.call({ llmHelper: undefined, bioAllowed: () => allowed });
 
-  test('a fresh install (no licence, no trial): not Pro, and live answers get no bio', () => {
+  // PrepPilot has no paid tier: a fresh install (no licence, no trial) has every
+  // local feature, so live answers read the bio. Upstream pinned the opposite.
+  test('a fresh install (no licence, no trial): unlocked, and live answers get the bio', () => {
     sm.set('userBio', BIO);
     const prev = Module._load;
     Module._load = function patched(request) {
@@ -88,8 +90,8 @@ describe('MeetingPersistence.profileForNotes, end to end', async () => {
     };
     try {
       const access = req(path.resolve(root, 'dist-electron/electron/services/proAccess.js'));
-      assert.equal(access.isProOrTrialActive(), false);
-      assert.equal(access.userBioForAnswers(), '');
+      assert.equal(access.isProOrTrialActive(), true);
+      assert.equal(access.userBioForAnswers(), BIO);
     } finally {
       Module._load = prev;
     }

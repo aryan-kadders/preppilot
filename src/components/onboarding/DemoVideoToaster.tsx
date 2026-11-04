@@ -168,7 +168,7 @@ export const DemoVideoToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
           <motion.div variants={item} style={{
             fontSize: '12px', fontWeight: 500, letterSpacing: '-0.005em', color: INK.quiet, margin: '0 0 22px',
           }}>
-            Natively in 9 minutes
+            PrepPilot in 9 minutes
           </motion.div>
 
           <motion.h2 variants={item} id="demo-toast-title" style={{
@@ -184,7 +184,7 @@ export const DemoVideoToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
             fontSize: '13.5px', lineHeight: 1.55, letterSpacing: '-0.008em',
             color: INK.body, margin: '16px 0 0', maxWidth: '300px', textWrap: 'pretty',
           } as React.CSSProperties}>
-            Every step of the setup, then Natively at work in a meeting. It stays
+            Every step of the setup, then PrepPilot at work in a meeting. It stays
             in Settings › Setup & Help whenever you want it again.
           </motion.p>
 

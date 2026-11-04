@@ -17,14 +17,14 @@ type Row = readonly [ru: string, zh: string, ja: string, es: string];
 
 const ROWS: Record<string, Row> = {
   // ── Welcome ──
-  'Welcome to Natively': ['Добро пожаловать в Natively', '欢迎使用 Natively', 'Natively へようこそ', 'Te damos la bienvenida a Natively'],
+  'Welcome to PrepPilot': ['Добро пожаловать в PrepPilot', '欢迎使用 PrepPilot', 'PrepPilot へようこそ', 'Te damos la bienvenida a PrepPilot'],
   'Real-time help,': ['Помощь в реальном времени,', '实时协助，', 'リアルタイムのサポートを、', 'Ayuda en tiempo real,'],
   'in every meeting.': ['на каждой встрече.', '尽在每场会议。', 'すべての会議で。', 'en cada reunión.'],
-  'Natively listens along, answers the question in front of you, and can stay hidden from screen sharing.': [
-    'Natively слушает разговор, отвечает на заданный вам вопрос и может оставаться скрытым при демонстрации экрана.',
-    'Natively 全程聆听，回答摆在你面前的问题，并且可以在屏幕共享时保持隐藏。',
-    'Natively は会話を聞き取り、目の前の質問に答え、画面共有中は表示されないようにもできます。',
-    'Natively escucha la conversación, responde la pregunta que tienes delante y puede permanecer oculto al compartir pantalla.',
+  'PrepPilot listens along, answers the question in front of you, and can stay hidden from screen sharing.': [
+    'PrepPilot слушает разговор, отвечает на заданный вам вопрос и может оставаться скрытым при демонстрации экрана.',
+    'PrepPilot 全程聆听，回答摆在你面前的问题，并且可以在屏幕共享时保持隐藏。',
+    'PrepPilot は会話を聞き取り、目の前の質問に答え、画面共有中は表示されないようにもできます。',
+    'PrepPilot escucha la conversación, responde la pregunta que tienes delante y puede permanecer oculto al compartir pantalla.',
   ],
   'Get started': ['Начать', '开始使用', '始める', 'Empezar'],
   // The clock starts with the first meeting and runs for 30 minutes, across
@@ -47,7 +47,7 @@ const ROWS: Record<string, Row> = {
 
   // ── Tour ──
   'Step {n} of {total}': ['Шаг {n} из {total}', '第 {n} 步，共 {total} 步', 'ステップ {n} / {total}', 'Paso {n} de {total}'],
-  'Show or hide Natively': ['Показать или скрыть Natively', '显示或隐藏 Natively', 'Natively を表示／非表示', 'Mostrar u ocultar Natively'],
+  'Show or hide PrepPilot': ['Показать или скрыть PrepPilot', '显示或隐藏 PrepPilot', 'PrepPilot を表示／非表示', 'Mostrar u ocultar PrepPilot'],
   'Tap it again to bring the overlay back. Works from any app.': [
     'Нажмите ещё раз, чтобы вернуть оверлей. Работает из любого приложения.',
     '再按一次即可让悬浮窗重新出现，在任何应用中都有效。',
@@ -55,18 +55,18 @@ const ROWS: Record<string, Row> = {
     'Púlsalo de nuevo para recuperar el overlay. Funciona desde cualquier app.',
   ],
   'Get the answer': ['Получите ответ', '获取答案', '答えを得る', 'Obtén la respuesta'],
-  'Natively answers the question you were just asked.': [
-    'Natively отвечает на вопрос, который вам только что задали.',
-    'Natively 会回答刚刚向你提出的问题。',
-    'Natively が、たった今聞かれた質問に答えます。',
-    'Natively responde a la pregunta que acaban de hacerte.',
+  'PrepPilot answers the question you were just asked.': [
+    'PrepPilot отвечает на вопрос, который вам только что задали.',
+    'PrepPilot 会回答刚刚向你提出的问题。',
+    'PrepPilot が、たった今聞かれた質問に答えます。',
+    'PrepPilot responde a la pregunta que acaban de hacerte.',
   ],
   'Show it your screen': ['Покажите ему свой экран', '让它看到你的屏幕', '画面を見せる', 'Muéstrale tu pantalla'],
-  'Takes a screenshot so Natively can read what you see.': [
-    'Делает снимок экрана, чтобы Natively видел то же, что и вы.',
-    '截取屏幕，让 Natively 看到你所看到的内容。',
-    'スクリーンショットを撮り、あなたが見ているものを Natively が読み取れるようにします。',
-    'Hace una captura para que Natively lea lo que ves.',
+  'Takes a screenshot so PrepPilot can read what you see.': [
+    'Делает снимок экрана, чтобы PrepPilot видел то же, что и вы.',
+    '截取屏幕，让 PrepPilot 看到你所看到的内容。',
+    'スクリーンショットを撮り、あなたが見ているものを PrepPilot が読み取れるようにします。',
+    'Hace una captura para que PrepPilot lea lo que ves.',
   ],
   'Try {keys}': ['Попробовать {keys}', '试试 {keys}', '{keys} を試す', 'Probar {keys}'],
   'That’s it. Watch the overlay on the right.': [
@@ -83,7 +83,7 @@ const ROWS: Record<string, Row> = {
   ],
   'Skip': ['Пропустить', '跳过', 'スキップ', 'Omitir'],
   'Next': ['Далее', '下一步', '次へ', 'Siguiente'],
-  'Start using Natively': ['Начать пользоваться Natively', '开始使用 Natively', 'Natively を使い始める', 'Empezar a usar Natively'],
+  'Start using PrepPilot': ['Начать пользоваться PrepPilot', '开始使用 PrepPilot', 'PrepPilot を使い始める', 'Empezar a usar PrepPilot'],
 
   // ── The call and the overlay beside it ──
   'Overlay hidden. Press {keys} to bring it back.': [

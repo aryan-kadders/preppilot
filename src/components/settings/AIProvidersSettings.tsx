@@ -1878,7 +1878,7 @@ export const AipVisionDetail: React.FC<{
     const t = useT();
     const motionReady = useVisionRowMotion(open);
     const choices: Array<{ value: VisionSetting; label: string; title: string }> = [
-        { value: 'auto', label: t('Auto'), title: t('Let Natively work it out') },
+        { value: 'auto', label: t('Auto'), title: t('Let PrepPilot work it out') },
         { value: 'on', label: t('On'), title: t('Always send this model screenshots') },
         { value: 'off', label: t('Off'), title: t('Never send this model screenshots') },
     ];
@@ -3486,8 +3486,8 @@ export const AIProvidersSettings: React.FC<AIProvidersSettingsProps> = ({
     const keyWriteFailureText = (result: { error?: string; message?: string } | undefined, action: 'save' | 'remove'): string =>
         result?.error === 'credential_store_degraded'
             ? (action === 'save'
-                ? t('Could not save the key: your credential store is unavailable this session. Restart Natively and try again.')
-                : t('Could not remove the key: your credential store is unavailable this session. Restart Natively and try again.'))
+                ? t('Could not save the key: your credential store is unavailable this session. Restart PrepPilot and try again.')
+                : t('Could not remove the key: your credential store is unavailable this session. Restart PrepPilot and try again.'))
             : (result?.message || result?.error || (action === 'save' ? t('Could not save the key.') : t('Could not remove the key.')));
 
     // --- Custom Providers ---
@@ -5968,12 +5968,12 @@ export const AIProvidersSettings: React.FC<AIProvidersSettingsProps> = ({
                             ? t('Codex CLI login expired — run `codex` to refresh, or sign in above.')
                             : codexOauthStatus.cliLogin === 'api-key'
                                 ? t('Your Codex CLI is logged in with an API key, which Codex here cannot use — sign in with ChatGPT here, or run `codex login` with your ChatGPT account.')
-                                : t('Or run `codex login` in a terminal — Natively can use that ChatGPT login too.')}
+                                : t('Or run `codex login` in a terminal — PrepPilot can use that ChatGPT login too.')}
                     </p>
                 )}
                 {codexOauthStatus.signedIn && codexOauthStatus.source === 'codex-cli' && (
                     <p className="text-xs aip-muted">
-                        {t('Natively uses this login read-only. When it expires, run any `codex` command to refresh it.')}
+                        {t('PrepPilot uses this login read-only. When it expires, run any `codex` command to refresh it.')}
                     </p>
                 )}
 
@@ -6379,7 +6379,7 @@ export const AIProvidersSettings: React.FC<AIProvidersSettingsProps> = ({
                                         {selected
                                             ? t('Applies to the model you set as default here.')
                                             : t('Set a default model above to match these options to it.')}{' '}
-                                        {t('Natively defaults to the fastest setting. Raise it when an answer needs more reasoning, or pick Auto to let the model choose.')}
+                                        {t('PrepPilot defaults to the fastest setting. Raise it when an answer needs more reasoning, or pick Auto to let the model choose.')}
                                     </p>
                                 </div>
                             );
@@ -6587,7 +6587,7 @@ export const AIProvidersSettings: React.FC<AIProvidersSettingsProps> = ({
                                 Telling that user nothing is installed sends them
                                 to fix something that is not broken. */}
                             <div className="text-xs aip-muted">
-                                {t('No model here can generate text yet. Embedding models, such as the one Natively uses for retrieval, cannot chat. Run `ollama pull qwen2.5:3b` to add one.')}
+                                {t('No model here can generate text yet. Embedding models, such as the one PrepPilot uses for retrieval, cannot chat. Run `ollama pull qwen2.5:3b` to add one.')}
                             </div>
                         </div>
                     )}

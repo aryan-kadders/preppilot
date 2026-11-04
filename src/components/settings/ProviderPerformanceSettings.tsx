@@ -269,7 +269,7 @@ const ProviderPerformanceSettings: React.FC<{
                     <SettingsRow
                         icon={<Activity size={20} />}
                         title={t('Nothing measured yet')}
-                        description={t('Ask a question and Natively starts learning your provider’s speed.')}
+                        description={t('Ask a question and PrepPilot starts learning your provider’s speed.')}
                     />
                 </CollapseItem>
             ) : null}
@@ -312,7 +312,7 @@ const ProviderPerformanceSettings: React.FC<{
                 <SettingsRow
                     icon={<RotateCcw size={20} />}
                     title={t('Forget all measurements')}
-                    description={t('Clears what Natively has learned. It relearns from your next answer.')}
+                    description={t('Clears what PrepPilot has learned. It relearns from your next answer.')}
                     control={
                         <button type="button" className={SETTINGS_BTN} onClick={() => void forget()} disabled={busy !== null}>
                             <Presence kind="icon" id={forgetting ? 'busy' : 'idle'}>

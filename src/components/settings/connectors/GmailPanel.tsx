@@ -18,9 +18,9 @@ import { ActionArea, ConnectPill, DisconnectButton, FeatureCard, GlassPill, Plai
 const capi = (): ConnectorsApi | undefined => window.electronAPI?.connectors;
 
 const USAGE = [
-    'Natively reads only your threads with the people in your meetings, to write their briefs.',
+    'PrepPilot reads only your threads with the people in your meetings, to write their briefs.',
     'Nothing is sent until you press Send with Gmail and confirm.',
-    'Your Google sign-in stays on this computer. Natively talks to Google directly, never through our servers.',
+    'Your Google sign-in stays on this computer. PrepPilot talks to Google directly, never through our servers.',
     'Pressing Connect opens Google in your browser to confirm permissions.',
 ];
 
@@ -52,14 +52,14 @@ export const GmailPanel: React.FC<{ status: GmailStatus | null; onStatus: (s: Gm
         ? (status.account || t('your Google account'))
         : waiting ? t('Waiting for Google…') : t('Not connected');
     const detail = status.connected
-        ? t('Connected. Natively talks to Google directly.')
+        ? t('Connected. PrepPilot talks to Google directly.')
         : waiting ? t('Finish signing in to Google in your browser.') : t('Sign in with Google in your browser.');
 
     return (
         <>
             {!available && (
                 <SettingsNotice tone={tones.warn} icon={<AlertCircle size={14} />}>
-                    {t('Gmail is not available in this version of Natively yet.')}
+                    {t('Gmail is not available in this version of PrepPilot yet.')}
                 </SettingsNotice>
             )}
 

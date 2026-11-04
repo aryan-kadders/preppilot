@@ -354,6 +354,9 @@ process.on('SIGHUP', () => {
   // afterwards. A process that survives the event must keep its database.
 });
 
+// PrepPilot: no automatic update check at startup (see setupAutoUpdater).
+const AUTO_UPDATE_CHECK_ON_STARTUP: boolean = false;
+
 // CQ-04 fix: do NOT call app.getPath() at module load time.
 // app.getPath('documents') is not guaranteed to be available before app.whenReady().
 // Use a lazy getter instead — the path is resolved on first logToFile() call.
@@ -3385,7 +3388,11 @@ export class AppState {
 
     // Start checking for updates with a 10-second delay
     setTimeout(() => {
-      if (process.env.NODE_ENV === "development") {
+      if (AUTO_UPDATE_CHECK_ON_STARTUP === false) {
+        // PrepPilot: personal build with no published releases. Automatic
+        // checks are off; the manual button checks this fork's own repo.
+        console.log("[AutoUpdater] Startup check disabled (manual button still works)");
+      } else if (process.env.NODE_ENV === "development") {
         console.log("[AutoUpdater] Development mode: Skipping auto check (use manual button)");
       } else if (this.isUndetectable) {
         // Stealth: no automatic egress (GitHub releases check). The manual
@@ -5185,7 +5192,7 @@ export class AppState {
           this.systemAudioCapture = null;
           this.sendAudioCaptureFailed({
             channel: 'system',
-            message: 'System audio capture could not start. Restart Natively.',
+            message: 'System audio capture could not start. Restart PrepPilot.',
             attempt: 0,
             maxAttempts: 0,
             terminal: true,
@@ -5208,7 +5215,7 @@ export class AppState {
           this.microphoneCapture = null;
           this.sendAudioCaptureFailed({
             channel: 'mic',
-            message: 'The microphone could not be opened. Check it is connected and free, then restart Natively.',
+            message: 'The microphone could not be opened. Check it is connected and free, then restart PrepPilot.',
             attempt: 0,
             maxAttempts: 0,
             terminal: true,
@@ -9481,7 +9488,7 @@ export class AppState {
     trayIcon.setTemplateImage(choice.template);
 
     this.tray = new Tray(trayIcon)
-    this.tray.setToolTip('Natively') // This tooltip might also need update if we change global shortcut, but global shortcut is removed.
+    this.tray.setToolTip('PrepPilot') // This tooltip might also need update if we change global shortcut, but global shortcut is removed.
     this.updateTrayMenu();
 
     // Double-click to show window
@@ -9499,7 +9506,7 @@ export class AppState {
     console.log('[Main] updateTrayMenu called. Screenshot Accelerator:', screenshotAccel);
 
     // Update tooltip for verification
-    this.tray.setToolTip('Natively');
+    this.tray.setToolTip('PrepPilot');
 
     // Helper to format accelerator for display (e.g. CommandOrControl+H -> Cmd+H)
     const formatAccel = (accel: string) => {
@@ -9519,7 +9526,7 @@ export class AppState {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Show Natively',
+        label: 'Show PrepPilot',
         click: () => {
           this.centerAndShowWindow()
         }
@@ -11544,7 +11551,7 @@ if (process.env.THINKING_MATRIX === '1') {
             console.warn('[Init] Microphone is restricted by device policy at startup.');
             appState.sendAudioCaptureFailed({
               channel: 'mic',
-              message: 'Microphone is blocked by device policy. Ask your administrator to allow it for Natively.',
+              message: 'Microphone is blocked by device policy. Ask your administrator to allow it for PrepPilot.',
               attempt: 0,
               maxAttempts: 0,
               terminal: true,

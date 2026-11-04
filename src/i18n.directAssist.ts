@@ -161,11 +161,11 @@ const ROWS: Record<string, Row> = {
     '続きが届かなくなりました',
     'El resto dejó de llegar',
   ],
-  'Natively lost track of this answer. Ask again.': [
-    'Natively потерял этот ответ. Спросите ещё раз.',
-    'Natively 丢失了这次回答。请再问一次。',
-    'Natively がこの回答を見失いました。もう一度質問してください。',
-    'Natively perdió esta respuesta. Vuelve a preguntar.',
+  'PrepPilot lost track of this answer. Ask again.': [
+    'PrepPilot потерял этот ответ. Спросите ещё раз.',
+    'PrepPilot 丢失了这次回答。请再问一次。',
+    'PrepPilot がこの回答を見失いました。もう一度質問してください。',
+    'PrepPilot perdió esta respuesta. Vuelve a preguntar.',
   ],
   'No AI provider is set up yet': [
     'Ни один AI-провайдер ещё не настроен',
@@ -188,16 +188,16 @@ const ROWS: Record<string, Row> = {
     'Tu prueba gratuita ha terminado',
   ],
   "You've reached your Natively plan's limit": [
-    'Вы достигли лимита вашего тарифа Natively',
-    '你已达到 Natively 套餐的上限',
-    'Natively プランの上限に達しました',
-    'Has alcanzado el límite de tu plan de Natively',
+    'Вы достигли лимита вашего тарифа PrepPilot',
+    '你已达到 PrepPilot 套餐的上限',
+    'PrepPilot プランの上限に達しました',
+    'Has alcanzado el límite de tu plan de PrepPilot',
   ],
   'Your Natively plan has expired': [
-    'Срок действия вашего тарифа Natively истёк',
-    '你的 Natively 套餐已到期',
-    'Natively プランの有効期限が切れました',
-    'Tu plan de Natively ha caducado',
+    'Срок действия вашего тарифа PrepPilot истёк',
+    '你的 PrepPilot 套餐已到期',
+    'PrepPilot プランの有効期限が切れました',
+    'Tu plan de PrepPilot ha caducado',
   ],
   // A quick action pressed again while the first press is still being answered.
   'Still finishing the previous answer…': [

@@ -12,15 +12,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const ipc = fs.readFileSync(path.join(ROOT, 'electron/ipcHandlers.ts'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'electron/main.ts'), 'utf8');
 
-test('an unreadable credential store never starts a trial by itself', () => {
-  // A keychain that failed to read leaves memory empty: "no AI, no key, never
-  // had a trial". The hook would spend an existing customer's one trial, and
-  // could not switch them onto it (CredentialsManager refuses writes then).
-  const hook = ipc.slice(ipc.indexOf('const autoStartTrialForMeeting = async'), ipc.indexOf('appState.autoStartTrialForMeeting ='));
-  assert.ok(hook.includes('credentialsReadable: !cm.isCredentialStoreDegraded(),'));
-  assert.ok(hook.indexOf('credentialsReadable') < hook.indexOf("tell({ state: 'pending' })"), 'decided before the overlay is told anything');
-});
-
 test('no transcription selected is not a transcription failure', () => {
   // With provider 'none' createSTTProvider returns null BY DESIGN. Main used to
   // answer that with two terminal "provider \"none\" could not start" events;
@@ -49,15 +40,6 @@ test('transcription is not rebuilt under an audio start-up that is still running
   assert.ok(!/reconfigureSttProvider|_sttReconfigureChain/.test(init));
 });
 
-test('second review: a local model chosen for this session is the user\'s own AI', () => {
-  // The overlay's model picker is session-only, so the STORED default still
-  // said "nothing". A keyless user working on Ollama for the session would
-  // have had the next meeting moved to Natively's servers by itself.
-  const hook = ipc.slice(ipc.indexOf('const autoStartTrialForMeeting = async'), ipc.indexOf('appState.autoStartTrialForMeeting ='));
-  assert.ok(hook.includes('appState.processingHelper?.getLLMHelper?.()?.isUsingOllama?.()'));
-  assert.ok(hook.includes("meetingAi: sessionLocalModel ? 'own' : snap.meetingAi,"));
-});
-
 test('second review: the trial is live before transcription is rebuilt', () => {
   // The rebuild now waits for the meeting's audio start-up (seconds). The
   // model switch and the "trial started" broadcast must not wait behind it, or
@@ -70,17 +52,6 @@ test('second review: the trial is live before transcription is rebuilt', () => {
   assert.ok(flow.indexOf("win.webContents.send('trial-started'") < rebuild, 'and every window told');
   // Still awaited, so the automatic start's "settled" follows working transcription.
   assert.match(flow, /if \(sttProviderChanged\) await appState\.reconfigureSttProvider\(\);/);
-});
-
-test('a refusal that is not about this device is not asked again at every meeting', () => {
-  // The server refuses a network at its limit, and every new trial once its
-  // daily ceiling is reached. Neither is remembered, so the hook would ask at
-  // each meeting start and trip the server's hourly limit after a handful.
-  const hook = ipc.slice(ipc.indexOf('let autoTrialInFlight = false;'), ipc.indexOf('appState.autoStartTrialForMeeting ='));
-  assert.ok(hook.includes('let autoTrialQuietUntil = 0;'));
-  assert.ok(hook.includes('if (Date.now() < autoTrialQuietUntil) return;'));
-  assert.ok(hook.includes('if (next.quietMs > 0) autoTrialQuietUntil = Date.now() + next.quietMs;'));
-  assert.ok(hook.indexOf('if (Date.now() < autoTrialQuietUntil) return;') < hook.indexOf("tell({ state: 'pending' })"));
 });
 
 test('a rebuild that outlives its meeting starts nothing and keeps nothing', () => {
@@ -97,4 +68,13 @@ test('a rebuild that outlives its meeting starts nothing and keeps nothing', () 
   assert.ok(setup !== -1 && start > setup);
   assert.match(body.slice(setup, start), /if \(isRebuildMeeting\(\)\) \{\s*(\/\/[^\n]*\n\s*)*$/, 'started only for the meeting it was built for');
   assert.ok(body.includes('this.releaseOrphanedRebuild('), 'and what was built for a meeting that ended is released');
+});
+
+// PrepPilot: the trial that started itself with a meeting was removed (it was
+// issued and billed by upstream's servers). The hook AppState calls stays, as
+// a no-op, so a meeting start never reaches the trial code.
+test('a meeting start never starts a trial', () => {
+  assert.match(ipc, /appState\.autoStartTrialForMeeting = \(\) => \{\};/);
+  assert.match(ipc, /appState\.autoTrialSettled = \(\) => true;/);
+  assert.ok(!ipc.includes('const autoStartTrialForMeeting = async'), 'the old hook body is gone');
 });

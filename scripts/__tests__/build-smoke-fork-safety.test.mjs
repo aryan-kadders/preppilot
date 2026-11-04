@@ -51,7 +51,11 @@ test('core smoke externalizes private runtime imports only behind an explicit op
       'Auto-enabling it (e.g. on a missing premium/ submodule) turns a hard build ' +
       'failure into a silent success that ships an app with Pro features dead.'
   );
-  assert.match(buildScript, /plugins: CORE_SMOKE \? \[coreSmokePremiumExternalPlugin\] : \[\]/);
+  // PrepPilot: this fork never has the premium/ folder, so a build without it
+  // is the normal case, not a degraded one. The plugin also applies when the
+  // folder is absent; CORE_SMOKE itself stays an explicit opt-in (above).
+  assert.match(buildScript, /^const HAS_PREMIUM = fs\.existsSync\(premiumDir\);$/m);
+  assert.match(buildScript, /plugins: \(CORE_SMOKE \|\| !HAS_PREMIUM\) \? \[coreSmokePremiumExternalPlugin\] : \[\]/);
   assert.match(buildScript, /filter: \/\^\(\?:\\\.\\\.\\\/\)\+premium/);
 });
 

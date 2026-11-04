@@ -261,7 +261,7 @@ export function handleMcpMessage(
                 result: {
                     protocolVersion,
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: 'natively', title: 'Natively meetings', version: info.version },
+                    serverInfo: { name: 'natively', title: 'PrepPilot meetings', version: info.version },
                     instructions: 'Read-only access to the meetings recorded in Natively on this computer: list and search them, read their notes and transcripts. Nothing can be changed through this server.',
                 },
             };

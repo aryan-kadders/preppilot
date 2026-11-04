@@ -179,7 +179,7 @@ test('never shown while prompts are blocked (that call stays unannounced); its S
     mic = []; tick(61_000);
     mic = [{ pid: 700, bundleId: 'us.zoom.xos' }]; tick(1000); tick(5000);
     assert.equal(notes.length, 1, 'the next call is announced');
-    assert.equal(notes[0].title, 'Start Natively?');
+    assert.equal(notes[0].title, 'Start PrepPilot?');
     assert.equal(notes[0].body, 'A Zoom call started.');
     active = true; notes[0].onStart();
     assert.equal(starts.length, 0);

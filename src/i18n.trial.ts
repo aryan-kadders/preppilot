@@ -23,11 +23,11 @@ const ROWS: Record<string, Row> = {
     '無料トライアルを開始しました：{minutes} 分',
     'Prueba gratuita iniciada: {minutes} minutos',
   ],
-  "Audio and questions are processed on Natively's servers.": [
-    'Аудио и вопросы обрабатываются на серверах Natively.',
-    '音频和问题会在 Natively 的服务器上处理。',
-    '音声と質問は Natively のサーバーで処理されます。',
-    'El audio y las preguntas se procesan en los servidores de Natively.',
+  "Audio and questions are processed on PrepPilot's servers.": [
+    'Аудио и вопросы обрабатываются на серверах PrepPilot.',
+    '音频和问题会在 PrepPilot 的服务器上处理。',
+    '音声と質問は PrepPilot のサーバーで処理されます。',
+    'El audio y las preguntas se procesan en los servidores de PrepPilot.',
   ],
   'Use my own keys': [
     'Использовать свои ключи',
@@ -86,11 +86,11 @@ const ROWS: Record<string, Row> = {
     '無料トライアルを開始できませんでした',
     'No se pudo iniciar la prueba gratuita',
   ],
-  'Natively could not be reached. Check your connection and try again.': [
-    'Не удалось связаться с Natively. Проверьте подключение и попробуйте снова.',
-    '无法连接到 Natively。请检查网络连接后重试。',
-    'Natively に接続できませんでした。接続を確認して、もう一度お試しください。',
-    'No se pudo conectar con Natively. Revisa tu conexión e inténtalo de nuevo.',
+  'PrepPilot could not be reached. Check your connection and try again.': [
+    'Не удалось связаться с PrepPilot. Проверьте подключение и попробуйте снова.',
+    '无法连接到 PrepPilot。请检查网络连接后重试。',
+    'PrepPilot に接続できませんでした。接続を確認して、もう一度お試しください。',
+    'No se pudo conectar con PrepPilot. Revisa tu conexión e inténtalo de nuevo.',
   ],
   'Too many attempts. Try again later.': [
     'Слишком много попыток. Попробуйте позже.',

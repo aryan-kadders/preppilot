@@ -237,7 +237,7 @@ export function categorizeSttError(rawError: string): SttErrorCategory {
     if (SECURE_CONNECTION_BLOCKED.some((pattern) => lower.includes(pattern))) {
         return {
             title: 'Secure Connection Blocked',
-            body: 'Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow Natively in your antivirus, or turn off its HTTPS scanning for Natively.',
+            body: 'Antivirus HTTPS scanning or a network filter is intercepting the connection. Allow PrepPilot in your antivirus, or turn off its HTTPS scanning for PrepPilot.',
             category: 'secure_connection_blocked',
         };
     }

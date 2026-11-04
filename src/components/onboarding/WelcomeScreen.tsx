@@ -39,10 +39,10 @@ export const WelcomeLeft: React.FC<Props> = ({ onGetStarted }) => {
   return (
     <div role="main" aria-labelledby="welcome-title" className="flex-1 min-w-0 h-full flex flex-col items-center text-center" style={{ padding: '64px 72px 48px' }}>
         <div className="my-auto flex flex-col items-center" style={{ gap: 22 }}>
-          <motion.img {...rise(0.05)} src={nativelyMark} alt="Natively" draggable={false}
+          <motion.img {...rise(0.05)} src={nativelyMark} alt="PrepPilot" draggable={false}
             style={{ width: 60, height: 60, filter: t.markFilter }} />
           <motion.div {...rise(0.1)} style={{ fontSize: 13, fontWeight: 500, letterSpacing: '-0.005em', color: t.quiet }}>
-            {tr('Welcome to Natively')}
+            {tr('Welcome to PrepPilot')}
           </motion.div>
           <motion.h1 {...rise(0.14)} id="welcome-title"
             style={{ margin: 0, fontSize: 56, fontWeight: 300, letterSpacing: '-0.035em', lineHeight: 1.04, color: t.strong }}>
@@ -50,7 +50,7 @@ export const WelcomeLeft: React.FC<Props> = ({ onGetStarted }) => {
           </motion.h1>
           <motion.p {...rise(0.18)}
             style={{ margin: 0, maxWidth: 400, fontSize: 16, lineHeight: 1.6, letterSpacing: '-0.008em', color: t.body }}>
-            {tr('Natively listens along, answers the question in front of you, and can stay hidden from screen sharing.')}
+            {tr('PrepPilot listens along, answers the question in front of you, and can stay hidden from screen sharing.')}
           </motion.p>
           <motion.div {...rise(0.24)} style={{ marginTop: 16 }}>
             <LavenderButton t={t} width={320} onClick={onGetStarted}>

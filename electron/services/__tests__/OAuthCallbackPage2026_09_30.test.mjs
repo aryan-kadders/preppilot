@@ -91,7 +91,7 @@ test('the real Natively app icon is inlined for the page and the favicon', async
   const { body } = renderOAuthCallbackPage('codex', { kind: 'returned' }, 'darwin');
   const icons = body.match(/data:image\/webp;base64,[A-Za-z0-9+/=]{1000,}/g) || [];
   assert.equal(icons.length, 3, 'favicon, the blurred aura behind the glass, and the icon itself');
-  assert.match(body, /<img class="app-icon" src="data:image\/webp;base64,[^"]+" alt="Natively"/);
+  assert.match(body, /<img class="app-icon" src="data:image\/webp;base64,[^"]+" alt="PrepPilot"/);
   assert.match(body, /<link rel="icon" href="data:image\/webp;base64,/);
 });
 

@@ -41,7 +41,7 @@ export interface OAuthCallbackPage {
 }
 
 const PROVIDERS: Record<OAuthCallbackProvider, { name: string; account: string; detail: string }> = {
-  codex: { name: 'ChatGPT', account: 'ChatGPT', detail: 'Codex models in Natively' },
+  codex: { name: 'ChatGPT', account: 'ChatGPT', detail: 'Codex models in PrepPilot' },
   antigravity: { name: 'Antigravity', account: 'Google', detail: 'Google account' },
   calendar: { name: 'Google Calendar', account: 'Google', detail: 'Google account' },
   'outlook-calendar': { name: 'Outlook Calendar', account: 'Microsoft', detail: 'Microsoft account' },
@@ -114,7 +114,7 @@ function copyFor(provider: OAuthCallbackProvider, outcome: OAuthCallbackOutcome)
   const p = PROVIDERS[provider];
   if (outcome.kind === 'error') {
     return {
-      title: 'Couldn’t sign in · Natively',
+      title: 'Couldn’t sign in · PrepPilot',
       headline: 'Couldn’t sign in',
       sub: 'Nothing was connected. Try again from Natively.',
       status: 'Not connected',
@@ -123,7 +123,7 @@ function copyFor(provider: OAuthCallbackProvider, outcome: OAuthCallbackOutcome)
   }
   if (outcome.kind === 'connected') {
     return {
-      title: `${p.name} connected · Natively`,
+      title: `${p.name} connected · PrepPilot`,
       headline: `${p.name} connected`,
       sub: provider === 'calendar' || provider === 'outlook-calendar'
         ? 'Your upcoming meetings will show up in Natively.'
@@ -137,7 +137,7 @@ function copyFor(provider: OAuthCallbackProvider, outcome: OAuthCallbackOutcome)
     };
   }
   return {
-    title: `Signed in to ${p.account} · Natively`,
+    title: `Signed in to ${p.account} · PrepPilot`,
     headline: `Signed in to ${p.account}`,
     sub: 'Natively is finishing setup. Head back to the app.',
     status: 'Signed in',
@@ -304,7 +304,7 @@ export function renderOAuthCallbackPage(
 <div class="aura" aria-hidden="true"></div>
 <main class="card" role="status">
   <div class="icons">
-    <img class="app-icon" src="${NATIVELY_APP_ICON_DATA_URI}" alt="Natively" width="76" height="76">
+    <img class="app-icon" src="${NATIVELY_APP_ICON_DATA_URI}" alt="PrepPilot" width="76" height="76">
     <span class="badge ${mark.tile}">${mark.svg}</span>
   </div>
   <div class="copy">

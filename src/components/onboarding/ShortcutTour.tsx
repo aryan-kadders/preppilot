@@ -36,9 +36,9 @@ type Action = 'toggle' | 'answer' | 'shot';
 const PLATFORM = isMac ? 'darwin' : isWindows ? 'win32' : 'linux';
 
 const LESSONS: { action: Action; id: string; fallback: string; title: string; text: string }[] = [
-  { action: 'toggle', id: 'general:toggle-visibility', fallback: 'CommandOrControl+B', title: 'Show or hide Natively', text: 'Tap it again to bring the overlay back. Works from any app.' },
-  { action: 'answer', id: 'chat:whatToAnswer', fallback: 'CommandOrControl+1', title: 'Get the answer', text: 'Natively answers the question you were just asked.' },
-  { action: 'shot', id: 'general:take-screenshot', fallback: 'CommandOrControl+H', title: 'Show it your screen', text: 'Takes a screenshot so Natively can read what you see.' },
+  { action: 'toggle', id: 'general:toggle-visibility', fallback: 'CommandOrControl+B', title: 'Show or hide PrepPilot', text: 'Tap it again to bring the overlay back. Works from any app.' },
+  { action: 'answer', id: 'chat:whatToAnswer', fallback: 'CommandOrControl+1', title: 'Get the answer', text: 'PrepPilot answers the question you were just asked.' },
+  { action: 'shot', id: 'general:take-screenshot', fallback: 'CommandOrControl+H', title: 'Show it your screen', text: 'Takes a screenshot so PrepPilot can read what you see.' },
 ];
 const ACTION_BY_ID: Record<string, Action> = Object.fromEntries(LESSONS.map(l => [l.id, l.action]));
 
@@ -267,7 +267,7 @@ export const TourLeft: React.FC<LeftProps> = ({ tour, onDone }) => {
         {/* One button for both: it fits its label and tweens between them. */}
         <LavenderButton t={t} height={40} labelSize={14} nudge={done[cur.action]}
           labelKey={isLast ? 'start' : 'next'} onClick={isLast ? onDone : () => goTo(lesson + 1)}>
-          {isLast ? tr('Start using Natively') : tr('Next')} <ArrowRight size={15} strokeWidth={2} aria-hidden />
+          {isLast ? tr('Start using PrepPilot') : tr('Next')} <ArrowRight size={15} strokeWidth={2} aria-hidden />
         </LavenderButton>
         <div className="ml-auto flex items-center" style={{ gap: 6 }} aria-hidden>
           {LESSONS.map((l, i) => (

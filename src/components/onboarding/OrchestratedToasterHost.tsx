@@ -17,17 +17,7 @@ import { getOrchestrator, type OrchestratorEvent, type UserState } from '../../l
 import type { ToasterId } from '../../lib/onboarding/orchestrator.ts';
 import { PermissionsToaster } from './PermissionsToaster';
 import { BrowserExtensionToaster } from './BrowserExtensionToaster';
-import { PlansToaster } from './PlansToaster';
-import { DemoVideoToaster } from './DemoVideoToaster';
-import { SupportToaster } from '../SupportToaster';
-import ReviewPromptHost from '../ReviewPromptHost';
-import {
-  NativelyApiPromoToaster,
-  ProfileFeatureToaster,
-  JDAwarenessToaster,
-  MaxUltraUpgradeToaster,
-} from '../../premium';
-import { CARDS, DAY_MS } from '../../lib/cards/cardPolicy.mjs';
+import { CARDS } from '../../lib/cards/cardPolicy.mjs';
 import { createShowingRecorder } from '../../lib/cards/outcomeLatch.mjs';
 
 /** Why a card closed, as the card reports it: its primary action, an explicit "never", or a plain close. */
@@ -92,7 +82,7 @@ export const OrchestratorProvider: React.FC<ProviderProps> = ({ children }) => {
 
 // ─── Host ─────────────────────────────────────────────────────────
 
-export const OrchestratedToasterHost: React.FC<HostProps> = ({ onOpenSettings, onOpenProfile }) => {
+export const OrchestratedToasterHost: React.FC<HostProps> = ({ onOpenSettings }) => {
   const orch = getOrchestrator();
   // Stable subscribe/snapshot refs — .bind() would re-allocate every render.
   const orchSubscribe = React.useCallback((cb: () => void) => orch.subscribe(cb), [orch]);
@@ -172,12 +162,6 @@ export const OrchestratedToasterHost: React.FC<HostProps> = ({ onOpenSettings, o
         />
       );
 
-    case 'plans':
-      return <PlansToaster isOpen={true} onDismiss={closeWith('plans')} />;
-
-    case 'demo_video':
-      return <DemoVideoToaster isOpen={true} onDismiss={closeWith('demo_video')} />;
-
     case 'browser_extension':
       // No onSkip: a card's waits live in the card ledger, never in a skip.
       return <BrowserExtensionToaster isOpen={true} onDismiss={closeWith('browser_extension')} />;
@@ -201,83 +185,8 @@ export const OrchestratedToasterHost: React.FC<HostProps> = ({ onOpenSettings, o
       // Internal gate — never renders a visible component.
       return null;
 
-    case 'support':
-      return (
-        <SupportToaster
-          isOpen={true}
-          onDismiss={(reason?: CloseReason) => {
-            // DonationManager still counts showings (About page, legacy
-            // import); the card ledger decides when support may return.
-            window.electronAPI?.markDonationToastShown?.().catch(() => {});
-            closeWith('support')(reason);
-          }}
-        />
-      );
-
-    // ── Ads (premium components; scheduled like every other card) ──
-    case 'natively_api_new':
-    case 'natively_api_existing': {
-      const id = activeId;
-      return (
-        <NativelyApiPromoToaster
-          isOpen={true}
-          variant={id === 'natively_api_new' ? 'new' : 'existing'}
-          onDismiss={(reason?: CloseReason) => {
-            // "I'll set up manually" on the new-user variant retires it and
-            // goes where the keys are entered.
-            if (reason === 'never' && id === 'natively_api_new') openSettings('ai-providers');
-            closeWith(id)(reason);
-          }}
-          onOpenSettings={(tab: string) => openSettings(tab)}
-        />
-      );
-    }
-
-    case 'profile_ad':
-      return (
-        <ProfileFeatureToaster
-          isOpen={true}
-          onDismiss={closeWith('profile_ad')}
-          onSetupProfile={() => onOpenProfile?.()}
-        />
-      );
-
-    case 'jd_ad':
-      return (
-        <JDAwarenessToaster
-          isOpen={true}
-          onDismiss={closeWith('jd_ad')}
-          onSetupJD={() => onOpenProfile?.()}
-        />
-      );
-
-    case 'max_ultra':
-      return (
-        <MaxUltraUpgradeToaster
-          isOpen={true}
-          onDismiss={(reason?: CloseReason) => {
-            if (reason === 'acted') {
-              // Retired for this billing cycle only: back next cycle if the
-              // user is near the limit again. 30 days when the cycle end is unknown.
-              const until = orch.getUserState().nativelyQuotaResetsAt ?? Date.now() + 30 * DAY_MS;
-              recorder.outcome('acted', { until });
-            }
-            closeWith('max_ultra')(reason);
-          }}
-          onUpgrade={() => openSettings('plans')}
-        />
-      );
-
-    case 'review_prompt':
-      return (
-        <ReviewPromptHost
-          isOpen={true}
-          paused={false}
-          onOutcome={(o) => recorder.outcome(o)}
-          onClose={closeWith('review_prompt')}
-        />
-      );
-
+    // PrepPilot: promotional cards (plans, support, review, Natively API and
+    // upgrade ads) were removed with the upstream business code.
     default:
       return null;
   }

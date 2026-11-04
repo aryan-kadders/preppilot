@@ -256,7 +256,7 @@ test('a fault inside the app is never blamed on the provider', () => {
     failure: { provider: 'OpenAI', code: 'INTERNAL_ERROR', message: 'Natively lost track of this answer.' },
     ended: true,
   });
-  assert.equal(view.headline, 'Natively lost track of this answer. Ask again.');
+  assert.equal(view.headline, 'PrepPilot lost track of this answer. Ask again.');
   assert.doesNotMatch(view.headline, /OpenAI/);
   assert.equal(view.fixable, false);
 });

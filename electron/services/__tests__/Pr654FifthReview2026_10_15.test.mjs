@@ -45,7 +45,7 @@ const CALL = { app: 'Zoom', body: 'A Zoom call started.', start: { via: 'detecte
 test('Start automatically turned off mid-countdown: no start; the offer stays as plain Start / Not now', () => {
     const r = offerRig();
     r.offers.offer(CALL);
-    assert.equal(r.state.notes[0].title, 'Starting Natively');
+    assert.equal(r.state.notes[0].title, 'Starting PrepPilot');
     r.advance(4_000);
     r.setAuto(false);
     r.offers.autoStartOff();
@@ -53,7 +53,7 @@ test('Start automatically turned off mid-countdown: no start; the offer stays as
     assert.ok(view, 'still offered');
     assert.equal(view.autoStartAt, null, 'no countdown on the panel');
     assert.equal(r.state.panel.at(-1).autoStartAt, null, 'the panel was told');
-    assert.equal(r.state.notes.at(-1).title, 'Start Natively?', 'the notification no longer says it starts by itself');
+    assert.equal(r.state.notes.at(-1).title, 'Start PrepPilot?', 'the notification no longer says it starts by itself');
     r.advance(20_000);
     assert.deepEqual(r.state.starts, []);
     // Start still works by hand.

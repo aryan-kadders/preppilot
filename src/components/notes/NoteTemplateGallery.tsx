@@ -118,7 +118,7 @@ export const NoteTemplateGallery: React.FC<{
                                     <Tile t={t} />
                                     <span className="flex-1 min-w-0">
                                         <span className="block text-[15px] leading-5 truncate" style={ink('--np-ink')}>{t.name}</span>
-                                        <span className="block text-[12px] leading-4 truncate" style={ink('--np-ink-secondary')}>Natively</span>
+                                        <span className="block text-[12px] leading-4 truncate" style={ink('--np-ink-secondary')}>PrepPilot</span>
                                     </span>
                                     {t.id === appliedId && <Check className="w-4 h-4 shrink-0" strokeWidth={2} style={ink('--np-accent')} aria-label="In use" />}
                                 </button>
@@ -148,7 +148,7 @@ export const NoteTemplateGallery: React.FC<{
                 <span aria-hidden className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center" style={{ background: '#1e1e1e' }}>
                     <img src={nativelyMark} alt="" draggable={false} className="w-4 h-4" />
                 </span>
-                <span className="ml-[7px]" style={ink('--np-ink-strong')}>Natively</span>
+                <span className="ml-[7px]" style={ink('--np-ink-strong')}>PrepPilot</span>
                 <Lock className="ml-[19px] w-3 h-3 shrink-0" strokeWidth={2.25} style={ink('--np-label')} aria-hidden />
                 <span className="ml-[7px]" style={ink('--np-label')}>View only</span>
             </div>

@@ -419,7 +419,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                   fontFamily: "'Inter', sans-serif",
                 }}
               >
-                Allow Natively the following system accesses to enable premium recording, real-time assist tools, and seamless audio transcriptions.
+                Allow PrepPilot the following system accesses to enable premium recording, real-time assist tools, and seamless audio transcriptions.
               </motion.p>
 
               {/* High-Fidelity Permission list items */}
@@ -428,8 +428,8 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                 {/* Item 1: Assist Toggle */}
                 <PermRow
                   icon={Lightbulb}
-                  label="Allow Natively to assist"
-                  description="Natively can prompt you to start taking notes when you join a meeting."
+                  label="Allow PrepPilot to assist"
+                  description="PrepPilot can prompt you to start taking notes when you join a meeting."
                   checked={assistActive}
                   onToggle={() => setAssistActive(!assistActive)}
                   hasBadge={true}
@@ -438,8 +438,8 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                 {/* Item 2: Microphone Permission */}
                 <PermRow
                   icon={Mic}
-                  label="Allow Natively to hear you"
-                  description="Natively needs to capture your voice to transcribe your meetings in real-time."
+                  label="Allow PrepPilot to hear you"
+                  description="PrepPilot needs to capture your voice to transcribe your meetings in real-time."
                   checked={micStatus === 'granted'}
                   onToggle={micStatus !== 'granted' ? handleMicRequest : () => {}}
                   hasBadge={true}
@@ -448,8 +448,8 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                 {/* Item 3: Screen Capture Permission */}
                 <PermRow
                   icon={Monitor}
-                  label="Allow Natively to see your screen"
-                  description="Natively can answer questions about what you're viewing."
+                  label="Allow PrepPilot to see your screen"
+                  description="PrepPilot can answer questions about what you're viewing."
                   checked={scrStatus === 'granted'}
                   onToggle={openScreenSettings}
                 />
@@ -575,7 +575,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                 }}>
                   <img
                     src={nativelyIcon}
-                    alt="Natively Icon"
+                    alt="PrepPilot Icon"
                     style={{
                       width: '42px',
                       height: '42px',
@@ -610,7 +610,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                     lineHeight: 1.35,
                     fontFamily: "'Inter', sans-serif",
                   }}>
-                    "Natively" would like to record this computer's screen and audio.
+                    "PrepPilot" would like to record this computer's screen and audio.
                   </div>
                   <div style={{
                     fontSize: '10px',
@@ -732,7 +732,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <img
                     src={nativelyIcon}
-                    alt="Natively"
+                    alt="PrepPilot"
                     style={{
                       width: '22px',
                       height: '22px',
@@ -741,7 +741,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
                       flexShrink: 0,
                     }}
                   />
-                  <span style={{ fontSize: '11px', fontWeight: 650, color: COLORS.charcoalInk, flex: 1 }}>Natively</span>
+                  <span style={{ fontSize: '11px', fontWeight: 650, color: COLORS.charcoalInk, flex: 1 }}>PrepPilot</span>
                   <div style={{
                     width: '28px',
                     height: '16px',

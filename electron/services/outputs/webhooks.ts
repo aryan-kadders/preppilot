@@ -234,7 +234,7 @@ export function sampleNotesDocument(now: number): NotesDocument {
     const dateIso = new Date(now).toISOString();
     return {
         meetingId: 'test_meeting',
-        title: 'Sample meeting from Natively',
+        title: 'Sample meeting from PrepPilot',
         dateIso,
         dateLabel: dateIso.slice(0, 10),
         durationLabel: '30 min',
@@ -305,7 +305,7 @@ function validRecord(r: any): r is WebhookRecord {
 const UNREADABLE: OutputResult = {
     ok: false,
     kind: 'storage_unavailable',
-    message: 'Your saved webhooks could not be read right now, so nothing was changed. Try again, or restart Natively.',
+    message: 'Your saved webhooks could not be read right now, so nothing was changed. Try again, or restart PrepPilot.',
 };
 
 // ── The store and the sender ─────────────────────────────────────────────
@@ -398,7 +398,7 @@ export class Webhooks {
             ok: true,
             endpoint: toEndpointInfo(record),
             secret: record.secret,
-            ...(this.sessionOnly ? { message: 'This computer has no secure storage available, so this webhook is kept until Natively quits.' } : {}),
+            ...(this.sessionOnly ? { message: 'This computer has no secure storage available, so this webhook is kept until PrepPilot quits.' } : {}),
         };
     }
 

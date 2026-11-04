@@ -120,13 +120,9 @@ export class FunnelTelemetry {
     }
 
     public isEnabled(): boolean {
-        try {
-            if (!usageFlagEnabled(process.env.NATIVELY_FUNNEL_ENABLED)) return false;
-            if (SettingsManager.getInstance().get('telemetryEnabled') === false) return false;
-            return app.isPackaged || !!this.devEndpoint();
-        } catch {
-            return false;
-        }
+        // PrepPilot: funnel telemetry reported to the upstream Natively API.
+        // This fork never sends it; every queue/registration path checks this gate.
+        return false;
     }
 
     // ── Disk ─────────────────────────────────────────────────────────────────

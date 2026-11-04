@@ -571,7 +571,7 @@ export function LocalWhisperModelPanel({ onModelConfigChanged }: LocalWhisperMod
                     <div className="flex-1 min-w-0">
                         <div className="text-xs font-semibold" style={{ color: 'var(--aip-primary)' }}>{t('Recovered local transcription')}</div>
                         <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--aip-secondary)' }}>
-                            {t('Natively recovered from a local transcription model crash. We reset')} <span className="font-mono" style={{ color: 'var(--aip-primary)' }}>{recoveryNotice.badModelId}</span> {t('to')} <span className="font-mono" style={{ color: 'var(--aip-primary)' }}>{recoveryNotice.fallbackModelId}</span> {t('so the app can start safely.')}
+                            {t('PrepPilot recovered from a local transcription model crash. We reset')} <span className="font-mono" style={{ color: 'var(--aip-primary)' }}>{recoveryNotice.badModelId}</span> {t('to')} <span className="font-mono" style={{ color: 'var(--aip-primary)' }}>{recoveryNotice.fallbackModelId}</span> {t('so the app can start safely.')}
                         </p>
                     </div>
                     <button

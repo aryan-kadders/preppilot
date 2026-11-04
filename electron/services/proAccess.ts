@@ -4,12 +4,17 @@
 // No platform branches: LicenseManager and CredentialsManager hide their
 // macOS / Windows storage differences behind these calls.
 
+const ALL_FEATURES_UNLOCKED: boolean = true;
+
 /**
  * Returns true if the user has an active premium license OR an unexpired free trial.
  * Used to gate profile intelligence features (resume upload, JD upload, company
  * research, Cue Cards, "About you").
  */
 export function isProOrTrialActive(): boolean {
+  // PrepPilot: personal build with no paid tier — every local feature is on.
+  if (ALL_FEATURES_UNLOCKED) return true;
+
   // 1. Full premium license (Dodo / Gumroad / Natively API subscription)
   try {
     const { LicenseManager } = require('../../premium/electron/services/LicenseManager');

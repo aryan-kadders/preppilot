@@ -374,12 +374,12 @@ const HelpPane: React.FC<{
             body: (
                 <>
                     {facts.clips.permissions ? (
-                        <HelpFigure caption="Natively shows this card when it opens, until everything it needs is allowed.">
+                        <HelpFigure caption="PrepPilot shows this card when it opens, until everything it needs is allowed.">
                             <img
                                 src={isLight ? PERMISSIONS_CARD.light : PERMISSIONS_CARD.dark}
                                 width={PERMISSIONS_CARD.size[0]}
                                 height={PERMISSIONS_CARD.size[1]}
-                                alt="Natively's permissions card: Screen Recording and Microphone, both showing Access granted."
+                                alt="PrepPilot's permissions card: Screen Recording and Microphone, both showing Access granted."
                                 className="block w-full h-auto"
                             />
                         </HelpFigure>
@@ -388,30 +388,30 @@ const HelpPane: React.FC<{
                             <PermissionsFigure platform={platform} />
                         </HelpFigure>
                     )}
-                    <p>{mac ? 'If you said no to either, turn it on by hand:' : `${permissions[0].why} If Natively can't hear you:`}</p>
+                    <p>{mac ? 'If you said no to either, turn it on by hand:' : `${permissions[0].why} If PrepPilot can't hear you:`}</p>
                     <HelpSteps
                         steps={[
                             ...permissions.map((permission) => (
                                 <>
                                     <HelpPath parts={permission.path} />
                                     {permission.olderTitle && <> ({permission.olderTitle} on macOS 14 and earlier)</>}
-                                    {mac ? <>: turn on Natively. </> : <>: turn on both switches. </>}
+                                    {mac ? <>: turn on PrepPilot. </> : <>: turn on both switches. </>}
                                     <button type="button" onClick={() => openPermission(permission)} className="text-accent-primary underline decoration-transparent hover:decoration-current transition-colors duration-150 ease-out">
                                         Open
                                     </button>
                                 </>
                             )),
                             facts.restartAfterGrant
-                                ? <>Quit Natively and open it again. macOS applies screen permission after a restart.</>
+                                ? <>Quit PrepPilot and open it again. macOS applies screen permission after a restart.</>
                                 : <>Start the meeting again.</>,
                         ]}
                     />
                     {facts.stealthTypingNeedsAccessibility && (
                         <p>
-                            Accessibility is optional. Typing into the overlay ({keys('focusInput')}) needs it, and Natively asks the
+                            Accessibility is optional. Typing into the overlay ({keys('focusInput')}) needs it, and PrepPilot asks the
                             first time you do.
                             {facts.callDetailsNeedAccessibility && (
-                                <> With it allowed, Natively also reads Zoom and Teams for who is on the call and whether you are muted.</>
+                                <> With it allowed, PrepPilot also reads Zoom and Teams for who is on the call and whether you are muted.</>
                             )}
                         </p>
                     )}
@@ -497,7 +497,7 @@ const HelpPane: React.FC<{
                                 <div>In {facts.terminal}, download a model that can chat:</div>
                                 <HelpCommand command={OLLAMA_STARTER_COMMAND} />
                             </div>,
-                            <>Open <HelpPath parts={['AI Providers', 'Local & Gateways']} />. Natively finds Ollama by itself.</>,
+                            <>Open <HelpPath parts={['AI Providers', 'Local & Gateways']} />. PrepPilot finds Ollama by itself.</>,
                         ]}
                     />
                 </>
@@ -517,9 +517,9 @@ const HelpPane: React.FC<{
                         steps={[
                             <>
                                 In <HelpPath parts={['Calendar']} />, press Connect next to Google Calendar, Outlook
-                                {facts.appleCalendar ? ', Apple Calendar' : ''} or a calendar link. Natively only reads your events.
+                                {facts.appleCalendar ? ', Apple Calendar' : ''} or a calendar link. PrepPilot only reads your events.
                             </>,
-                            'Your next meetings appear there and on the Launcher. In Calendar, from 15 minutes before one starts, its Start Natively button starts a session linked to it.',
+                            'Your next meetings appear there and on the Launcher. In Calendar, from 15 minutes before one starts, its Start PrepPilot button starts a session linked to it.',
                             "A linked session takes the event's title and attendees. Your voice is labelled with your first name, and in a one-to-one the other person's is too.",
                         ]}
                     />
@@ -530,7 +530,7 @@ const HelpPane: React.FC<{
                     <HelpSubhead>Detect meetings</HelpSubhead>
                     <p>
                         On by default, with or without a calendar: when a call starts in Zoom, Teams, Meet, Webex, Slack or another call
-                        app, a Meeting detected card offers Start Natively or Not now. It stays quiet while Undetectable is on.
+                        app, a Meeting detected card offers Start PrepPilot or Not now. It stays quiet while Undetectable is on.
                         {facts.meetingDetection && <> {facts.meetingDetection}</>}
                     </p>
                     <HelpDefinitions
@@ -549,7 +549,7 @@ const HelpPane: React.FC<{
             group: 'setup',
             icon: <LayoutGrid size={20} />,
             title: t('Modes'),
-            description: t('Tell Natively how to answer in each kind of meeting.'),
+            description: t('Tell PrepPilot how to answer in each kind of meeting.'),
             keywords: 'prompt real-time reference files documents interview sales template suggestions pro',
             body: (
                 <>
@@ -559,7 +559,7 @@ const HelpPane: React.FC<{
                         <p>Open Modes from the grid icon in the Launcher header, pick a mode, write its Real-time prompt, then Set active.</p>
                     )}
                     <p>
-                        Reference files give a mode documents to answer from, and Deactivate returns to Natively's default. With a mode
+                        Reference files give a mode documents to answer from, and Deactivate returns to PrepPilot's default. With a mode
                         active, suggestions such as Suggest response appear at the top of the overlay.
                     </p>
                     <p>
@@ -588,7 +588,7 @@ const HelpPane: React.FC<{
                         Letter drafts one from both documents.
                     </p>
                     <p>
-                        Cue Cards hold the answers only you can give, such as why you left a job or your salary range. Natively drafts the
+                        Cue Cards hold the answers only you can give, such as why you left a job or your salary range. PrepPilot drafts the
                         ones your résumé suggests; a meeting uses an answer once you save it. About you sits at the top: a few lines on
                         who you are that meeting summaries and live answers read.
                     </p>
@@ -608,16 +608,16 @@ const HelpPane: React.FC<{
                 <>
                     <HelpSteps
                         steps={[
-                            <>Press Start Natively in the Launcher, or on a Meeting detected card. While a meeting runs, the button reads Meeting ongoing.</>,
+                            <>Press Start PrepPilot in the Launcher, or on a Meeting detected card. While a meeting runs, the button reads Meeting ongoing.</>,
                             <>
-                                The meeting opens what <HelpPath parts={['Overlay']} /> says: the Natively overlay, or the Natively notepad on
+                                The meeting opens what <HelpPath parts={['Overlay']} /> says: the PrepPilot overlay, or the PrepPilot notepad on
                                 the right of the screen. Both follow Undetectable.
                             </>,
                             <>End it with the square on the overlay's pill, or Stop transcript in the notepad.</>,
                         ]}
                     />
                     <p>
-                        When nothing has been said for a while, Natively says it stops in 1 minute; Keep going carries on.
+                        When nothing has been said for a while, PrepPilot says it stops in 1 minute; Keep going carries on.
                     </p>
                     <SettingsNotice tone={tones.warn} icon={<TriangleAlert size={14} />} className="mb-0">
                         With Ambient AI Chat on, in <HelpPath parts={['General']} />, meetings start without
@@ -693,7 +693,7 @@ const HelpPane: React.FC<{
                         items={[
                             { term: 'What to read', detail: 'The last 3 minutes of the conversation unless you say otherwise, up to an hour.' },
                             { term: 'Screenshot every press', detail: 'Attaches the screen each time the button is pressed.' },
-                            { term: 'How Natively runs it', detail: 'Shows, once saved, what Natively understood from your description.' },
+                            { term: 'How PrepPilot runs it', detail: 'Shows, once saved, what PrepPilot understood from your description.' },
                         ]}
                     />
                     <p>
@@ -714,7 +714,7 @@ const HelpPane: React.FC<{
                 <>
                     {notepadClip && <HelpClip clip={notepadClip} label={notepadClip.label} />}
                     <p>
-                        Choose Natively notepad in <HelpPath parts={['Overlay']} /> and meetings open a notepad on the right of the screen
+                        Choose PrepPilot notepad in <HelpPath parts={['Overlay']} /> and meetings open a notepad on the right of the screen
                         instead of the overlay. {keys('toggleVisibility')} still brings the overlay up when you want it.
                     </p>
                     <HelpDefinitions
@@ -786,18 +786,18 @@ const HelpPane: React.FC<{
             group: 'meeting',
             icon: <Ghost size={20} />,
             title: t('Staying invisible'),
-            description: t('Keep Natively out of screen shares and recordings.'),
+            description: t('Keep PrepPilot out of screen shares and recordings.'),
             keywords: 'undetectable detectable stealth screen share hide dock taskbar process disguise zoom capture',
             body: (
                 <>
                     {stealthClip && <HelpClip clip={stealthClip} label={stealthClip.label} />}
                     <p>
-                        Turn on the Detectable switch in <HelpPath parts={['General']} />; it then reads Undetectable. Natively asks the
+                        Turn on the Detectable switch in <HelpPath parts={['General']} />; it then reads Undetectable. PrepPilot asks the
                         system to keep its windows out of screen shares and recordings, and hides {facts.undetectable.hides}.
                         {' '}{facts.undetectable.caveat}
                     </p>
                     <p>
-                        Process Disguise makes Natively look like {orList(facts.disguises)} while Undetectable is on. Choose it first: it
+                        Process Disguise makes PrepPilot look like {orList(facts.disguises)} while Undetectable is on. Choose it first: it
                         can't be changed while Undetectable is on.
                     </p>
                     <SettingsNotice tone={tones.warn} icon={<TriangleAlert size={14} />} className="mb-0">
@@ -808,7 +808,7 @@ const HelpPane: React.FC<{
                             <HelpSubhead>Zoom</HelpSubhead>
                             <p>
                                 In <HelpPath parts={['Zoom', 'Settings', 'Share Screen', 'Advanced']} />, set Screen capture mode to Advanced
-                                capture with window filtering. The other modes capture Natively.
+                                capture with window filtering. The other modes capture PrepPilot.
                             </p>
                             <HelpFigure>
                                 <img
@@ -864,9 +864,9 @@ const HelpPane: React.FC<{
                     <HelpSubhead>Browser extension</HelpSubhead>
                     <HelpSteps
                         steps={[
-                            <>Install Natively Companion from the <HelpLink href={CHROME_WEB_STORE_URL}>Chrome Web Store</HelpLink>.</>,
+                            <>Install PrepPilot Companion from the <HelpLink href={CHROME_WEB_STORE_URL}>Chrome Web Store</HelpLink>.</>,
                             <>With Phone Mirror on, press Connect on its row in <HelpPath parts={['Companion', 'Browser Extension']} />.</>,
-                            "Within a minute, click the extension's icon and press Connect to Natively.",
+                            "Within a minute, click the extension's icon and press Connect to PrepPilot.",
                         ]}
                     />
                     <p>
@@ -1044,7 +1044,7 @@ const HelpPane: React.FC<{
                     {searchClip && <HelpClip clip={searchClip} label={searchClip.label} />}
                     <p>
                         {inlineKeys([mod, 'K'])} opens Search or ask anything in the Launcher. The first result asks AI across all your
-                        meetings; below it, Sessions lists meetings whose title or summary matches, and Memory adds what Natively
+                        meetings; below it, Sessions lists meetings whose title or summary matches, and Memory adds what PrepPilot
                         remembered.
                     </p>
                     <p>
@@ -1061,7 +1061,7 @@ const HelpPane: React.FC<{
             group: 'engine',
             icon: <ListOrdered size={20} />,
             title: t('Embeddings and rerankers'),
-            description: t('How Natively finds the right passage in your documents.'),
+            description: t('How PrepPilot finds the right passage in your documents.'),
             keywords: 'retrieval rag embedding reranker voyage jina hugging face local index documents',
             body: (
                 <>
@@ -1074,7 +1074,7 @@ const HelpPane: React.FC<{
                     <HelpDefinitions
                         items={[
                             { term: 'Hosted', detail: 'Providers such as Natively API, Voyage AI, OpenAI or Jina AI. The text being searched is sent to that provider.' },
-                            { term: 'On this device', detail: 'Local Embeddings and Local Reranker come with Natively; more models download from Hugging Face. Nothing leaves this computer.' },
+                            { term: 'On this device', detail: 'Local Embeddings and Local Reranker come with PrepPilot; more models download from Hugging Face. Nothing leaves this computer.' },
                             { term: 'Fall back to the local reranker', detail: 'If a hosted reranker fails, reranking happens on this device instead.' },
                         ]}
                     />
@@ -1087,7 +1087,7 @@ const HelpPane: React.FC<{
             group: 'engine',
             icon: <Brain size={20} />,
             title: t('Skills and memory'),
-            description: t('Instructions the chat follows, and what Natively remembers.'),
+            description: t('Instructions the chat follows, and what PrepPilot remembers.'),
             keywords: 'intelligence skills slash memory long-term about you speaker labels diagrams calibration provider performance',
             body: (
                 <>
@@ -1114,7 +1114,7 @@ const HelpPane: React.FC<{
             <section>
                 <SettingsSectionHeading
                     title={t('Get started')}
-                    subtitle={t('Natively needs permissions, a speech provider and an AI model.')}
+                    subtitle={t('PrepPilot needs permissions, a speech provider and an AI model.')}
                 />
                 {/* The whole setup, start to finish, on video — first, so someone
                     who would rather watch than read finds it before the steps.
@@ -1246,7 +1246,7 @@ const HelpPane: React.FC<{
                     subtitle={t('The keys you will use most. Change any of them in Keybinds.')}
                 />
                 <div className={ROW_GROUP}>
-                    <SettingsRow icon={<Eye size={20} />} title={t('Show or hide Natively')}
+                    <SettingsRow icon={<Eye size={20} />} title={t('Show or hide PrepPilot')}
                         description={t('Works everywhere, even with global shortcuts off.')}
                         control={<HelpKeys keys={shortcuts.toggleVisibility ?? []} />} />
                     <SettingsRow icon={<MessageSquareText size={20} />} title={t('What to answer?')}
@@ -1280,7 +1280,7 @@ const HelpPane: React.FC<{
                 <SettingsFootnote icon={<Info size={13} />}>
                     {t('What to answer?, suggestions and moving the overlay only work while a meeting is running. Suggestions appear when a mode is active.')}
                     {facts.shortcutGuard && (
-                        <> {t('Protect Natively shortcuts, in General, stops them from also typing into the app underneath.')}</>
+                        <> {t('Protect PrepPilot shortcuts, in General, stops them from also typing into the app underneath.')}</>
                     )}
                 </SettingsFootnote>
             </section>
@@ -1289,7 +1289,7 @@ const HelpPane: React.FC<{
             <section>
                 <SettingsSectionHeading
                     title={t('Guides')}
-                    subtitle={t('Every part of Natively, in the order you meet it. Press a recording\'s step to jump to it.')}
+                    subtitle={t('Every part of PrepPilot, in the order you meet it. Press a recording\'s step to jump to it.')}
                 />
                 <HelpGuideSearch
                     value={query}

@@ -108,7 +108,7 @@ test('an unreachable provider shows only where it was looked for', () => {
 test('a fault inside Natively is not blamed on a provider and names no internals', () => {
   for (const raw of [IPC_NO_HANDLER, "TypeError: Cannot read properties of undefined (reading 'text')", 'Error: x.map is not a function']) {
     assert.deepEqual(chatFailureFromError(raw, { provider: 'Google' }), { code: 'INTERNAL_ERROR' });
-    assert.equal(view(raw, { provider: 'Google' }).headline, 'Natively lost track of this answer. Ask again.');
+    assert.equal(view(raw, { provider: 'Google' }).headline, 'PrepPilot lost track of this answer. Ask again.');
   }
 });
 

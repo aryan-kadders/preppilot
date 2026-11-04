@@ -161,7 +161,7 @@ export function checkFollowUpInput(input: unknown): { meetingId: string; to: str
     const { meetingId, to, subject, body } = input as Record<string, unknown>;
     if (typeof meetingId !== 'string' || !meetingId || meetingId.length > 200) return { message: 'That meeting could not be found.' };
     if (!Array.isArray(to) || to.length === 0) return { message: 'Add at least one recipient.' };
-    if (to.length > MAX_RECIPIENTS) return { message: `Gmail sends to at most ${MAX_RECIPIENTS} people at once from Natively.` };
+    if (to.length > MAX_RECIPIENTS) return { message: `Gmail sends to at most ${MAX_RECIPIENTS} people at once from PrepPilot.` };
     if (to.some((t) => typeof t !== 'string' || t.length > 320)) return { message: 'One of the recipients is not an email address.' };
     if (typeof subject !== 'string' || subject.length > 2000) return { message: 'Add a subject.' };
     if (typeof body !== 'string' || body.length > MAX_BODY_BYTES) return { message: typeof body === 'string' ? 'This email is too long to send from Natively.' : 'The email is empty.' };

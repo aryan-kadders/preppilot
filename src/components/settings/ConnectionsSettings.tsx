@@ -122,7 +122,7 @@ const TOKEN_META: Record<'notion' | CrmService | EnrichmentService, { title: str
         icon: <ConnectorMark id="clearbit" />,
         blurb: 'Suggest a title and company for the people you met, looked up by email.',
         tokenLabel: 'API key',
-        howTo: 'In Clearbit, open your account settings and copy the secret API key. Natively looks people up only when you press "Look up attendees" on a meeting, and every result is a suggestion you accept on the People page.',
+        howTo: 'In Clearbit, open your account settings and copy the secret API key. PrepPilot looks people up only when you press "Look up attendees" on a meeting, and every result is a suggestion you accept on the People page.',
     },
 };
 
@@ -258,7 +258,7 @@ const TokenServicePanel: React.FC<{
                                             </GlassPill>
                                         </div>
                                     </label>
-                                    <p className="text-xs text-text-tertiary">{t('Natively checks the token before saving it, and keeps it in your system keychain.')}</p>
+                                    <p className="text-xs text-text-tertiary">{t('PrepPilot checks the token before saving it, and keeps it in your system keychain.')}</p>
                                 </div>
                             </div>
                         </Collapse>
@@ -455,7 +455,7 @@ const SlackPanel: React.FC<{ webhooks: ConnectionsStatus['slack']['webhooks']; b
                                             {t('Add channel')}
                                         </GlassPill>
                                     </div>
-                                    <p className="text-xs text-text-tertiary">{t('Natively checks the webhook without posting anything, and keeps it in your system keychain.')}</p>
+                                    <p className="text-xs text-text-tertiary">{t('PrepPilot checks the webhook without posting anything, and keeps it in your system keychain.')}</p>
                                 </div>
                             </div>
                         </Collapse>
@@ -562,7 +562,7 @@ export const ConnectionsSettings: React.FC = () => {
 
     const storageNotice = !status.secureStorage && (
         <SettingsNotice tone={tones.warn} icon={<AlertCircle size={14} />}>
-            {t('This computer has no secure storage available, so connections are kept until Natively quits.')}
+            {t('This computer has no secure storage available, so connections are kept until PrepPilot quits.')}
         </SettingsNotice>
     );
 
@@ -648,7 +648,7 @@ export const ConnectionsSettings: React.FC = () => {
                 <section>
                     <SettingsSectionHeading
                         title={t('Connectors')}
-                        subtitle={t('Connect Natively to the tools you use. Meeting notes stay on this computer until you send them, or until a rule you made sends them.')}
+                        subtitle={t('Connect PrepPilot to the tools you use. Meeting notes stay on this computer until you send them, or until a rule you made sends them.')}
                     />
                     {storageNotice}
                 </section>

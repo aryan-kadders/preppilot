@@ -178,7 +178,9 @@ export class UsageOutbox {
      * therefore costs no data, which is why one lever is enough.
      */
     public isEnabled(): boolean {
-        return usageFlagEnabled(process.env.NATIVELY_USAGE_OUTBOX_ENABLED);
+        // PrepPilot: usage events were audited by the upstream Natively API.
+        // This fork never sends them anywhere.
+        return false;
     }
 
     /**

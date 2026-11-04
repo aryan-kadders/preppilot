@@ -526,7 +526,7 @@ export function registerOutputsIpc(appState: AppState, safeHandle: SafeHandle): 
                 : describeConnectionError(kind, 'Slack') };
         }
         const webhook = getConnectionsStore().addSlackWebhook(typeof label === 'string' ? label : '', u);
-        if (!webhook) return { ok: false, kind: 'invalid_input', message: 'You have added as many Slack channels as Natively keeps. Remove one first.' };
+        if (!webhook) return { ok: false, kind: 'invalid_input', message: 'You have added as many Slack channels as PrepPilot keeps. Remove one first.' };
         return { ok: true, webhook, ...(getConnectionsStore().isPersistent() ? {} : { message: describeConnectionError('storage_unavailable', 'Slack') }) };
     }));
     safeHandle('outputs:slack-remove', guard(FORBIDDEN, async (_e, id: unknown) => {

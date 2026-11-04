@@ -59,7 +59,7 @@ const CATALOG_MODELS = [
         state: 'not-installed', bytesOnDisk: 0, selected: false,
         extensionId: null, extensionInstalled: null, requiresBinary: null,
         supported: false,
-        unsupportedReason: 'Its ONNX export is the transformer only — the scoring head is a separate Sentence-Transformers module chain that Natively cannot run yet.',
+        unsupportedReason: 'Its ONNX export is the transformer only — the scoring head is a separate Sentence-Transformers module chain that PrepPilot cannot run yet.',
         activatable: false,
     },
     {

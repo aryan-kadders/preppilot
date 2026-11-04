@@ -34,15 +34,16 @@ test('release notes parser accepts GitHub H3 headings and emoji-decorated titles
   ]);
 });
 
+// PrepPilot: release notes and updates come from this fork's own repository.
 test('release notes manager points at the published GitHub repository', () => {
   const manager = ReleaseNotesManager.getInstance();
-  assert.equal(manager.repoOwner, 'Natively-AI-assistant');
+  assert.equal(manager.repoOwner, 'aryan-kadders');
   assert.equal(manager.repoName, 'natively-cluely-ai-assistant');
 });
 
 test('release notes lookup tries both tag spellings (V2.8.8 is published with a capital V)', () => {
   const manager = ReleaseNotesManager.getInstance();
-  const base = 'https://api.github.com/repos/Natively-AI-assistant/natively-cluely-ai-assistant/releases';
+  const base = 'https://api.github.com/repos/aryan-kadders/natively-cluely-ai-assistant/releases';
   for (const version of ['2.8.8', 'v2.8.8', 'V2.8.8']) {
     assert.deepEqual(manager.buildReleaseUrls(version), [`${base}/tags/v2.8.8`, `${base}/tags/V2.8.8`]);
   }

@@ -186,7 +186,7 @@ test('saving has Natively write the button, and keeps the contract when the line
   assert.match(save, /if \(run !== saveRun\.current\) return;/);
   assert.match(save, /const latest = getOverlayCustomButtons\(\);/);
   assert.match(ui, /<SwapLabel id=\{saving \? 'writing' : 'save'\} sizers=\{\[saveLabel, t\('Writing…'\)\]\}>/);
-  assert.match(ui, /t\('How Natively runs it'\)/);
+  assert.match(ui, /t\('How PrepPilot runs it'\)/);
   const preload = read('electron/preload.ts');
   assert.match(preload, /ipcRenderer\.invoke\('custom-button:compile', input\)/);
   assert.match(preload, /ipcRenderer\.invoke\('generate-custom-button', input\)/);

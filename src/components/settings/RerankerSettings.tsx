@@ -943,7 +943,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
             const localName = status.selectedLocal?.name || (selected ? selected.name : null);
             parts.push(t('On-device'));
             if (localName) parts.push(localName);
-            parts.push(selected ? humanBytes(selected.bytesOnDisk || selected.bytes) : t('Included with Natively'));
+            parts.push(selected ? humanBytes(selected.bytesOnDisk || selected.bytes) : t('Included with PrepPilot'));
         }
         return parts.join(' · ');
     }, [status, catalogModels, t]);
@@ -1723,7 +1723,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
 
                 <div className="flex items-center justify-between gap-3 flex-wrap text-[10px] aip-muted px-1">
                     <p className="min-w-0 flex-1">
-                        {t('Runs on this device with zero data sent externally. Built-in BGE model shipped with Natively, or download open models directly from Hugging Face.')}
+                        {t('Runs on this device with zero data sent externally. Built-in BGE model shipped with PrepPilot, or download open models directly from Hugging Face.')}
                     </p>
                     <span className="shrink-0 font-medium tabular-nums aip-text">
                         {installedCount}/{totalCount} {t('installed')}
@@ -1819,7 +1819,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
                         <section className="space-y-1.5">
                             <header className="flex items-baseline justify-between gap-3 px-1">
                                 <h5 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--aip-secondary)' }}>
-                                    {t('Bundled with Natively')}
+                                    {t('Bundled with PrepPilot')}
                                 </h5>
                                 <span className="text-[10px] tabular-nums" style={{ color: 'var(--aip-tertiary)' }}>1/1</span>
                             </header>
@@ -2070,7 +2070,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
                 </div>
 
                 <p className="text-[10px] aip-muted px-1">
-                    {t('An extension teaches Natively to use custom reranking models. Extensions run locally with full data privacy.')}
+                    {t('An extension teaches PrepPilot to use custom reranking models. Extensions run locally with full data privacy.')}
                 </p>
 
                 {installError && (
@@ -2411,7 +2411,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
             <header className="space-y-1">
                 <h3 className="aip-title">{t('Reranker')}</h3>
                 <p className="aip-subtitle">
-                    {t('After Natively searches your documents, the reranker decides which passages actually answer the question. It is chosen separately from your embedding model and your AI model.')}
+                    {t('After PrepPilot searches your documents, the reranker decides which passages actually answer the question. It is chosen separately from your embedding model and your AI model.')}
                 </p>
             </header>
             {hero}

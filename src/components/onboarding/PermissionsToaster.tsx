@@ -476,10 +476,10 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
                 </h2>
                 <p id="perm-toast-desc" style={{ fontSize: '13px', lineHeight: 1.65, color: t3, margin: 0 }}>
                   {isMac
-                    ? 'Natively needs a few permissions to capture meetings and transcribe speech.'
+                    ? 'PrepPilot needs a few permissions to capture meetings and transcribe speech.'
                     : isWin
-                    ? 'Screen recording is already allowed. Natively only needs your microphone.'
-                    : 'Natively needs microphone access to transcribe speech.'}
+                    ? 'Screen recording is already allowed. PrepPilot only needs your microphone.'
+                    : 'PrepPilot needs microphone access to transcribe speech.'}
                 </p>
               </motion.div>
 
@@ -696,7 +696,7 @@ function AllSetPanel({ isLight, reduced, enter, onContinue, rows }: {
         You're all set
       </h2>
       <p id="perm-toast-desc" style={{ fontSize: '13px', lineHeight: 1.65, color: t3, margin: '0 0 24px' }}>
-        Natively has everything it needs.
+        PrepPilot has everything it needs.
       </p>
 
       {rows}
@@ -763,7 +763,7 @@ function GuideSteps({ isLight, colors, t3, reduced, enter }: {
           fontSize: '10.5px', fontWeight: 600, color: colors.mockTextPrimary,
           lineHeight: 1.25, letterSpacing: '-0.005em', marginBottom: '9px',
         }}>
-          Natively wants to record the screen.
+          PrepPilot wants to record the screen.
         </div>
 
         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
@@ -797,7 +797,7 @@ function GuideSteps({ isLight, colors, t3, reduced, enter }: {
           <img src={nativelyIcon} alt="" aria-hidden style={{ width: '14px', height: '14px', borderRadius: '3px' }} />
         </div>
         <span style={{ fontSize: '11px', fontWeight: 550, color: colors.panelText, flex: 1, letterSpacing: '-0.01em' }}>
-          Natively
+          PrepPilot
         </span>
         {/* A still switch in its target position. It used to flip itself every
             2.2s, which read as a control rather than an illustration. */}
@@ -882,7 +882,7 @@ function GuideStepsWindows({ colors, t3, reduced, enter, page }: {
           fontSize: '10.5px', fontWeight: 600, color: colors.mockTextPrimary,
           lineHeight: 1.25, letterSpacing: '-0.005em', marginBottom: '8px',
         }}>
-          Natively needs your microphone.
+          PrepPilot needs your microphone.
         </div>
 
         <div style={{

@@ -80,7 +80,7 @@ const diagnostics = q.get('perf') === 'populated'
       network: { id: 'n1', interfaceClass: 'wifi', offline: false },
       profiles: [
         profile({ streamIdle: { valueMs: 2500, source: 'profile', sampleCount: 42 }, projected100k: { predictedTtftMs: 14000, actionable: true } }),
-        profile({ providerId: 'groq', modelId: 'qwen/qwen3.6-27b', grade: 'slow', confidence: 'medium', sampleCount: 9, largeContextWarning: 'Large requests to this model have failed repeatedly on this network. Natively will shrink them first.' }),
+        profile({ providerId: 'groq', modelId: 'qwen/qwen3.6-27b', grade: 'slow', confidence: 'medium', sampleCount: 9, largeContextWarning: 'Large requests to this model have failed repeatedly on this network. PrepPilot will shrink them first.' }),
         profile({ providerId: 'openrouter', modelId: 'anthropic/claude-sonnet-5', grade: 'unreliable', confidence: 'low', sampleCount: 3, capability: { visionVerdict: 'UNSUPPORTED', contextWindowTokens: 200_000, source: 'probe' } }),
         profile({ providerId: 'openai', modelId: 'gpt-5.5-mini', grade: 'good', isCurrentNetwork: false, networkProfileId: 'n2', stale: true }),
       ],

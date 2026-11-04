@@ -58,6 +58,7 @@ import { v4 as uuidv4 } from 'uuid';
  * Replace this URL with your actual Cloudflare Worker endpoint.
  */
 const INSTALL_PING_URL = 'https://divine-sun-927d.natively.workers.dev';
+const INSTALL_PING_DISABLED = true;
 
 // Local storage paths (inside user data directory)
 const INSTALL_ID_PATH = path.join(app.getPath('userData'), 'install_id.txt');
@@ -136,6 +137,8 @@ function markInstallPingSent(): void {
  * - Fails silently on any error
  */
 export async function sendAnonymousInstallPing(): Promise<void> {
+    // PrepPilot: the install ping went to the upstream Natively worker. Disabled.
+    if (INSTALL_PING_DISABLED) return;
     try {
         // Early exit if ping already sent
         if (hasInstallPingBeenSent()) {

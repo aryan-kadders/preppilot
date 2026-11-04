@@ -78,8 +78,8 @@ export const PermissionsFigure: React.FC<{ platform: HelpPlatform }> = ({ platfo
         <div className="divide-y divide-border-subtle">
           {mac ? (
             <>
-              <MockPermissionRow icon={<MonitorUp size={12} />} label="Screen & System Audio Recording" detail="Natively" />
-              <MockPermissionRow icon={<Mic size={12} />} label="Microphone" detail="Natively" />
+              <MockPermissionRow icon={<MonitorUp size={12} />} label="Screen & System Audio Recording" detail="PrepPilot" />
+              <MockPermissionRow icon={<Mic size={12} />} label="Microphone" detail="PrepPilot" />
             </>
           ) : (
             <>
@@ -160,7 +160,7 @@ const Pin: React.FC<{ n: number; className: string }> = ({ n, className }) => (
 );
 
 export const OverlayAnatomyFigure: React.FC = () => (
-  <div role="img" aria-label="The Natively overlay: a pill above a panel with the live transcript, quick actions, the ask box and a bottom row of controls." className="bg-bg-main px-8 py-5">
+  <div role="img" aria-label="The PrepPilot overlay: a pill above a panel with the live transcript, quick actions, the ask box and a bottom row of controls." className="bg-bg-main px-8 py-5">
     <div aria-hidden className="relative mx-auto max-w-[400px] select-none">
       {/* 1 — the pill */}
       <div className="relative mx-auto mb-2 flex w-fit items-center gap-1.5 rounded-full border border-border-subtle bg-bg-item-surface p-1">

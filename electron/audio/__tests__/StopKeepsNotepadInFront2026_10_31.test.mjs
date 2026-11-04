@@ -54,5 +54,6 @@ test('the owed launcher shows only in launcher mode, and a meeting start cancels
 test('only the user closing the notepad brings the launcher up (mid-meeting: MeetingNotesWindow2026_10_15)', () => {
   const hide = extractMethodBody(notesSource, 'hide');
   assert.match(hide, /if \(byUser\) \{[\s\S]*this\.closedByUserListener\?\.\(\)/);
-  assert.match(mainSource, /onClosedByUser\(\(\) => \{\s*const inactive = this\.isUndetectable \? true : undefined;\s*const action = planNotesClosed\(this\.isMeetingActive, this\.windowHelper\.isOverlayHeldHidden\(\)\);\s*if \(action === 'owed-launcher'\) this\.windowHelper\.showOwedLauncher\(inactive\);/);
+  // An analytics-only first line (funnel notepadUsed, in try/catch) may precede the logic.
+  assert.match(mainSource, /onClosedByUser\(\(\) => \{(?:\s*try \{[^\n]*\} catch \{[^\n]*\})?\s*const inactive = this\.isUndetectable \? true : undefined;\s*const action = planNotesClosed\(this\.isMeetingActive, this\.windowHelper\.isOverlayHeldHidden\(\)\);\s*if \(action === 'owed-launcher'\) this\.windowHelper\.showOwedLauncher\(inactive\);/);
 });

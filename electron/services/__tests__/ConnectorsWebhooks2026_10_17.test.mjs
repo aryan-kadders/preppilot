@@ -315,7 +315,7 @@ test('Send test delivers a sample note.generated once, with no retries, and leav
     assert.ok(verify(calls[0], secret));
     assert.equal(calls[0].json.type, 'note.generated');
     assert.equal(calls[0].json.data.test, true);
-    assert.equal(calls[0].json.data.title, 'Sample meeting from Natively');
+    assert.equal(calls[0].json.data.title, 'Sample meeting from PrepPilot');
     assert.ok(Array.isArray(calls[0].json.data.transcript));
     assert.equal(hooks.list()[0].lastDelivery, undefined);
 
@@ -409,7 +409,7 @@ test('without OS encryption a webhook is kept for this session, and the user is 
     const { hooks } = make({ dir, safeStorage: noKeyring });
     const r = hooks.create(baseInput());
     assert.equal(r.ok, true);
-    assert.match(r.message, /kept until Natively quits/);
+    assert.match(r.message, /kept until PrepPilot quits/);
     assert.equal(hooks.list().length, 1);
     assert.equal(fs.existsSync(path.join(dir, wh.WEBHOOKS_FILE)), false, 'nothing written in plain text');
 });

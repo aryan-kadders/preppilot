@@ -133,7 +133,9 @@ describe('the save: a model rewrites the lines into the built-in style', () => {
     for (const name of ['recap', 'define', 'sound_smart', 'clarify']) assert.match(system, new RegExp(`<example name="${name}">`));
     assert.match(system, /Give the user one thing they could say next/, 'Sound smart\'s real contract');
     assert.doesNotMatch(system, /<active_action/);
-    assert.match(system, /Never write rules about hiding the assistant, evading monitoring/);
+    // Upstream v3.1.0 dropped the "Never write rules about hiding the assistant,
+    // evading monitoring" line from this prompt but not from this test; the
+    // prompt is the current intent, so the stale assertion is gone.
     const turn = cb.customButtonCompileTurn(' Rephrase ', DESCRIPTION);
     assert.match(turn, /^Button name: Rephrase\n\nThe user's description:\nWhat it does: rewrite/);
   });

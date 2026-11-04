@@ -57,8 +57,8 @@ test('an offer shows on the panel and, with the launcher not in front, as a noti
     assert.equal(view.autoStartAt, null);
     assert.deepEqual(state.panel, [view]);
     assert.equal(state.notes.length, 1);
-    assert.equal(state.notes[0].title, 'Start Natively?');
-    assert.equal(state.notes[0].action, 'Start Natively');
+    assert.equal(state.notes[0].title, 'Start PrepPilot?');
+    assert.equal(state.notes[0].action, 'Start PrepPilot');
     // No event: the call's own name, else nothing (the panel says "<App> call").
     assert.equal(offers.offer({ ...CALL, title: 'Standup' }).title, 'Standup');
     assert.equal(offers.offer(CALL).title, null);
@@ -112,8 +112,8 @@ test('Start automatically: counts down 10 s, then starts unless Not now; the cou
     const { offers, state, advance, now } = rig({ auto: true });
     const view = offers.offer(CALL);
     assert.equal(view.autoStartAt, now() + 10_000);
-    assert.equal(state.notes[0].title, 'Starting Natively');
-    assert.equal(state.notes[0].body, 'A Zoom call started.\nNatively starts in 10 seconds.');
+    assert.equal(state.notes[0].title, 'Starting PrepPilot');
+    assert.equal(state.notes[0].body, 'A Zoom call started.\nPrepPilot starts in 10 seconds.');
     assert.equal(state.notes[0].action, 'Start now');
     advance(9_999);
     assert.deepEqual(state.starts, []);
@@ -172,7 +172,7 @@ test('the notification\'s close is Not now on macOS; on Windows only when the us
     assert.equal(closeMeansNotNow('win32', 'timedOut'), false, 'timed out into the Action Center');
     assert.equal(closeMeansNotNow('win32', 'applicationHidden'), false);
     assert.equal(closeMeansNotNow('win32', undefined), false);
-    assert.deepEqual(offerNotificationText('x', false, 10_000), { title: 'Start Natively?', body: 'x', action: 'Start Natively' });
+    assert.deepEqual(offerNotificationText('x', false, 10_000), { title: 'Start PrepPilot?', body: 'x', action: 'Start PrepPilot' });
 });
 
 test('wired in: prompts blocked means no panel and no countdown either; otherwise the panel gets the offer', () => {

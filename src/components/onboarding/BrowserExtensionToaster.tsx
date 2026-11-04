@@ -318,7 +318,7 @@ export const BrowserExtensionToaster: React.FC<Props> = ({ isOpen, onDismiss }) 
             fontSize: '12px', fontWeight: 500, letterSpacing: '-0.005em',
             color: INK.quiet, margin: '0 0 22px',
           }}>
-            Natively for Chrome
+            PrepPilot for Chrome
           </motion.div>
 
           {/*

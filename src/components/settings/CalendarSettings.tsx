@@ -471,11 +471,11 @@ export const CalendarSettings: React.FC = () => {
         if (id === 'ics') setIcsDraft(null);
         setStatus(await window.electronAPI.getCalendarStatus());
       } else {
-        setErrors((e) => ({ ...e, [id]: res?.error || t('Natively couldn’t connect this calendar. Try again in a minute.') }));
+        setErrors((e) => ({ ...e, [id]: res?.error || t('PrepPilot couldn’t connect this calendar. Try again in a minute.') }));
       }
     } catch (err: any) {
       console.error('[CalendarSettings] Connect failed:', err);
-      setErrors((e) => ({ ...e, [id]: t('Natively couldn’t connect this calendar. Try again in a minute.') }));
+      setErrors((e) => ({ ...e, [id]: t('PrepPilot couldn’t connect this calendar. Try again in a minute.') }));
     } finally {
       setBusy(null);
       void loadSources();
@@ -579,9 +579,9 @@ export const CalendarSettings: React.FC = () => {
     const connectLabel = isBusy && busy?.kind === 'connecting' ? t('Connecting…') : src.id === 'ics' && icsDraft !== null ? t('Add') : t('Connect');
     const refreshed = linked ? refreshLabel(src.lastRefresh, now, lang, t) : null;
     const note = src.state === 'unconfigured'
-      ? (src.id === 'outlook' ? t('Not available in this version yet') : t('Needs a newer version of Natively'))
+      ? (src.id === 'outlook' ? t('Not available in this version yet') : t('Needs a newer version of PrepPilot'))
       : src.state === 'notAllowed'
-        ? t('Natively isn’t allowed to read your calendars')
+        ? t('PrepPilot isn’t allowed to read your calendars')
         : t(copy.hint);
     return (
       <div key={src.id}>
@@ -591,7 +591,7 @@ export const CalendarSettings: React.FC = () => {
             <Presence kind="text" id={asking ? 'ask' : linked ? 'account' : src.state}>
               {asking ? (
                 <span className="cp-row-title" style={{ fontWeight: 500 }}>
-                  {src.id === 'ics' ? t('Remove this calendar link from Natively?') : t('Disconnect this account from Natively?')}
+                  {src.id === 'ics' ? t('Remove this calendar link from PrepPilot?') : t('Disconnect this account from PrepPilot?')}
                 </span>
               ) : linked ? (
                 <>
@@ -799,9 +799,9 @@ export const CalendarSettings: React.FC = () => {
                                     type="button"
                                     className="cp-pill cp-pill--sm cp-pill--start"
                                     onClick={() => window.dispatchEvent(new CustomEvent('natively:start-meeting-for-event', { detail: { title: ev.title, calendarEventId: ev.id } }))}
-                                    aria-label={`${t('Start Natively for')} ${ev.title}`}
+                                    aria-label={`${t('Start PrepPilot for')} ${ev.title}`}
                                   >
-                                    {t('Start Natively')}
+                                    {t('Start PrepPilot')}
                                   </button>
                                 ) : (
                                   <span className="cp-now">
@@ -900,7 +900,7 @@ export const CalendarSettings: React.FC = () => {
               </span>
             </div>
             <p className="cp-desc" style={{ margin: 0 }}>
-              {t('Offers to start Natively when a call begins in Zoom, Teams, Meet, Webex, Slack or another call app.')}
+              {t('Offers to start PrepPilot when a call begins in Zoom, Teams, Meet, Webex, Slack or another call app.')}
             </p>
             <div className="cp-card-header" style={{ marginTop: 12 }}>
               <h4 className="cp-card-label">{t('Start automatically')}</h4>
@@ -914,7 +914,7 @@ export const CalendarSettings: React.FC = () => {
               </span>
             </div>
             <p className="cp-desc" style={{ margin: 0 }}>
-              {t('Starts Natively 10 seconds after a call is detected, unless you press Not now.')}
+              {t('Starts PrepPilot 10 seconds after a call is detected, unless you press Not now.')}
             </p>
           </div>
         </section>
@@ -943,7 +943,7 @@ export const CalendarSettings: React.FC = () => {
                 </span>
               </div>
               <p className="cp-desc" style={{ margin: 0 }}>
-                {t('A notification before each calendar meeting offers to start Natively.')}
+                {t('A notification before each calendar meeting offers to start PrepPilot.')}
               </p>
             </div>
           </section>
@@ -965,7 +965,7 @@ export const CalendarSettings: React.FC = () => {
               </span>
             </div>
             <p className="cp-desc" style={{ margin: 0 }}>
-              {t('Stops Natively and writes your notes when you leave the call, or after 15 minutes with nothing said.')}
+              {t('Stops PrepPilot and writes your notes when you leave the call, or after 15 minutes with nothing said.')}
             </p>
           </div>
         </section>
@@ -986,14 +986,14 @@ export const CalendarSettings: React.FC = () => {
               </span>
             </div>
             <p className="cp-desc" style={{ margin: 0 }}>
-              {t('When someone else shares their screen in Zoom or Teams, Natively takes a picture every 10 seconds and adds what it shows to your notes, using your vision model. Never while you present, and paused while Undetectable is on. Get consent from the people in the meeting first.')}
+              {t('When someone else shares their screen in Zoom or Teams, PrepPilot takes a picture every 10 seconds and adds what it shows to your notes, using your vision model. Never while you present, and paused while Undetectable is on. Get consent from the people in the meeting first.')}
             </p>
           </div>
         </section>
 
         <p className="cp-foot">
           <Info size={14} />
-          <span><strong>{t('Read-only.')}</strong> {t('Natively can’t add, change or delete your events.')}</span>
+          <span><strong>{t('Read-only.')}</strong> {t('PrepPilot can’t add, change or delete your events.')}</span>
         </p>
       </div>
     </SettingsMotionReady.Provider>

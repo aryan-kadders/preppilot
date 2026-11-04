@@ -27,7 +27,7 @@ const PHRASE = {
   customEmbeddings: 'Custom embeddings',
   customReranker: 'Custom reranker',
   speech: '{provider} speech',
-  again: 'Choose again. If it keeps failing, restart Natively.',
+  again: 'Choose again. If it keeps failing, restart PrepPilot.',
   copyFailed: 'The two files could not be copied aside first, so nothing was changed.',
   freeSpace: 'Free up some disk space, then choose again.',
   saveFailed: 'Your choice could not be saved, so nothing was changed.',
@@ -38,7 +38,7 @@ const PHRASE = {
   backupUnreadable: 'The app backup could not be read, so nothing was changed.',
   keepOther: 'Keep the {store} set instead.',
   storeUnavailable: 'Your key store is unavailable this session, so nothing was changed.',
-  restart: 'Restart Natively and try again.',
+  restart: 'Restart PrepPilot and try again.',
   notApplied: 'That choice could not be applied, so nothing was changed.',
 };
 

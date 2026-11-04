@@ -21,7 +21,7 @@ export function savedMeetingAudio(): { inputDeviceId: string | null; outputDevic
     });
     if (r.discardSavedInput) {
         // Self-heal a poisoned preference: Natively's own tap aggregate is not a microphone.
-        console.warn(`[Meeting] Discarding saved input device "${savedInput}" — it is one of Natively's own capture devices, not a microphone.`);
+        console.warn(`[Meeting] Discarding saved input device "${savedInput}" — it is one of PrepPilot's own capture devices, not a microphone.`);
         try { localStorage.removeItem('preferredInputDeviceId'); } catch { /* read-only storage */ }
     }
     if (r.backend === 'sck') console.log('[Meeting] Using ScreenCaptureKit backend (Experimental).');

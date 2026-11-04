@@ -114,7 +114,7 @@ const DEFAULT_RATING = 5
 const ERROR_COPY: Record<string, string> = {
     rate_limited_key: "Too many attempts just now. Try again in a minute.",
     rate_limited: "Too many attempts just now. Try again in a minute.",
-    hardware_id_required: "Couldn't identify this install. Restart Natively and try again.",
+    hardware_id_required: "Couldn't identify this install. Restart PrepPilot and try again.",
     rating_required_1_to_5: "Pick a rating from one to five stars.",
     review_text_too_long: "That note is over the 300-character limit.",
     review_not_found: "This review is no longer available.",
@@ -123,7 +123,7 @@ const ERROR_COPY: Record<string, string> = {
     invalid_review_id: "Something went wrong saving your name. Your rating was still recorded.",
     no_db: "Our end is having trouble. Your rating wasn't saved — try again shortly.",
     network_error: "No connection. Check your network and try again.",
-    no_api: "Natively isn't ready yet. Try again in a moment.",
+    no_api: "PrepPilot isn't ready yet. Try again in a moment.",
 }
 
 /** Resolve an API error code to user-facing copy. */
@@ -609,7 +609,7 @@ const StepReview: React.FC<StepReviewProps> = ({
             <section className="review-column">
                 <span className="review-eyebrow">Review · 1 of 3</span>
                 <h2 id="review-modal-title-review" className="review-headline">
-                    How is Natively<br />treating you?
+                    How is PrepPilot<br />treating you?
                 </h2>
                 {/* The standfirst's first line sets the width of the stars and
                     the note under it, so the three share a right edge. */}
@@ -855,7 +855,7 @@ const StepThanks: React.FC<{
     attributionSkipped: boolean
     reduced: boolean
 }> = ({ displayNamePublicly, name, attributionSkipped, reduced }) => {
-    const byline = displayNamePublicly && name.trim() ? name.trim() : "Anonymous Natively user"
+    const byline = displayNamePublicly && name.trim() ? name.trim() : "Anonymous PrepPilot user"
     // Staggered so the eye lands seal → headline → byline in one beat.
     const step = (i: number) => ({
         initial: reduced ? { opacity: 0 } : { opacity: 0, transform: "translateY(7px)" },

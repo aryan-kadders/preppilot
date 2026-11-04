@@ -240,86 +240,15 @@ test('trial_promo is not a stage', () => {
   assert.equal(STAGES_TS.find((s) => s.id === 'trial_promo'), undefined);
 });
 
-// ─── Support ──────────────────────────────────────────────────────
+// ─── Removed upstream promotional cards ──────────────────────────
+// PrepPilot dropped the plans, Natively API, upgrade, ad, review and support
+// cards along with the upstream business code. None may come back as a stage.
 
-test('support: skipped when isPremium', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, isPremium: true, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: requires turnCount >= 10', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 5,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: fires with quiet_window + 10 turns + 10s homepage', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), true);
-});
-
-// ─── Ads ──────────────────────────────────────────────────────────
-
-// ─── Review prompt ────────────────────────────────────────────────
-
-// Engagement is "sessions OR usage", matching the review ledger
-// (electron/services/ReviewPromptLogic.ts). It previously read
-// requiresStartupCount: 6 + requiresTotalUsageMs: 45min in `triggers`, but the
-// orchestrator ANDs triggers — so the catalog demanded BOTH, a strictly harder
-// gate than the ledger's OR, and the ledger's own thresholds never bound.
-
-test('review_prompt: enough sessions alone qualifies, even with little usage', () => {
-  const ctx = makeCtx({
-    completed: { ads: 1 },
-    startupCount: REVIEW_PROMPT_MIN_SESSIONS,
-    totalUsageMs: 60 * 1000, // one minute — nowhere near the usage gate
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('review_prompt', ctx), true);
-});
-
-test('review_prompt: enough usage alone qualifies, even on first session', () => {
-  const ctx = makeCtx({
-    completed: { ads: 1 },
-    startupCount: 1,
-    totalUsageMs: REVIEW_PROMPT_MIN_USAGE_MS,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('review_prompt', ctx), true);
-});
-
-test('review_prompt: withheld until at least one engagement gate is met', () => {
-  const ctx = makeCtx({
-    completed: { ads: 1 },
-    startupCount: REVIEW_PROMPT_MIN_SESSIONS - 1,
-    totalUsageMs: REVIEW_PROMPT_MIN_USAGE_MS - 1,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('review_prompt', ctx), false);
-});
-
-test('review_prompt: engagement does not bypass the other triggers', () => {
-  // Fully engaged, but not yet 10 s on the home screen.
-  const ctx = makeCtx({
-    startupCount: 99,
-    totalUsageMs: 99 * 60 * 1000,
-    homepageMountedFor: 5_000,
-  });
-  assert.equal(show('review_prompt', ctx), false);
+test('promotional cards are not stages', () => {
+  for (const id of ['plans', 'demo_video', 'natively_api_new', 'natively_api_existing', 'max_ultra', 'profile_ad', 'jd_ad', 'review_prompt', 'support']) {
+    assert.equal(STAGES.find((s) => s.id === id), undefined, `${id} must not be a stage`);
+    assert.equal(STAGES_TS.find((s) => s.id === id), undefined, `${id} must not be a stage (ts)`);
+  }
 });
 
 // ─── Backgrounding / meeting ──────────────────────────────────────
