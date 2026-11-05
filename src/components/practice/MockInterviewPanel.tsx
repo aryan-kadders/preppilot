@@ -49,7 +49,7 @@ export const MockInterviewPanel: React.FC<{ onClose: () => void }> = ({ onClose 
   // the speaker goes quiet (main: endOfAnswer.ts), and the answer is submitted.
   const [handsFree, setHandsFree] = useState(true);
   const handsFreeRef = useRef(handsFree);
-  handsFreeRef.current = handsFree;
+  useEffect(() => { handsFreeRef.current = handsFree; }, [handsFree]);
   const autoSubmitRef = useRef<(text: string) => void>(() => {});
   // Whether this question's answer was spoken, and for how long (pace).
   const spokenRef = useRef<{ spoken: boolean; ms: number }>({ spoken: false, ms: 0 });
@@ -165,7 +165,10 @@ export const MockInterviewPanel: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   // The voice listener is set up once; it submits through the latest submit().
-  autoSubmitRef.current = (text: string) => { void submit(text); };
+  // Refreshed after every render, never during one.
+  useEffect(() => {
+    autoSubmitRef.current = (text: string) => { void submit(text); };
+  });
 
   const next = async () => {
     if (!session) return;
@@ -306,6 +309,7 @@ export const MockInterviewPanel: React.FC<{ onClose: () => void }> = ({ onClose 
             <p className="text-lg font-semibold leading-snug">{question.text}</p>
             <textarea
               ref={answerRef}
+              aria-label="Your answer"
               className={`${INPUT} min-h-[150px] resize-y leading-relaxed`}
               placeholder="Speak your answer, or type it here…"
               value={answer}
