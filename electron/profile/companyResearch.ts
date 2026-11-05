@@ -101,6 +101,8 @@ const text = (v: unknown, max = 900) => {
   return s && !/^(n\/?a|none|unknown|not stated)$/i.test(s) ? s.slice(0, max) : undefined;
 };
 const list = (v: unknown, max = 8) => (Array.isArray(v) ? v : []).map((x) => text(x, 200)).filter((x): x is string => !!x).slice(0, max);
+// One page, however it is linked: "#section" and a trailing slash do not make a new source.
+const pageKey = (url: string) => url.replace(/#.*$/, '').replace(/\/$/, '').toLowerCase();
 const rating = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n <= 5 ? Math.round(n * 10) / 10 : undefined; };
 const DIFFICULTY = new Set(['easy', 'medium', 'hard', 'very_hard']);
 
@@ -133,7 +135,7 @@ export function parseDossier(reply: unknown, company: string, sources: SearchRes
     }
     const salaries = (Array.isArray(p.salary_estimates) ? p.salary_estimates : [])
       .map((s: any) => ({ title: text(s?.title, 80) ?? '', location: text(s?.location, 80), min: Number(s?.min), max: Number(s?.max), currency: text(s?.currency, 8) ?? 'USD', confidence: (['low', 'medium', 'high'].includes(s?.confidence) ? s.confidence : 'low') as 'low' | 'medium' | 'high' }))
-      .filter((s: any) => s.title && Number.isFinite(s.min) && Number.isFinite(s.max) && s.min > 0 && s.max >= s.min)
+      .filter((s: any) => s.title && Number.isFinite(s.min) && Number.isFinite(s.max) && s.min > 0 && s.max >= s.min && s.max <= s.min * 4)
       .slice(0, 4);
     set('salary_estimates', salaries);
     const critics = (Array.isArray(p.critics) ? p.critics : [])
@@ -208,8 +210,8 @@ export class CompanyResearchEngine {
       for (const q of researchQueries(name, jd)) {
         try {
           for (const r of await this.searchProvider.search(q)) {
-            if (seen.has(r.url)) continue;
-            seen.add(r.url);
+            if (seen.has(pageKey(r.url))) continue;
+            seen.add(pageKey(r.url));
             sources.push(r);
           }
         } catch (e: any) {

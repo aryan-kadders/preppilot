@@ -42,7 +42,7 @@ describe('default transcription provider', { skip: HAVE_BUILD ? false : 'run `np
 
   test('CredentialsManager reads "nothing chosen" as the default, and Settings shows the effective provider', () => {
     const cm = read('electron/services/CredentialsManager.ts');
-    assert.match(cm, /if \(provider === 'none'\) \{[\s\S]{0,500}return defaultSttProviderFor\(process\.platform, \{ appleSpeechAvailable: appleSpeechHelperPresent\(\) \}\);/);
+    assert.match(cm, /if \(provider === 'none'\) \{[\s\S]{0,500}return defaultSttProviderFor\(process\.platform, \{ appleSpeechAvailable: appleSpeechHelperPresent\(\), deepgramKey: !!this\.getDeepgramApiKey\(\) \}\);/);
     assert.match(read('electron/ipcHandlers.ts'), /sttProvider: CredentialsManager\.getInstance\(\)\.getSttProvider\(\),/);
   });
 });

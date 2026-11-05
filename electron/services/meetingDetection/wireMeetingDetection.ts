@@ -121,6 +121,14 @@ export function wireMeetingDetection(deps: MeetingDetectionDeps): MeetingDetecto
         log: (line) => console.log(`[MeetingDetection] ${line}`),
     });
     lastOffers = offers;
+    // PrepPilot: under Undetectable or a disguise no OS notification is shown
+    // (meetingOffer.notifyFor), but with Start automatically on the call still
+    // starts by itself; the overlay that appears is the user's cue, and it
+    // stays hidden from screen share. Without auto-start nothing is offered.
+    const silentOnly = (): boolean => {
+        if (!deps.promptsBlocked()) return false;
+        try { return !(deps.autoStart?.() ?? false); } catch { return true; }
+    };
     const detector = new MeetingDetector({
         read: () => ({
             platform: deps.platform,
@@ -134,13 +142,14 @@ export function wireMeetingDetection(deps: MeetingDetectionDeps): MeetingDetecto
         // The call ended before anyone answered: its offer and countdown go.
         onGone: (id) => offers.callGone(id),
         // Back within the minute: an offer it lost unanswered is shown again,
-        // unless Undetectable or a disguise was turned on in between.
+        // unless Undetectable or a disguise was turned on in between (and
+        // Start automatically is off).
         onBack: (id) => {
-            if (deps.promptsBlocked()) return;
+            if (silentOnly()) return;
             offers.callBack(id);
         },
         onDetected: (d) => {
-            if (deps.promptsBlocked()) {
+            if (silentOnly()) {
                 console.log(`[MeetingDetection] ${d.app} call detected; prompt skipped (Undetectable or a disguise is on)`);
                 return;
             }

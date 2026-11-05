@@ -158,3 +158,35 @@ test('wiring: a Tavily key uses PrepPilot\'s provider; practice feedback sees th
   assert.match(r, /require\('\.\.\/profile\/companyResearch'\)/);
   assert.match(fs.readFileSync(path.join(ROOT, 'electron/practice/practiceIpc.ts'), 'utf8'), /o\.companyContextBlock\(\)/);
 });
+
+test('a TAVILY_API_KEY in .env works in development, through the same gated fallback as the AI keys', () => {
+  const cm = fs.readFileSync(path.join(ROOT, 'electron/services/CredentialsManager.ts'), 'utf8');
+  assert.match(cm, /getTavilyApiKey\(\): string \| undefined \{\s*return this\.storedOrEnv\(this\.credentials\.tavilyApiKey, 'TAVILY_API_KEY'\);/);
+});
+
+test('example .env placeholders are ignored, real values are kept', () => {
+  const p = path.join(ROOT, 'dist-electron/electron/utils/envPlaceholders.js');
+  if (!fs.existsSync(p)) return;
+  const { dropEnvPlaceholders } = require(p);
+  const env = { OPENAI_API_KEY: 'your_openai_api_key_here', TAVILY_API_KEY: ' your_tavily_api_key_here ', GEMINI_API_KEY: 'AIzaReal', AZURE_SPEECH_REGION: 'eastus', EMPTY: '' };
+  assert.deepEqual(dropEnvPlaceholders(env).sort(), ['OPENAI_API_KEY', 'TAVILY_API_KEY']);
+  assert.deepEqual(env, { GEMINI_API_KEY: 'AIzaReal', AZURE_SPEECH_REGION: 'eastus', EMPTY: '' });
+  assert.match(fs.readFileSync(path.join(ROOT, 'electron/main.ts'), 'utf8'), /require\('dotenv'\)\.config\(\);\n.*\n\s*const removed = require\('\.\/utils\/envPlaceholders'\)\.dropEnvPlaceholders\(process\.env\);/);
+});
+
+describe('quality guards seen on a real Stripe run', { skip: SKIP }, () => {
+  test('a salary range wider than 4x is dropped; one page linked twice is one source', async () => {
+    const reply = JSON.stringify({ summary: 'S', salary_estimates: [{ title: 'EM', min: 92698, max: 857848 }, { title: 'SWE', min: 180000, max: 240000 }], used_sources: [1, 2] });
+    const d = cr.parseDossier(reply, 'Stripe', SOURCES, new Date());
+    assert.deepEqual(d.salary_estimates.map((s) => s.title), ['SWE']);
+    const prompts = [];
+    const engine = new cr.CompanyResearchEngine({ db: new Database(':memory:'), generate: () => async (p) => { prompts.push(p); return reply; } });
+    engine.setSearchProvider({ search: async () => [
+      { title: 'Page', url: 'https://example.com/q', content: 'x' },
+      { title: 'Page again', url: 'https://example.com/q#behavioral', content: 'x' },
+      { title: 'Page slash', url: 'https://example.com/q/', content: 'x' },
+    ] });
+    await engine.researchCompany('Stripe');
+    assert.equal((prompts[0].match(/example\.com\/q/g) || []).length, 1);
+  });
+});

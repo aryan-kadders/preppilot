@@ -153,7 +153,7 @@ test('no stand-in running: the drain returns at once, and main awaits it before 
     for (const id of ['groq', 'local-whisper', 'deepgram', 'apple-speech']) assert.deepEqual(liveTimingFor(id), sttTailTimingFor(id), id);
 });
 
-test('Undetectable turned on while an offer waits: nothing shows again and nothing starts', () => {
+test('Undetectable turned on while an offer waits: nothing shows again; only Start automatically starts it', () => {
     const r = offerRig();
     r.offers.offer(CALL);
     const shown = r.state.notes.length;
@@ -169,5 +169,7 @@ test('Undetectable turned on while an offer waits: nothing shows again and nothi
     r2.advance(2_000);
     r2.setBlocked(true);
     r2.advance(20_000);
-    assert.deepEqual(r2.state.starts, [], 'the countdown never starts a meeting under Undetectable');
+    // PrepPilot: with Start automatically still on, the countdown starts the call under Undetectable too.
+    assert.equal(r2.state.starts.length, 1, 'the countdown starts the call under Undetectable');
+    assert.equal(r2.state.notes.length, 1, 'no extra notification under Undetectable');
 });

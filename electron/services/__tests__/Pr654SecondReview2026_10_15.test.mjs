@@ -167,5 +167,6 @@ test('the providers that upload or infer after the audio say when work is still 
 
 test('a restored offer respects Undetectable and disguises like a new one', () => {
     const src = fs.readFileSync(path.join(REPO, 'electron/services/meetingDetection/wireMeetingDetection.ts'), 'utf8');
-    assert.match(src, /onBack: \(id\) => \{\s*if \(deps\.promptsBlocked\(\)\) return;\s*offers\.callBack\(id\);/);
+    assert.match(src, /onBack: \(id\) => \{\s*if \(silentOnly\(\)\) return;\s*offers\.callBack\(id\);/);
+    assert.match(src, /const silentOnly = \(\): boolean => \{\s*if \(!deps\.promptsBlocked\(\)\) return false;/);
 });

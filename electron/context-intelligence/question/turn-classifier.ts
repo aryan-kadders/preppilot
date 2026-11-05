@@ -718,7 +718,11 @@ const METRIC_LOOKUP_RE =
  *  directive so detection and instruction share one definition. */
 export const SECONDARY_DOC_RE = /\b(decoys?|other candidates?|another candidate|second(ary)? candidate|unrelated (candidate|file|document))\b/i;
 
-const CODING_TASK_RE = /\b(reverse a|implement (a|an)|write (a|the) (code|function|program|query)|solve|algorithm for|time complexity|leetcode|binary search|linked list|sort(ing)? algorithm|dynamic programming)\b/;
+// PrepPilot (2026-11-05): "I want a long code for any ecommerce website",
+// "give me the code for a login page", "build a todo app in react" were not
+// coding tasks here, so the live answer kept its spoken two-to-four-sentence
+// rules and the code came back as a sketch.
+const CODING_TASK_RE = /\b(reverse a|implement (a|an)|write (a|the) (code|function|program|query)|solve|algorithm for|time complexity|leetcode|binary search|linked list|sort(ing)? algorithm|dynamic programming|(write|give|want|need|show|send|share|provide)( me| us)? (a |an |the |some )?([a-z+#.-]+ ){0,3}(code|program|script|source code) (for|to|in|of|that|which|using)|code for (a|an|the|my|any|this|that|[a-z]+ (page|website|site|app|form))|(build|create|make|develop|design) (a|an|the|me a|me an|simple|basic)( [a-z+#.-]+){0,3} (website|web ?site|web ?page|page|app|application|form|dashboard|api|component|clone))\b/;
 
 const SYSTEM_DESIGN_RE = /\b(design a|scale (a|the|to)|system design|architecture for|how would you (build|design)|throughput|sharding|load balanc|(would|will|can|does) (it|that|this) scale)\b/;
 

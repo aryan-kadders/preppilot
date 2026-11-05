@@ -1085,7 +1085,7 @@ export class CredentialsManager {
             // stored: choosing a provider in Settings replaces it, and a Mac
             // whose Apple Speech helper appears later moves up to it.
             const { defaultSttProviderFor } = require('../audio/defaultSttProvider') as typeof import('../audio/defaultSttProvider');
-            return defaultSttProviderFor(process.platform, { appleSpeechAvailable: appleSpeechHelperPresent() });
+            return defaultSttProviderFor(process.platform, { appleSpeechAvailable: appleSpeechHelperPresent(), deepgramKey: !!this.getDeepgramApiKey() });
         }
         return provider;
     }
@@ -1108,7 +1108,7 @@ export class CredentialsManager {
     }
 
     public getDeepgramApiKey(): string | undefined {
-        return this.credentials.deepgramApiKey;
+        return this.storedOrEnv(this.credentials.deepgramApiKey, 'DEEPGRAM_API_KEY');
     }
 
     public getGroqSttApiKey(): string | undefined {
@@ -1156,7 +1156,7 @@ export class CredentialsManager {
     }
 
     public getTavilyApiKey(): string | undefined {
-        return this.credentials.tavilyApiKey;
+        return this.storedOrEnv(this.credentials.tavilyApiKey, 'TAVILY_API_KEY');
     }
 
     public getSttLanguage(): string {
@@ -1172,7 +1172,10 @@ export class CredentialsManager {
     }
 
     public getAiResponseLanguage(): string {
-        return this.credentials.aiResponseLanguage || 'auto';
+        // PrepPilot: English unless the user picks another (or Auto) in Settings.
+        // 'auto' mirrors the speaker, and a small model on an India-region Mac
+        // answered English interview questions in Hindi (seen 2026-11-05).
+        return this.credentials.aiResponseLanguage || 'English';
     }
     public getDefaultModel(): string {
         // Default to Flash-Lite: ~0.65s first-token vs ~2.3s for full Flash on

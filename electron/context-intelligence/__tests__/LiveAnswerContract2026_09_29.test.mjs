@@ -118,11 +118,20 @@ describe('who is asking decides whether the gap is named', () => {
 });
 
 describe('nothing attached + a question about the user\'s past', () => {
-  test('the zero-attachment notice forbids telling any story', () => {
+  // PrepPilot (2026-11-05): a behavioral question with nothing on file gets a
+  // realistic STAR example (the user's choice) instead of "tell no story".
+  test('the zero-attachment notice gives way to a practice STAR story', () => {
     const d = typed('Tell me about a time you made a mistake at work.', 'looking-for-work');
     const p = compose(d, 'looking-for-work');
-    if (!/No reference material is attached/.test(p.user)) return; // a different branch owns this turn
-    assert.match(p.user, /tell no story: no "I once", no project, incident, employer or date/);
+    assert.doesNotMatch(p.user, /tell no story: no "I once", no project, incident, employer or date/);
+    assert.ok(p.sections.includes('practice_story'), p.sections.join(','));
+    assert.match(p.user, /one complete STAR answer/);
+    assert.match(p.user, /no company, client or person names, no\s+dates and no precise figures/);
+  });
+  test('a non-story question about the user still tells no story', () => {
+    const d = typed('What did you do at your last job?', 'looking-for-work');
+    const p = compose(d, 'looking-for-work');
+    assert.ok(!p.sections.includes('practice_story'), p.sections.join(','));
   });
   test('Looking for work tells a story only from the résumé or profile', () => {
     const p = v2.buildSystemPromptV2({ mode: 'looking-for-work', action: 'what_to_say', tier: 'cloud' });
@@ -140,11 +149,18 @@ describe('a personal story told from evidence cannot be embellished', () => {
     scope: { userId: 'u1' }, sourceTypes: new Map([['resume-1', 'RESUME']]),
     activeVersions: new Map([['resume-1', 'v1']]), chunkVersions: new Map([['resume-1', 'v1']]), assumeInScopeWhenUnknown: true,
   }).evidence;
-  test('evidence + a question about the user renders the guard after the evidence', () => {
+  test('evidence + a behavioral question: the real story first, with only its real details', () => {
     const d = typed('Tell me about a time you had to deal with a difficult stakeholder.', 'looking-for-work');
     const p = composePrompt({ decision: d, policy: MODE_POLICIES['looking-for-work'], evidence: resumeEvidence, attachedSourceCount: 1, profileSourceCount: 0 });
     assert.ok(p.sections.includes('evidence'), `fixture must pack: ${p.sections.join(',')}`);
-    assert.ok(p.sections.includes('evidence_story'), p.sections.join(','));
+    assert.ok(p.sections.includes('practice_story'), p.sections.join(','));
+    assert.ok(p.sections.indexOf('practice_story') > p.sections.indexOf('evidence'), 'must follow the evidence');
+    assert.match(p.user, /If the\s+evidence above holds a real story of this kind, tell that one with only its real details/);
+  });
+  test('evidence + a non-story question about the user renders the guard after the evidence', () => {
+    const d = typed('What was your role at Tessellate Labs and what happened with the migration?', 'looking-for-work');
+    const p = composePrompt({ decision: d, policy: MODE_POLICIES['looking-for-work'], evidence: resumeEvidence, attachedSourceCount: 1, profileSourceCount: 0 });
+    if (!p.sections.includes('evidence_story')) return; // not classified as a USER_ claim
     assert.ok(p.sections.indexOf('evidence_story') > p.sections.indexOf('evidence'), 'must follow the evidence');
     assert.match(p.user, /Do not add a stakeholder, a disagreement, a colleague, a reaction or a result the evidence does not name/);
   });

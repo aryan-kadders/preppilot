@@ -66,6 +66,8 @@ function statusOf(err: any): number {
  * permanent billing failure (Gemini uses RESOURCE_EXHAUSTED for per-minute rate
  * limits too), so we still try the next model tier.
  */
+const SPEND_CAP_RE = /spend(?:ing)? cap|exceeded its monthly spending/i;
+
 export function isPermanentKeyError(err: any): boolean {
   if (!err) return false;
   const msg = String(err?.message ?? err ?? '').toLowerCase();
@@ -89,6 +91,10 @@ export function isPermanentKeyError(err: any): boolean {
     return true;
   }
   if (status === 402 || /\b402\b/.test(msg)) return true; // Payment Required
+  // Gemini: "Your project has exceeded its monthly spending cap" (a 429). The
+  // whole project is stopped until the cap is raised: retrying any model on
+  // the key only adds 16-32 s waits before the same refusal.
+  if (SPEND_CAP_RE.test(msg)) return true;
 
   return false;
 }
@@ -213,6 +219,7 @@ export function accountOrSetupUserMessage(err: unknown): string | null {
   if (natively && NATIVELY_PLAN_LIMIT_RE.test(msg)) return "You've reached your Natively plan's limit. See Settings › Plans to keep getting answers.";
   if (natively && NATIVELY_PLAN_EXPIRED_RE.test(msg)) return 'Your Natively plan has expired. Renew it in Settings › Plans to keep getting answers.';
   if (NO_PROVIDER_RE.test(msg)) return 'No AI provider is set up yet. Add one in Settings › AI Providers.';
+  if (SPEND_CAP_RE.test(msg)) return "Google stopped your Gemini key: its project reached the monthly spending cap. Raise the cap at ai.studio/spend, then ask again.";
   return null;
 }
 

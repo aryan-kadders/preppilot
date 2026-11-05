@@ -222,7 +222,7 @@ export class DeepgramStreamingSTT extends EventEmitter {
     }
 
     private hintTerms(): Record<string, string[]> {
-        return deepgramHintParams(this.model, getSttContextTerms());
+        return deepgramHintParams(this.model, getSttContextTerms(), this.connectLanguage());
     }
 
     private connect(): void {

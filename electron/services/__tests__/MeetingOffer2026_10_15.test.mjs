@@ -175,7 +175,7 @@ test('the notification\'s close is Not now on macOS; on Windows only when the us
     assert.deepEqual(offerNotificationText('x', false, 10_000), { title: 'Start PrepPilot?', body: 'x', action: 'Start PrepPilot' });
 });
 
-test('wired in: prompts blocked means no panel and no countdown either; otherwise the panel gets the offer', () => {
+test('wired in: prompts blocked with Start automatically on starts silently (no OS notification); otherwise the panel gets the offer', () => {
     let blocked = true;
     let t = 0;
     const panel = [];
@@ -201,7 +201,12 @@ test('wired in: prompts blocked means no panel and no countdown either; otherwis
     });
     const tick = (ms) => { t += ms; detector.tick(); };
     tick(0); tick(5000);
-    assert.deepEqual([panel.length, notes.length, pending.length], [0, 0, 0], 'Undetectable or a disguise: nothing, no countdown');
+    // PrepPilot: Undetectable + Start automatically: no notification, but the countdown runs and starts the call.
+    assert.equal(notes.length, 0, 'Undetectable or a disguise: never an OS notification');
+    assert.equal(panel.length, 1, 'the in-app panel (hidden from screen share) shows the countdown');
+    for (const p of pending.filter((x) => x.at <= t + 10_000)) p.fn();
+    assert.equal(starts.length, 1, 'the call starts by itself');
+    starts.length = 0; panel.length = 0;
     blocked = false;
     // Gone a minute, then a new call.
     const d2 = wireMeetingDetection({

@@ -46,6 +46,8 @@ const WHISPER_PROMPT_MAX_CHARS = 600;
  */
 const SLOT = Symbol.for('natively.sttContextTerms');
 const DICT_SLOT = Symbol.for('natively.sttDictionaryTerms');
+/** PrepPilot: the interview's domain words (techInterviewTerms.ts), after name and dictionary. */
+const DOMAIN_SLOT = Symbol.for('preppilot.sttDomainTerms');
 const store = globalThis as unknown as Record<symbol, string[] | undefined>;
 
 export function sanitizeSttTerms(input: readonly unknown[] | null | undefined, max: number = MAX_TERMS): string[] {
@@ -82,6 +84,10 @@ export function setSttDictionaryTerms(terms: readonly unknown[] | null | undefin
     store[DICT_SLOT] = sanitizeSttTerms(terms);
 }
 
+/** PrepPilot: the domain words (main, at meeting start). Not used for Whisper prompts. */
+export function setSttDomainTerms(terms: readonly unknown[] | null | undefined): void {
+    store[DOMAIN_SLOT] = sanitizeSttTerms(terms);
+}
 /** Only the dictionary part: decides whether a Whisper-style prompt is sent at all. */
 export function getSttDictionaryTerms(): string[] {
     return [...(store[DICT_SLOT] ?? [])];
@@ -89,15 +95,39 @@ export function getSttDictionaryTerms(): string[] {
 
 /** Every term, the name first so a provider that keeps only the first few keeps it. */
 export function getSttContextTerms(): string[] {
-    return sanitizeSttTerms([...(store[SLOT] ?? []), ...(store[DICT_SLOT] ?? [])]);
+    return sanitizeSttTerms([...(store[SLOT] ?? []), ...(store[DICT_SLOT] ?? []), ...(store[DOMAIN_SLOT] ?? [])]);
 }
 
 // ── Per-provider shapes ──────────────────────────────────────────────────
 
+/**
+ * Deepgram refuses the whole socket (400 "Keyterm limit exceeded", 500 tokens
+ * across all keyterms) when the hints are too long, and its multilingual
+ * tokenizer spends more tokens per word than English: measured 2026-11-05, 82
+ * tech terms (~720 chars) open on language=en, only 71 (~626 chars) on multi.
+ * So the list is cut, in priority order (name, dictionary, domain), to a
+ * character budget with headroom under each.
+ */
+const DEEPGRAM_HINT_CHARS = { english: 600, multilingual: 450 } as const;
+
+export function capDeepgramTerms(terms: readonly string[], language?: string): string[] {
+    const budget = language && language.startsWith('en') ? DEEPGRAM_HINT_CHARS.english : DEEPGRAM_HINT_CHARS.multilingual;
+    const out: string[] = [];
+    let used = 0;
+    for (const t of terms) {
+        const cost = t.length + (out.length ? 1 : 0);
+        if (used + cost > budget) break;
+        out.push(t);
+        used += cost;
+    }
+    return out;
+}
+
 /** Deepgram's query parameter for the model: keyterm on Nova-3, keywords on Nova-2, nothing else. */
-export function deepgramHintParams(model: string, terms: readonly string[]): Record<string, string[]> {
-    if (!terms.length) return {};
-    return model.startsWith('nova-3') ? { keyterm: [...terms] } : model.startsWith('nova-2') ? { keywords: [...terms] } : {};
+export function deepgramHintParams(model: string, terms: readonly string[], language?: string): Record<string, string[]> {
+    const kept = capDeepgramTerms(terms, language);
+    if (!kept.length) return {};
+    return model.startsWith('nova-3') ? { keyterm: kept } : model.startsWith('nova-2') ? { keywords: kept } : {};
 }
 
 /** The terms natively-api forwards (its narrower charset; the server keeps the first 10). */

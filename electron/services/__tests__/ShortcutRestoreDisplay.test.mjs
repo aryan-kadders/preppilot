@@ -288,7 +288,7 @@ vm.runInNewContext(transformSync(`export class ToggleHost { ${toggleMethod} }`, 
   module: mainModule, exports: mainModule.exports, console: { log() {} },
 });
 
-function toggleFixture({ visible = true, expanded = true, mode = 'overlay' } = {}) {
+function toggleFixture({ visible = true, expanded = true, mode = 'overlay', closed = false } = {}) {
   const calls = [];
   const host = Object.create(mainModule.exports.ToggleHost.prototype);
   host.screenshotHelper = { getScreenshotQueue: () => [], getExtraScreenshotQueue: () => [] };
@@ -299,6 +299,8 @@ function toggleFixture({ visible = true, expanded = true, mode = 'overlay' } = {
     prepareShortcutRestore: () => calls.push('position'),
     toggleMainWindow: onCurrent => calls.push(onCurrent ? 'restore-current' : 'restore'),
     getOverlayWindow: () => ({}),
+    getMainWindow: () => (closed ? null : {}),
+    createWindow: () => calls.push('recreate'),
   };
   host.sendToWindow = (_window, channel) => calls.push(channel);
   return { host, calls };
@@ -334,4 +336,12 @@ test('launcher receives the shortcut origin', () => {
   const { host, calls } = toggleFixture({ mode: 'launcher' });
   host.toggleMainWindow(true);
   assert.deepEqual(calls, ['restore-current']);
+});
+
+test('PrepPilot: a closed main window (macOS close button) is recreated by the shortcut, nothing else runs', () => {
+  for (const mode of ['launcher', 'overlay']) {
+    const { host, calls } = toggleFixture({ mode, closed: true, visible: false });
+    host.toggleMainWindow(true);
+    assert.deepEqual(calls, ['recreate'], mode);
+  }
 });

@@ -63,6 +63,9 @@ trustSystemCertificates();
 
 if (!app.isPackaged) {
   require('dotenv').config();
+  // PrepPilot: a .env copied from .env.example keeps 'your_..._here' values; ignore them.
+  const removed = require('./utils/envPlaceholders').dropEnvPlaceholders(process.env);
+  if (removed.length) console.log('[env] ignoring example placeholder values for:', removed.join(', '));
 }
 
 // ============================================================================
@@ -1323,7 +1326,8 @@ import { canDiarize, shouldDiarize, withVoiceEpoch } from "./audio/sttDiarizatio
 import { buildJudgePrompt } from "./intelligence/autoAnswer/AutoAnswerJudge"
 import { SimpleAutoAnswerEngine } from "./intelligence/autoAnswer/SimpleAutoAnswer"
 import { AutoAnswerUsageTelemetry } from "./intelligence/autoAnswer/AutoAnswerUsageTelemetry"
-import { currentWhisperGlossaryPrompt, nameTerms, setSttContextTerms, setSttDictionaryTerms } from "./audio/sttContextTerms"
+import { currentWhisperGlossaryPrompt, nameTerms, setSttContextTerms, setSttDictionaryTerms, setSttDomainTerms } from "./audio/sttContextTerms"
+import { techInterviewTerms } from "./audio/techInterviewTerms"
 import { getUserDictionary } from "./audio/userDictionary"
 import { LOCAL_STT_PROVIDERS, SttGapRecoveryCoordinator, type RecoveredSegment, type SttSource } from "./audio/sttGapRecovery"
 import { SttFailover, failoverNotice, type FailoverCause, type FailoverStatus } from "./audio/sttFailover"
@@ -7686,6 +7690,11 @@ export class AppState {
     try { setSttContextTerms(nameTerms(this.currentUserName())); } catch { /* a hint, never a blocker */ }
     // The user's dictionary (Settings > Audio) beside it, for every provider with a vocabulary input.
     try { setSttDictionaryTerms(getUserDictionary()); } catch { /* a hint, never a blocker */ }
+    // PrepPilot: tech-interview words, the JD's and résumé's first, so "React" is not heard as "reaction".
+    try {
+      const ko: any = this.knowledgeOrchestrator;
+      setSttDomainTerms(techInterviewTerms({ resume: ko?.activeResume?.structured_data ?? null, jd: ko?.activeJD?.structured_data ?? null }));
+    } catch { /* a hint, never a blocker */ }
     // The transcript goes to disk as it grows, so a quit or crash mid-meeting
     // is recovered at the next launch (services/meeting/LiveMeetingJournal.ts).
     try { this.intelligenceManager.beginLiveMeeting(undefined, { surface: this.meetingSurface, resume: resumeBase }); } catch (e) { console.warn('[Main] live meeting journal unavailable:', (e as Error)?.message); }
@@ -8972,6 +8981,16 @@ export class AppState {
       "Extra screenshots: ",
       this.screenshotHelper.getExtraScreenshotQueue().length
     )
+
+    // PrepPilot: on macOS the launcher's close button destroys the window (the
+    // hide-on-close handler is Windows/Linux only). In Undetectable there is no
+    // Dock icon to click (the 'activate' path below recreates it), so Cmd/Ctrl+B
+    // must bring it back too: recreate it, as 'activate' does.
+    if (this.windowHelper.getMainWindow() === null) {
+      console.log('[Main] Toggle Visibility: the main window was closed; recreating it');
+      this.windowHelper.createWindow();
+      return;
+    }
 
     const mode = this.windowHelper.getCurrentWindowMode();
 

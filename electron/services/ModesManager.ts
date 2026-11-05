@@ -446,6 +446,7 @@ export class ModesManager {
             // unlatch only if the run reported itself incomplete.
             ModesManager.builtinsEnsured = true;
             if (!ModesManager.instance.ensureBuiltinModes()) ModesManager.builtinsEnsured = false;
+            else ModesManager.instance.adoptInterviewDefault();
         }
         return ModesManager.instance;
     }
@@ -724,6 +725,35 @@ export class ModesManager {
             console.error('[ModesManager] ensureBuiltinModes failed:', e);
         }
         return complete;
+    }
+
+    /**
+     * PrepPilot (2026-11-05): an interview assistant starts in Technical
+     * Interview, not General (built for meetings: short spoken replies, no
+     * interview coding or behavioral shape). Once per install, and only while
+     * the user has not chosen a mode: the active one is still the untouched
+     * default General, or none. A later choice of General is kept.
+     */
+    public adoptInterviewDefault(): void {
+        const KEY = 'preppilot.interviewDefaultApplied';
+        try {
+            const db = DatabaseManager.getInstance().getDb();
+            if (!db) return;
+            const done = db.prepare('SELECT value FROM app_state WHERE key = ?').get(KEY) as { value?: string } | undefined;
+            if (done) return;
+            const markDone = () => db.prepare('INSERT OR REPLACE INTO app_state (key, value) VALUES (?, ?)').run(KEY, '1');
+            const active = DatabaseManager.getInstance().getActiveMode();
+            const untouched = !active || (active.id === 'mode_general_default' && active.template_type === 'general');
+            if (!untouched) { markDone(); return; }
+            const target = DatabaseManager.getInstance().getModes()
+                .find((r: any) => r.template_type === 'technical-interview' && r.is_builtin === 1);
+            if (!target) return; // not seeded yet: try again next launch
+            this.setActiveMode(target.id);
+            markDone();
+            console.log(`[ModesManager] PrepPilot: Technical Interview is now the active mode (${target.id})`);
+        } catch (e) {
+            console.warn('[ModesManager] PrepPilot interview default skipped:', e);
+        }
     }
 
     /** Test seam: clear the once-per-process latch so a run can be repeated. */

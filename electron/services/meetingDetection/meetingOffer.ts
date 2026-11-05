@@ -14,9 +14,10 @@
  * itself `countdownMs` after the offer unless Not now was pressed. An offer
  * nobody answers clears itself after `expireMs`.
  *
- * Never shown at all while Undetectable blocks native prompts or a disguise is
- * on (the caller, wireMeetingDetection, checks before offering): the same rule
- * the notification always followed, so the countdown never runs unseen either.
+ * While Undetectable blocks native prompts or a disguise is on, no OS
+ * notification is shown. PrepPilot: with Start automatically on, the call still
+ * starts by itself (the overlay that opens is the cue, hidden from screen
+ * share); with it off nothing is offered (wireMeetingDetection checks).
  *
  * Pure: timers, clock and surfaces are injected, so the state machine is tested
  * without Electron.
@@ -287,10 +288,9 @@ export class MeetingOffers {
     private fire(id: string): void {
         const cur = this.current;
         if (!cur || cur.view.id !== id) return;
-        if (this.blocked()) {
-            this.clear('privacy');
-            return;
-        }
+        // PrepPilot: Undetectable no longer stops an automatic start (the user
+        // asked for calls to start by themselves); with Start automatically
+        // off, showWithoutCountdown still clears the offer under Undetectable.
         // The setting may have been turned off during the countdown.
         let auto = false;
         try { auto = this.deps.autoStart(); } catch { auto = false; }

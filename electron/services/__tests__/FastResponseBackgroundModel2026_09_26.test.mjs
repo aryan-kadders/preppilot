@@ -761,7 +761,8 @@ describe('both answer paths try the Background Model before the ladder', () => {
   const src = fs.readFileSync(path.join(root, 'electron/LLMHelper.ts'), 'utf8');
 
   test('streaming: the pick is tried first, never for images or a local Ollama model', () => {
-    const pick = src.indexOf('const fastPick = !isMultimodal && !this.useOllama\n      ? this.openFastModelStream(');
+    // PrepPilot: a long build (largeBuild) also skips the pick and goes to Gemini Flash.
+    const pick = src.indexOf('const fastPick = !isMultimodal && !this.useOllama && !largeBuild\n      ? this.openFastModelStream(');
     const ladder = src.indexOf('const fastModeApplies = fastPickFailed && this.groqFastTextMode');
     assert.ok(pick > -1, 'the streaming path must call openFastModelStream behind the image + Ollama guard');
     assert.ok(ladder > pick, 'the pick must run BEFORE the fallback ladder');

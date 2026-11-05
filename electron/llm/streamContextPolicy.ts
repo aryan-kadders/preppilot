@@ -59,6 +59,14 @@ export interface StreamRouteOptions {
    */
   pinnedModeId?: string | null;
   /**
+   * PrepPilot (2026-11-05): the turn asks for a long or whole-project build
+   * ("a long code for an ecommerce website like Amazon"). Flash-Lite caps such
+   * an answer at about 750 tokens whatever the prompt says, so the turn skips
+   * the fast pick and starts the Gemini cascade at Flash (measured: 6 files,
+   * ~23k chars, streaming). Absent → the usual routing.
+   */
+  largeBuild?: boolean;
+  /**
    * The caller's own diagram decision for a turn whose system prompt the
    * transport composes itself (a caller that passed none). The transport has
    * no session, so on its own it only sees a fresh request; a caller that does

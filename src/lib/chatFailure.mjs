@@ -106,7 +106,7 @@ const TRIAL_RE = /\btrial[_ ](?:has[_ ])?(?:expired|ended)\b/i;
 const NO_PROVIDER_RE = /\bNo AI provider configured\b/;
 // A plan or balance that ran out. "Quota exceeded for requests per minute" is
 // a rate limit and is sorted as one; a snake_case *_quota_exceeded is a plan's.
-const CREDITS_RE = /insufficient_quota|[a-z]*_?quota_exceeded\b|exceeded your current quota|out of credits|credit balance|billing|payment required/;
+const CREDITS_RE = /spend(?:ing)? cap|insufficient_quota|[a-z]*_?quota_exceeded\b|exceeded your current quota|out of credits|credit balance|billing|payment required/;
 const AUTH_RE = /api[ _-]?key|unauthori[sz]ed|unauthenticated|invalid[_ ]credentials|permission[_ ]denied|forbidden|sign[- ]?in/i;
 const RATE_RE = /rate[ _-]?limit|too many requests|resource_exhausted|quota exceeded for|per (?:minute|second)\b/i;
 const MODEL_RE = /\bmodels?\b[^.\n]{0,120}?\b(?:not found|not supported|does not exist|not available|unavailable|not enabled)\b/i;
@@ -211,4 +211,5 @@ export const PROVIDER_FAILURE_SENTENCE_STARTS = Object.freeze([
   "You've reached your Natively plan's limit. ",
   'Your Natively plan has expired. ',
   'No AI provider is set up yet. ',
+  'Google stopped your Gemini key: ',
 ]);

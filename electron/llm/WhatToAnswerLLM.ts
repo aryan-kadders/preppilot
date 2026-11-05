@@ -27,6 +27,7 @@ import { isCodeVerificationEnabled } from "./codeVerification/verificationEnable
 import type { WhatToAnswerRequestSnapshot } from "./whatToAnswerRequestSnapshot";
 import { withDiagramContract, withDiagramTurnBlock } from "./diagramPromptSignals";
 import { looksCutOff } from "./repairCap";
+import { LARGE_BUILD_RE } from "../context-intelligence/generation/prompt-composer";
 
 // Wall-clock budget for the pre-stream mode-context HYBRID retrieval await.
 // The hybrid retriever embeds the live query, and the embedder's own hard
@@ -1078,6 +1079,10 @@ The user triggered this action with a coding problem on screen and NO new questi
                     ? (governedEvidencePack ?? governedWtaContextOs.evidencePack ?? null)
                     : null
             );
+            // PrepPilot: "a long code for an ecommerce website" goes to a model
+            // that writes it in full (StreamRouteOptions.largeBuild).
+            const wtaLargeBuild = Boolean(answerPlan && isCodingAnswerType(answerPlan.answerType)
+                && LARGE_BUILD_RE.test(String(answerPlan.question ?? '')));
             const wtaRouteOptions = resolvedGovernedPack && governedWtaContextOs
                 ? {
                     answerType: answerPlan?.answerType,
@@ -1087,6 +1092,7 @@ The user triggered this action with a coding problem on screen and NO new questi
                     // and OCR turns have no image path, so image-only routing
                     // metadata would re-refuse after WTA already yielded.
                     hasScreenText,
+                    largeBuild: wtaLargeBuild,
                     // Grounding-campaign3 (2026-07-23): thread the t0 mode pin so
                     // LLMHelper._streamChatInner's always-on document-grounded
                     // retrieval reads the SAME mode the request was planned
@@ -1097,6 +1103,7 @@ The user triggered this action with a coding problem on screen and NO new questi
                 : {
                     answerType: answerPlan?.answerType,
                     hasScreenText,
+                    largeBuild: wtaLargeBuild,
                     pinnedModeId: requestSnapshot?.modeUniqueId ?? null,
                 };
             // CONTEXT INTELLIGENCE V3 (Phase 6) — prompt substitution, transport intact.

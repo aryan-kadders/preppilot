@@ -111,8 +111,12 @@ describe('2. Follow-up questions passes it on in General, and only there', () =>
   };
 
   test('General, the other person spoke alone: told', async () => {
+    // PrepPilot: a fresh profile starts in Technical Interview; this is about General.
+    const { ModesManager } = require(dist('services/ModesManager.js'));
+    const modes = ModesManager.getInstance();
+    modes.setActiveMode(modes.getModes().find((m) => m.templateType === 'general').id);
     const [message, , , system] = await send({ otherPersonSpokeAlone: true });
-    assert.match(system, /Unless the conversation is plainly something else \(a team meeting, a call the user leads, a class\)/, 'the fresh profile is in General, whose prompt leaves room for a class');
+    assert.match(system, /Unless the conversation is plainly something else \(a team meeting, a call the user leads, a class\)/, 'the profile is in General, whose prompt leaves room for a class');
     assert.ok(taskOf(message).includes(CLAUSE));
   });
 

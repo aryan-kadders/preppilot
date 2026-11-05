@@ -1713,6 +1713,7 @@ export class LLMHelper {
     // would keep a fresh key's selection off the front for the cooldown.
     for (const id of ['gemini_flash_lite', 'gemini_flash', 'gemini_pro', 'gemini_selected']) this.visionHealth.delete(id);
     this.textHealth.delete('gemini_flash'); // text race uses gemini_flash — retry fresh key immediately
+    this.geminiAccountError = null;
     if (!trimmed) {
       this.apiKey = null;
       this.client = null;
@@ -3938,6 +3939,11 @@ export class LLMHelper {
   // to "No AI provider configured… add at least one API key", which the
   // overlay and the funnel read as a rejected key.
   private nativelyLimit: { code: string; onTrial: boolean } | null = null;
+  // PrepPilot: the Gemini key's account-level refusal (spending cap, billing,
+  // bad key), while recent. An answer nothing else could give fails with
+  // Google's own reason instead of "No AI provider configured".
+  private geminiAccountError: { message: string; at: number } | null = null;
+  private static readonly GEMINI_ACCOUNT_ERROR_TTL_MS = 10 * 60_000;
   private static readonly NATIVELY_QUOTA_BLOCK_MIN_MS = 60_000;
   private static readonly NATIVELY_QUOTA_BLOCK_MAX_MS = 6 * 60 * 60_000;
   private static readonly PLAN_LIMIT_RE = /\b(?:[a-z]+_)?(?:quota_exceeded|plan_limit|limit_exceeded|lifetime_exceeded)\b/;
@@ -3964,6 +3970,10 @@ export class LLMHelper {
   private exhaustedChainError(): Error {
     if (this.nativelyLimit && this.nativelyQuotaBlockedUntil > Date.now()) {
       return new Error(nativelyLimitErrorMessage(this.nativelyLimit));
+    }
+    const gemini = this.geminiAccountError;
+    if (gemini && Date.now() - gemini.at < LLMHelper.GEMINI_ACCOUNT_ERROR_TTL_MS) {
+      return new Error(`Gemini: ${gemini.message}`);
     }
     return new Error(this.noProviderAvailableMessage());
   }
@@ -11421,7 +11431,10 @@ let isMultimodal = !!(imagePaths?.length);
     const fastTurn = this.claimFastTurn(abortSignal);
     if (fastTurn) fastTurn.textOnly = !isMultimodal;
     const fastCtl = new AbortController();
-    const fastPick = !isMultimodal && !this.useOllama
+    // PrepPilot: a long build goes to Gemini Flash (see StreamRouteOptions.largeBuild).
+    const largeBuild = routeOptions?.largeBuild === true && Boolean(this.client) && !isMultimodal;
+    if (largeBuild) console.log('[LLMHelper] Long build request: answering on Gemini Flash');
+    const fastPick = !isMultimodal && !this.useOllama && !largeBuild
       ? this.openFastModelStream(userContent, systemPromptOverride, finalSystemPrompt,
         abortSignal ? AbortSignal.any([abortSignal, fastCtl.signal]) : fastCtl.signal, false, fastTurn)
       : null;
@@ -12048,7 +12061,7 @@ let isMultimodal = !!(imagePaths?.length);
       // should not take the live answer down when another provider is configured.
       let geminiYielded = false;
       try {
-        for await (const chunk of this.streamGeminiTextCascade(userContent, imagePaths, finalSystemPrompt, abortSignal, thinkingBudget)) {
+        for await (const chunk of this.streamGeminiTextCascade(userContent, imagePaths, finalSystemPrompt, abortSignal, thinkingBudget, largeBuild ? 1 : 0)) {
           geminiYielded = true;
           // Mirror into the generator-wide commit state so the last-resort
           // providers below observe the same fact this block already tracks.
@@ -12076,6 +12089,9 @@ let isMultimodal = !!(imagePaths?.length);
           return;
         }
         console.warn('[LLMHelper] Gemini cascade failed pre-commit — falling through to next provider:', e?.message || e);
+        if (isPermanentKeyError(e)) {
+          this.geminiAccountError = { message: String(e?.message ?? e).slice(0, 400), at: Date.now() };
+        }
         // fall through to the Natively last-resort below
       }
     }
@@ -13342,7 +13358,7 @@ let isMultimodal = !!(imagePaths?.length);
    * streamWithGeminiModel) applies the correct per-model level (flash-lite/flash
    * → minimal at budget≤0, pro → forced 'low').
    */
-  private async * streamGeminiTextCascade(fullMessage: string, imagePaths: string[] | undefined, systemInstruction: string | undefined, abortSignal: AbortSignal | undefined, thinkingBudget: number = INTERACTIVE_THINKING_BUDGET): AsyncGenerator<string, void, unknown> {
+  private async * streamGeminiTextCascade(fullMessage: string, imagePaths: string[] | undefined, systemInstruction: string | undefined, abortSignal: AbortSignal | undefined, thinkingBudget: number = INTERACTIVE_THINKING_BUDGET, minStartIndex = 0): AsyncGenerator<string, void, unknown> {
     if (!this.client) throw new Error("Gemini client not initialized");
 
     // Full ladder, cheapest → most capable. priority encodes the ladder order.
@@ -13350,7 +13366,10 @@ let isMultimodal = !!(imagePaths?.length);
     const ladder: TextStreamProvider[] = [
       { id: 'gemini_flash_lite', name: 'Gemini Flash-Lite', isLocal: false, priority: 0, ttftTimeoutMs: GEMINI_TEXT_TTFT_MS.flashLite,
         open: (sig) => this.streamWithGeminiModel(fullMessage, GEMINI_FLASH_LITE_MODEL, imagePaths, systemInstruction, sig, thinkingBudget) },
-      { id: 'gemini_flash', name: 'Gemini Flash', isLocal: false, priority: 1, ttftTimeoutMs: GEMINI_TEXT_TTFT_MS.flash,
+      // A long build (minStartIndex 1, PrepPilot) thinks before its first file:
+      // measured 5.4 s to first token, past the 5 s rung budget, which would
+      // hand the turn to Pro. It gets 15 s; the live coding deadline still bounds it.
+      { id: 'gemini_flash', name: 'Gemini Flash', isLocal: false, priority: 1, ttftTimeoutMs: minStartIndex >= 1 ? 15_000 : GEMINI_TEXT_TTFT_MS.flash,
         open: (sig) => this.streamWithGeminiModel(fullMessage, GEMINI_FLASH_MODEL, imagePaths, systemInstruction, sig, thinkingBudget) },
       { id: 'gemini_pro', name: 'Gemini Pro', isLocal: false, priority: 2, ttftTimeoutMs: GEMINI_TEXT_TTFT_MS.pro,
         open: (sig) => this.streamWithGeminiModel(fullMessage, GEMINI_PRO_MODEL, imagePaths, systemInstruction, sig, thinkingBudget) },
@@ -13358,10 +13377,10 @@ let isMultimodal = !!(imagePaths?.length);
 
     // Honor the selected Gemini model as the starting rung; fall forward only.
     // Non-Gemini selections (fell through to Gemini) and flash-lite start at 0.
-    const startIndex =
+    const startIndex = Math.max(minStartIndex,
       this.currentModelId === GEMINI_PRO_MODEL ? 2 :
       this.currentModelId === GEMINI_FLASH_MODEL ? 1 :
-      0;
+      0);
     const providers = ladder.slice(startIndex);
 
     // All rungs share ONE Gemini API key. A permanent key-level failure (expired
