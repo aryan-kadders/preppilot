@@ -1792,7 +1792,9 @@ export class AppState {
     this._verboseLogging = settingsManager.get('verboseLogging') ?? false;
     setVerboseLoggingFlag(this._verboseLogging);
     this._ambientChatEnabled = settingsManager.get('ambientChatEnabled') ?? false;
-    this._autoAnswerEnabled = settingsManager.get('autoAnswerEnabled') ?? false;
+    // PrepPilot: Auto Answer is on unless the user turned it off — an answer
+    // appears as soon as a question is detected, like Parakeet-style assistants.
+    this._autoAnswerEnabled = settingsManager.get('autoAnswerEnabled') ?? true;
     console.log('[AutoAnswer] engine=simple (stoppage + judge)');
     console.log(`[AppState] Initialized with isUndetectable=${this.isUndetectable}, disguiseMode=${this.disguiseMode}, verboseLogging=${this._verboseLogging}, ambientChatEnabled=${this._ambientChatEnabled}, autoAnswerEnabled=${this._autoAnswerEnabled}`);
 

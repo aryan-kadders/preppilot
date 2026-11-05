@@ -55,7 +55,10 @@ export function registerPracticeIpc(safeHandle: SafeHandle, appState: AppStateLi
       profileBlock: () => {
         try {
           const o = appState.getKnowledgeOrchestrator?.();
-          return buildProfileContextBlock(o?.activeResume?.structured_data ?? null, o?.activeJD?.structured_data ?? null);
+          return [
+            buildProfileContextBlock(o?.activeResume?.structured_data ?? null, o?.activeJD?.structured_data ?? null),
+            typeof o?.companyContextBlock === 'function' ? o.companyContextBlock() : '',
+          ].filter(Boolean).join('\n\n');
         } catch {
           return '';
         }

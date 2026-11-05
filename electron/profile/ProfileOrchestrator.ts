@@ -35,6 +35,7 @@ import {
   resumeSummary,
 } from './profileExtraction';
 import type { ProfileStore } from './ProfileStore';
+import { CompanyResearchEngine, type CompanySearchProvider } from './companyResearch';
 import { DocType, type GenerateContentFn, type IngestResult, type JobFacts, type ProfileDocument, type ResumeFacts } from './types';
 
 /** How long one extraction call may take before the heuristic pass is used. */
@@ -47,9 +48,13 @@ export interface ProfileOrchestratorDeps {
   /** Text extraction; injectable for tests. */
   extractText?: (filePath: string) => Promise<{ content: string; fileName: string }>;
   timeoutMs?: number;
+  /** The web search for company research (Tavily, or none); injectable for tests. */
+  resolveSearchProvider?: () => CompanySearchProvider | null;
 }
 
 export class ProfileOrchestrator {
+  private researchStatus: 'idle' | 'running' = 'idle';
+  private readonly resolveSearchProvider: () => CompanySearchProvider | null;
   private generateContent: GenerateContentFn | null = null;
   private knowledgeMode = false;
   private resume: ProfileDocument | null;
@@ -61,6 +66,13 @@ export class ProfileOrchestrator {
   constructor(private readonly store: ProfileStore, deps: ProfileOrchestratorDeps = {}) {
     this.extractText = deps.extractText ?? extractSafeDocumentText;
     this.timeoutMs = deps.timeoutMs ?? EXTRACTION_TIMEOUT_MS;
+    this.resolveSearchProvider = deps.resolveSearchProvider ?? (() => {
+      try {
+        return require('../services/resolveCompanySearchProvider').resolveCompanySearchProvider() as CompanySearchProvider | null;
+      } catch {
+        return null;
+      }
+    });
     this.resume = store.get(DocType.RESUME);
     this.jd = store.get(DocType.JD);
   }
@@ -114,7 +126,8 @@ export class ProfileOrchestrator {
         compensation_hint: j.compensation_hint, min_years_experience: j.min_years_experience,
       } : null,
       // Company research was a premium extra; never "running" here.
-      aotStatus: { companyResearch: 'idle' },
+      // The panel polls while 'running' and shows the dossier when it lands.
+      aotStatus: { companyResearch: this.researchStatus },
       resumeFileName: this.resume?.file_name,
       jdFileName: this.jd?.file_name,
       extractionMode: this.resume?.extraction_mode,
@@ -133,27 +146,67 @@ export class ProfileOrchestrator {
    */
   async processQuestion(_question: string): Promise<{ contextBlock: string } | null> {
     if (!this.knowledgeMode || (!this.resume && !this.jd)) return null;
-    const block = buildProfileContextBlock(
-      (this.resume?.structured_data ?? null) as Partial<ResumeFacts> | null,
-      (this.jd?.structured_data ?? null) as Partial<JobFacts> | null,
-    );
+    const block = [
+      buildProfileContextBlock(
+        (this.resume?.structured_data ?? null) as Partial<ResumeFacts> | null,
+        (this.jd?.structured_data ?? null) as Partial<JobFacts> | null,
+      ),
+      this.companyContextBlock(),
+    ].filter(Boolean).join('\n\n');
     return block ? { contextBlock: block } : null;
   }
 
-  // ── Premium extras not built yet ──────────────────────────────────────────
-  // Company research, negotiation coaching and cover letters were upstream
-  // premium features. The IPC handlers call these directly (inside try/catch);
-  // answering "nothing yet" keeps them quiet instead of logging a TypeError on
-  // every panel open. Company research is planned (TASKS.md).
-
-  getCompanyResearchEngine() {
-    return {
-      searchProvider: null,
-      setSearchProvider: (_p: unknown) => {},
-      getCachedDossier: (_company: string) => null,
-      researchCompany: async (_company: string, _jdCtx?: unknown, _force?: boolean) => null,
-    };
+  /** What research found about the target company, for answers and practice. '' when none. */
+  companyContextBlock(): string {
+    const company = String((this.jd?.structured_data as Partial<JobFacts> | undefined)?.company ?? '').trim();
+    if (!company) return '';
+    let d: ReturnType<CompanyResearchEngine['getCachedDossier']> = null;
+    try { d = this.getCompanyResearchEngine().getCachedDossier(company); } catch { return ''; }
+    if (!d) return '';
+    const lines = [
+      d.summary && `About: ${d.summary}`,
+      d.interview_focus && `Interview focus: ${d.interview_focus}`,
+      d.hiring_strategy && `What they hire for: ${d.hiring_strategy}`,
+      d.core_values?.length && `Values: ${d.core_values.join('; ')}`,
+    ].filter(Boolean);
+    if (!lines.length) return '';
+    const origin = d.sources.length ? 'web research' : 'general knowledge, may be out of date';
+    return `<company_research company="${company.replace(/"/g, '')}" source="${origin}">\n${lines.join('\n')}\n</company_research>`;
   }
+
+  /** Research the JD's company in the background (after a JD upload). */
+  private researchInBackground(company: string, jd: Partial<JobFacts>): void {
+    if (this.researchStatus === 'running' || !this.generateContent) return;
+    this.researchStatus = 'running';
+    void (async () => {
+      try {
+        const engine = this.getCompanyResearchEngine();
+        engine.setSearchProvider(this.resolveSearchProvider());
+        await engine.researchCompany(company, { title: jd.title, location: jd.location, level: jd.level, technologies: jd.technologies, requirements: jd.requirements });
+      } catch (e: any) {
+        console.warn('[ProfileOrchestrator] company research failed:', e?.message || e);
+      } finally {
+        this.researchStatus = 'idle';
+      }
+    })();
+  }
+
+  // ── Company research (companyResearch.ts) ─────────────────────────────────
+  private companyResearch: CompanyResearchEngine | null = null;
+  getCompanyResearchEngine(): CompanyResearchEngine {
+    if (!this.companyResearch) {
+      this.companyResearch = new CompanyResearchEngine({
+        db: this.store.database,
+        generate: () => (this.generateContent ? (prompt: string) => this.generateContent!([{ text: prompt }]) : null),
+      });
+    }
+    return this.companyResearch;
+  }
+
+  // ── Premium extras not built yet ──────────────────────────────────────────
+  // Negotiation coaching and cover letters were upstream premium features. The
+  // IPC handlers call these directly (inside try/catch); answering "nothing
+  // yet" keeps them quiet instead of logging a TypeError on every panel open.
   getNegotiationScript(): null { return null; }
   async generateNegotiationScriptOnDemand(): Promise<null> { return null; }
   getCoverLetter(): null { return null; }
@@ -202,6 +255,8 @@ export class ProfileOrchestrator {
         extractionMode: structured._extraction_mode,
       });
       if (isResume) this.resume = doc; else this.jd = doc;
+      const company = !isResume ? String((structured as Partial<JobFacts>).company ?? '').trim() : '';
+      if (company) this.researchInBackground(company, structured as Partial<JobFacts>);
       return {
         success: true,
         docType,

@@ -23,7 +23,9 @@ export function resolveCompanySearchProvider(): SearchProvider | null {
       } = require('../../premium/electron/knowledge/TavilySearchProvider');
       return new TavilySearchProvider(tavilyApiKey);
     } catch {
-      return null;
+      // PrepPilot's own Tavily provider (profile/companyResearch.ts).
+      const { TavilySearchProvider } = require('../profile/companyResearch') as typeof import('../profile/companyResearch');
+      return new TavilySearchProvider(tavilyApiKey) as unknown as SearchProvider;
     }
   }
 

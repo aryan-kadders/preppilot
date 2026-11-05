@@ -50,6 +50,9 @@ export class ProfileStore {
     )`);
   }
 
+  /** The SQLite handle, for the company research cache beside the documents. */
+  get database(): SqliteLike { return this.db; }
+
   /** Save (or replace) the active document of a type. Returns the stored document. */
   save(input: SaveDocumentInput): ProfileDocument {
     const at = this.now().toISOString();

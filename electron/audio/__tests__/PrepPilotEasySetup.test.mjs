@@ -93,6 +93,10 @@ describe('starting automatically', () => {
   // A detected call (Zoom, Teams, Meet, …) starts listening after the 10 s
   // countdown unless the user presses Not now or turned the setting off. Unset
   // reads as on, in the running app and in Settings alike.
+  test('Auto Answer is on unless the user turned it off', () => {
+    assert.match(read('electron/main.ts'), /this\._autoAnswerEnabled = settingsManager\.get\('autoAnswerEnabled'\) \?\? true;/);
+  });
+
   test('Start automatically is on unless the user turned it off', () => {
     assert.match(read('electron/main.ts'), /autoStart: \(\) => SettingsManager\.getInstance\(\)\.get\('meetingAutoStartEnabled'\) !== false,/);
     assert.match(read('electron/ipcHandlers.ts'), /safeHandle\('get-meeting-auto-start-enabled', async \(\) => SettingsManager\.getInstance\(\)\.get\('meetingAutoStartEnabled'\) !== false\);/);
