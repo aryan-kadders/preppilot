@@ -71,9 +71,29 @@ export class FallbackPcmPipeline {
     return this.clockMs;
   }
 
+  // Level report (PrepPilot): every 10 s of audio, the loudest raw sample and
+  // how many 20 ms frames the gate passed as speech vs replaced with silence.
+  // Numbers only, never audio. It is what tells "the device gives silence"
+  // apart from "the gate is cutting real speech" in a user's log.
+  private levelPeak = 0;
+  private levelSent = 0;
+  private levelSilent = 0;
+  private reportLevels(frame: Int16Array, action: string): void {
+    for (let k = 0; k < frame.length; k++) {
+      const v = frame[k] < 0 ? -frame[k] : frame[k];
+      if (v > this.levelPeak) this.levelPeak = v;
+    }
+    if (action === 'send') this.levelSent++;
+    else this.levelSilent++;
+    if (this.clockMs % 10_000 !== 0) return;
+    console.log(`[AudioFallback] ${this.channel} level: peak=${this.levelPeak}/32767 speechFrames=${this.levelSent} silentFrames=${this.levelSilent} (last 10 s)`);
+    this.levelPeak = 0; this.levelSent = 0; this.levelSilent = 0;
+  }
+
   private processFrame(frame: Int16Array): void {
     this.clockMs += 20;
     const { action, edge } = this.gate.process(frame, this.clockMs);
+    this.reportLevels(frame, action);
     if (action === 'send') this.enqueue(Buffer.from(frame.buffer, frame.byteOffset, frame.byteLength));
     else if (action === 'silence') this.enqueue(Buffer.alloc(FRAME * 2));
     if (edge === 'started') this.reportEdge(true);

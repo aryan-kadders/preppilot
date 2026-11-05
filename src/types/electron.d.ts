@@ -154,6 +154,7 @@ export interface ElectronAPI {
       | { phase: 'end'; final?: { width: number; height: number } },
   ) => Promise<{ width: number; height: number } | undefined>
   setOverlayHoverInteractive?: (interactive: boolean, source?: 'probe', idleMs?: number) => Promise<void>
+  setOverlayPassthroughEscapeHover?: (overButton: boolean) => Promise<void>
   onOverlayHoverReset?: (callback: () => void) => () => void
   onOverlayHoverProbe?: (callback: (point: { x: number; y: number }) => void) => () => void
   dismissOverlayPopovers?: (opts?: { settings?: boolean; model?: boolean }) => Promise<void>
@@ -1223,6 +1224,17 @@ export interface ElectronAPI {
   onProfileOwnAnswersUpdated: (callback: (data: { written: string[] }) => void) => () => void;
   profileGetProfile: () => Promise<any>
   profileGetCompanyDossier: () => Promise<any | null>
+  // PrepPilot mock interview
+  practiceStart: import('./practice').PracticeApi['practiceStart']
+  practiceAnswer: import('./practice').PracticeApi['practiceAnswer']
+  practiceFinish: import('./practice').PracticeApi['practiceFinish']
+  practiceGet: import('./practice').PracticeApi['practiceGet']
+  practiceHistory: import('./practice').PracticeApi['practiceHistory']
+  practiceProgress: import('./practice').PracticeApi['practiceProgress']
+  practiceDelete: import('./practice').PracticeApi['practiceDelete']
+  practiceVoiceToggle: import('./practice').PracticeApi['practiceVoiceToggle']
+  practiceVoiceCancel: import('./practice').PracticeApi['practiceVoiceCancel']
+  onPracticeVoice: import('./practice').PracticeApi['onPracticeVoice']
   profileSelectFile: () => Promise<{ success?: boolean; cancelled?: boolean; filePath?: string; error?: string }>
 
   // JD & Research API

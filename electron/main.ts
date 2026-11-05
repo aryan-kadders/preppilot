@@ -26,6 +26,8 @@ import { classifySttError } from "./audio/sttErrorClassifier.mjs"
 import { OutputRouteMismatchDetector } from "./audio/outputRouteMismatch.mjs"
 import { FatalMainProcessCoordinator } from "./utils/fatalMainProcess"
 import { installResilientDnsLookup } from "./utils/resilientDnsLookup"
+import { captureStartFailureMessage } from "./audio/captureFailureMessage"
+import { SpeakerEchoFilter } from "./audio/speakerEchoFilter"
 import { trustSystemCertificates } from "./utils/systemCertificates"
 import { resolveDebugLogPath } from "./utils/debugLogPath.mjs"
 import { startupLogAction, startupLogMarker, type StartupLogLock } from "./utils/startupLogPolicy"
@@ -1418,7 +1420,13 @@ try {
     KnowledgeDatabaseManagerClass = require('../premium/electron/knowledge/KnowledgeDatabaseManager').KnowledgeDatabaseManager;
     textHasCompEvidence = require('../premium/electron/knowledge/NegotiationConversationTracker').textHasCompEvidence;
 } catch {
-    console.log('[Main] Knowledge modules not available — profile intelligence disabled.');
+    // PrepPilot: the private premium module is never present. Profile
+    // Intelligence (résumé + JD upload) runs on PrepPilot's own implementation
+    // of the same contract (electron/profile).
+    KnowledgeOrchestratorClass = require('./profile/ProfileOrchestrator').ProfileOrchestrator;
+    KnowledgeDatabaseManagerClass = require('./profile/ProfileStore').ProfileStore;
+    textHasCompEvidence = null;
+    console.log('[Main] Premium knowledge modules not available — using PrepPilot profile engine.');
 }
 
 import { CredentialsManager } from "./services/CredentialsManager"
@@ -1652,6 +1660,8 @@ export class AppState {
   // launcher's "Meeting ongoing" pill switches back to "Start Natively" the
   // instant the user clicks Stop, with no 250 ms green-→-blue stutter.
   private _isDraining: boolean = false;
+  // Drops the microphone's copy of the call audio (speakers). PrepPilot.
+  private speakerEcho = new SpeakerEchoFilter();
   // Tracks remembered output device so reconfigureAudio can no-op when nothing changed.
   // Mirrors the existing _lastRequestedInputDeviceId for the input side.
   private _lastRequestedOutputDeviceId: string | undefined = undefined;
@@ -4247,6 +4257,18 @@ export class AppState {
       // window between Stop click and STT socket close so the user's last
       // sentence isn't silently dropped.
       if (!this.isMeetingActive && !this._isDraining) {
+        return;
+      }
+
+      // PrepPilot: on laptop speakers the microphone hears the call, so each
+      // interviewer sentence came back as the user's too. Drop the mic's copy
+      // (audio/speakerEchoFilter.ts); headphones never trigger it.
+      if (speaker === 'interviewer') {
+        this.speakerEcho.noteInterviewer(segment.text);
+      } else if (this.speakerEcho.isEcho(segment.text)) {
+        if (segment.isFinal && this.speakerEcho.dropped === 1) {
+          console.log('[Main] Microphone is picking up the call audio (speakers): dropping its copies of the interviewer. Headphones avoid this.');
+        }
         return;
       }
 
@@ -7461,7 +7483,7 @@ export class AppState {
       console.error(`[Main] ${context}: mic channel failed to start:`, err);
       this.sendAudioCaptureFailed({
         channel: 'mic',
-        message: `Microphone failed to start (${(err as Error)?.message || 'unknown error'}). The meeting continues with system audio only.`,
+        message: captureStartFailureMessage('mic', err),
         attempt: 0,
         maxAttempts: 0,
         terminal: true,
@@ -7476,7 +7498,7 @@ export class AppState {
       console.error(`[Main] ${context}: system channel failed to start:`, err);
       this.sendAudioCaptureFailed({
         channel: 'system',
-        message: `System audio failed to start (${(err as Error)?.message || 'unknown error'}). The meeting continues with microphone only.`,
+        message: captureStartFailureMessage('system', err),
         attempt: 0,
         maxAttempts: 0,
         terminal: true,
@@ -11414,7 +11436,9 @@ if (process.env.THINKING_MATRIX === '1') {
       const launcher = appState.getWindowHelper().getLauncherWindow();
       return !!launcher && hasLiveRenderer(launcher) && launcher.isVisible() && !launcher.isMinimized() && launcher.isFocused();
     },
-    autoStart: () => SettingsManager.getInstance().get('meetingAutoStartEnabled') === true,
+    // PrepPilot: on unless the user turned it off — a detected call starts listening
+    // after the 10 s countdown (Not now cancels it), like Parakeet-style assistants.
+    autoStart: () => SettingsManager.getInstance().get('meetingAutoStartEnabled') !== false,
     lastTimeLine: (event) => require('./services/meeting/recurringMeetings').lastTimeNotificationLine(event),
   });
   registerMeetingDetection(meetingDetector, PhoneMirrorService.getInstance());

@@ -55,3 +55,19 @@ test('both platforms: "Meeting Audio on Another Device" opens Settings → Audio
 test('other platforms never get a macOS or Windows privacy link', () => {
   assert.deepEqual(audioWarningAction(fail({ platform: 'linux', channel: 'mic', titleKey: 'Microphone Is Silent' })), { type: 'settings-tab', tab: 'audio' });
 });
+
+// PrepPilot: the native audio module failing to load is not a permission
+// problem. On macOS the mic channel used to open the Microphone privacy pane,
+// and the banner then offered Restart, which could not fix a missing module.
+test('both platforms, both channels: a missing native audio module opens Settings → Audio, never a privacy pane', () => {
+  const message = 'Native audio engine unavailable — the audio capture module failed to load. Reinstall the app (dev: npm run build:native).';
+  for (const platform of ['darwin', 'win32']) {
+    for (const channel of ['mic', 'system']) {
+      assert.deepEqual(
+        audioWarningAction({ platform, kind: 'audio-capture-failure', channel, titleKey: '', message }),
+        { type: 'settings-tab', tab: 'audio' },
+        `${platform}/${channel}`,
+      );
+    }
+  }
+});

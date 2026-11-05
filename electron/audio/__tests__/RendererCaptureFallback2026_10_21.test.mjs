@@ -36,9 +36,13 @@ test('Windows uses the fallback exactly when the native class is missing', () =>
   assert.equal(policy({ nativeAvailable: true, isPackaged: false, forceEnv: '1' }), false);
 });
 
-test('macOS never uses the fallback in a shipped build, even without the native module', () => {
-  assert.equal(policy({ platform: 'darwin' }), false);
-  assert.equal(policy({ platform: 'darwin', forceEnv: '1' }), false, 'packaged ignores the env override');
+// PrepPilot: a Mac without the native module falls back like Windows does,
+// instead of capturing nothing. With the module, the native path stays.
+test('macOS uses the fallback only when the native module is missing (or forced in dev)', () => {
+  assert.equal(policy({ platform: 'darwin' }), true, 'packaged, module missing');
+  assert.equal(policy({ platform: 'darwin', isPackaged: false }), true, 'source checkout, module missing');
+  assert.equal(policy({ platform: 'darwin', nativeAvailable: true }), false, 'packaged with the module: native only');
+  assert.equal(policy({ platform: 'darwin', nativeAvailable: true, forceEnv: '1' }), false, 'packaged ignores the env override');
   assert.equal(policy({ platform: 'darwin', nativeAvailable: true, isPackaged: false }), false);
   assert.equal(policy({ platform: 'darwin', nativeAvailable: true, isPackaged: false, forceEnv: '1' }), true, 'dev override');
   assert.equal(policy({ platform: 'linux' }), false);

@@ -105,8 +105,8 @@ test('disguise title re-asserts are suppressed only where they unhide the macOS 
 
 test('disguise names are unchanged per platform (one source for startup and _applyDisguise)', () => {
   const expected = {
-    darwin: { terminal: 'Terminal ', settings: 'System Settings ', activity: 'Activity Monitor ', none: 'Natively' },
-    win32: { terminal: 'Command Prompt ', settings: 'Settings ', activity: 'Task Manager ', none: 'Natively' },
+    darwin: { terminal: 'Terminal ', settings: 'System Settings ', activity: 'Activity Monitor ', none: 'PrepPilot' },
+    win32: { terminal: 'Command Prompt ', settings: 'Settings ', activity: 'Task Manager ', none: 'PrepPilot' },
   };
   for (const [platform, names] of Object.entries(expected)) {
     for (const [mode, name] of Object.entries(names)) {
@@ -114,7 +114,7 @@ test('disguise names are unchanged per platform (one source for startup and _app
     }
   }
   // Anything outside the union falls back to the real name, like _applyDisguise's default.
-  assert.equal(disguiseAppName('service', 'darwin'), 'Natively');
+  assert.equal(disguiseAppName('service', 'darwin'), 'PrepPilot');
 });
 
 // Electron's Browser::DockHide() is a silent no-op for 1 s after any

@@ -134,6 +134,7 @@ interface ElectronAPI {
       | { phase: 'end'; final?: { width: number; height: number } },
   ) => Promise<{ width: number; height: number } | undefined>;
   setOverlayHoverInteractive: (interactive: boolean, source?: 'probe', idleMs?: number) => Promise<void>;
+  setOverlayPassthroughEscapeHover: (overButton: boolean) => Promise<void>;
   onOverlayHoverReset: (callback: () => void) => () => void;
   onOverlayHoverProbe: (callback: (point: { x: number; y: number }) => void) => () => void;
   dismissOverlayPopovers: (opts?: { settings?: boolean; model?: boolean }) => Promise<void>;
@@ -1183,6 +1184,17 @@ interface ElectronAPI {
   onProfileOwnAnswersUpdated: (callback: (data: { written: string[] }) => void) => () => void;
   profileGetProfile: () => Promise<any>;
   profileGetCompanyDossier: () => Promise<any | null>;
+  // PrepPilot mock interview (electron/practice/practiceIpc.ts; types in src/types/practice.ts).
+  practiceStart: (config: unknown) => Promise<any>;
+  practiceAnswer: (sessionId: string, questionId: string, text: string, meta?: { spoken?: boolean; durationMs?: number | null }) => Promise<any>;
+  practiceFinish: (sessionId: string) => Promise<any>;
+  practiceGet: (sessionId: string) => Promise<any>;
+  practiceHistory: () => Promise<any>;
+  practiceProgress: () => Promise<any>;
+  practiceDelete: (sessionId: string) => Promise<any>;
+  practiceVoiceToggle: () => Promise<any>;
+  practiceVoiceCancel: () => Promise<any>;
+  onPracticeVoice: (callback: (event: any) => void) => () => void;
   profileSelectFile: () => Promise<{
     success?: boolean;
     cancelled?: boolean;
@@ -1602,6 +1614,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Overlay renderer → main: hover hit-test (margins click-through gate).
   setOverlayHoverInteractive: (interactive: boolean, source?: 'probe', idleMs?: number) =>
     ipcRenderer.invoke('overlay-hover-interactive', interactive, source, idleMs),
+  setOverlayPassthroughEscapeHover: (overButton: boolean) =>
+    ipcRenderer.invoke('overlay-passthrough-escape-hover', overButton),
   // Main → overlay renderer: main reset the gate to interactive (overlay shown).
   onOverlayHoverReset: (callback: () => void) => {
     const subscription = () => callback();
@@ -3431,6 +3445,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   profileGetProfile: () => ipcRenderer.invoke('profile:get-profile'),
   profileGetCompanyDossier: () => ipcRenderer.invoke('profile:get-company-dossier'),
+  practiceStart: (config: unknown) => ipcRenderer.invoke('practice:start', config),
+  practiceAnswer: (sessionId: string, questionId: string, text: string, meta?: { spoken?: boolean; durationMs?: number | null }) => ipcRenderer.invoke('practice:answer', sessionId, questionId, text, meta),
+  practiceFinish: (sessionId: string) => ipcRenderer.invoke('practice:finish', sessionId),
+  practiceGet: (sessionId: string) => ipcRenderer.invoke('practice:get', sessionId),
+  practiceHistory: () => ipcRenderer.invoke('practice:history'),
+  practiceProgress: () => ipcRenderer.invoke('practice:progress'),
+  practiceDelete: (sessionId: string) => ipcRenderer.invoke('practice:delete', sessionId),
+  practiceVoiceToggle: () => ipcRenderer.invoke('practice:voice-toggle'),
+  practiceVoiceCancel: () => ipcRenderer.invoke('practice:voice-cancel'),
+  onPracticeVoice: (callback: (event: any) => void) => {
+    const subscription = (_: unknown, data: any) => callback(data);
+    ipcRenderer.on('practice-voice', subscription);
+    return () => {
+      ipcRenderer.removeListener('practice-voice', subscription);
+    };
+  },
   profileSelectFile: () => ipcRenderer.invoke('profile:select-file'),
 
   // JD & Research API

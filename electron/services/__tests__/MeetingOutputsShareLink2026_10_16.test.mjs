@@ -533,8 +533,10 @@ describe('items 5 and 6: the links file on a busy or broken disk', () => {
 });
 
 describe('item 10: one API address for the whole app', () => {
-    test('NATIVELY_API_URL wins, trailing slashes go, production otherwise', () => {
-        assert.equal(apiBaseMod.nativelyApiBase({}), 'https://api.natively.software');
+    // PrepPilot: with no override the base is a refusing loopback port, never upstream.
+    test('NATIVELY_API_URL wins, trailing slashes go, the local refusing port otherwise', () => {
+        assert.equal(apiBaseMod.nativelyApiBase({}), 'http://127.0.0.1:9');
+        assert.equal(apiBaseMod.UPSTREAM_NATIVELY_API_URL, 'https://api.natively.software');
         assert.equal(apiBaseMod.nativelyApiBase({ NATIVELY_API_URL: 'http://localhost:3000//' }), 'http://localhost:3000');
     });
     test('no module keeps its own copy of the lookup', () => {

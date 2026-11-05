@@ -22,7 +22,7 @@
     "postinstall": "patch-package && cross-env SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm rebuild sharp && node scripts/rebuild-native-electron.js && node scripts/download-models.js && node scripts/ensure-sqlite-vec.js && node scripts/ensure-napi-canvas-mac-deps.js && node scripts/patch-electron-plist.js && node scripts/verify-native-arch.js",
     "rebuild:native": "node scripts/rebuild-native-electron.js && node scripts/verify-native-arch.js",
     "prepare": "husky",
-    "electron:dev": "npm run build && npm run build:electron && cross-env NODE_ENV=development electron .",
+    "electron:dev": "npm run build && npm run build:electron && node scripts/ensure-apple-speech-dev.cjs && cross-env NODE_ENV=development electron .",
     "electron:build": "npm run build:electron && cross-env NODE_ENV=production electron .",
     "app:dev": "concurrently --kill-others --kill-signal SIGKILL \"npm run dev -- --host 127.0.0.1 --port 5180 --strictPort\" \"wait-on http://127.0.0.1:5180 && npm run electron:dev\"",
     "dev:agent": "node scripts/dev-agent.mjs",
@@ -323,12 +323,12 @@
       "artifactName": "Natively-${version}-${arch}.${ext}",
       "extendInfo": {
         "CFBundleDisplayName": "Natively",
-        "NSScreenCaptureUsageDescription": "Natively needs Screen Recording permission to capture system audio for meeting transcription.",
-        "NSMicrophoneUsageDescription": "Natively needs microphone access to transcribe your voice during meetings.",
-        "NSAudioCaptureUsageDescription": "Natively needs system audio access to transcribe meeting audio.",
-        "NSSpeechRecognitionUsageDescription": "Natively uses Apple Speech to transcribe meeting audio on your device.",
-        "NSCalendarsFullAccessUsageDescription": "Natively uses your calendar to name your meetings and show who is in them. It never changes your events.",
-        "NSCalendarsUsageDescription": "Natively uses your calendar to name your meetings and show who is in them. It never changes your events."
+        "NSScreenCaptureUsageDescription": "PrepPilot needs Screen Recording permission to capture system audio for meeting transcription.",
+        "NSMicrophoneUsageDescription": "PrepPilot needs microphone access to transcribe your voice during meetings.",
+        "NSAudioCaptureUsageDescription": "PrepPilot needs system audio access to transcribe meeting audio.",
+        "NSSpeechRecognitionUsageDescription": "PrepPilot uses Apple Speech to transcribe meeting audio on your device.",
+        "NSCalendarsFullAccessUsageDescription": "PrepPilot uses your calendar to name your meetings and show who is in them. It never changes your events.",
+        "NSCalendarsUsageDescription": "PrepPilot uses your calendar to name your meetings and show who is in them. It never changes your events."
       }
     },
     "dmg": {

@@ -1,3 +1,4 @@
+import { MockInterviewPanel } from './components/practice/MockInterviewPanel'
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react" // forcing refresh
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ToastProvider, ToastViewport } from "./components/ui/toast"
@@ -76,7 +77,7 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
 }
 
 type LauncherIsolation = 'onboarding' | 'global-surfaces' | 'permissions-toaster' | 'no-modals' | null
-type ManagerPanel = 'modes' | 'profile' | null
+type ManagerPanel = 'modes' | 'profile' | 'practice' | null
 
 type ManagerPanelDirection = 'forward' | 'backward'
 
@@ -325,6 +326,13 @@ const App: React.FC = () => {
     setSettingsNav(prev => ({ tab, seq: prev.seq + 1 }));
     setIsSettingsOpen(true);
   }, []);
+
+  // PrepPilot: the mock interview opens in the same manager card.
+  const openPracticeExclusive = useCallback(() => {
+    if (!activeManagerPanel) rememberManagerOpener();
+    setIsSettingsOpen(false);
+    setActiveManagerPanel('practice');
+  }, [activeManagerPanel, rememberManagerOpener]);
 
   const openProfileExclusive = useCallback(() => {
     if (!activeManagerPanel) rememberManagerOpener();
@@ -1267,6 +1275,7 @@ const App: React.FC = () => {
                     onOpenSettings={(tab = 'general') => openSettingsExclusive(tab)}
                     onOpenProfile={() => openProfileExclusive()}
                     onOpenModes={() => openModesExclusive()}
+                    onOpenPractice={() => openPracticeExclusive()}
                     onPageChange={setIsLauncherMainView}
                     ollamaPullStatus={ollamaPullStatus}
                     ollamaPullPercent={ollamaPullPercent}
@@ -1314,7 +1323,7 @@ const App: React.FC = () => {
                     'data-testid': 'manager-panel-host',
                     role: 'dialog',
                     'aria-modal': true,
-                    'aria-label': activeManagerPanel === 'modes' ? 'Modes Manager' : 'Profile Intelligence',
+                    'aria-label': activeManagerPanel === 'modes' ? 'Modes Manager' : activeManagerPanel === 'practice' ? 'Mock interview' : 'Profile Intelligence',
                     tabIndex: -1,
                     onKeyDown: handleManagerKeyDown,
                   }}
@@ -1332,7 +1341,9 @@ const App: React.FC = () => {
                       exit="exit"
                       className="h-full w-full"
                     >
-                      {activeManagerPanel === 'modes' ? (
+                      {activeManagerPanel === 'practice' ? (
+                        <MockInterviewPanel onClose={closeManagerPanel} />
+                      ) : activeManagerPanel === 'modes' ? (
                         <ModesSettings
                           onClose={closeManagerPanel}
                           isPremium={isPremiumActive}

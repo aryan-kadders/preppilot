@@ -20,6 +20,7 @@ export function disguiseAppName(mode: DisguiseModeName, platform: NodeJS.Platfor
       return isWin ? 'Task Manager ' : 'Activity Monitor ';
     case 'none':
     default:
-      return 'Natively';
+      // PrepPilot: the real name in the macOS menu, Dock label and task lists.
+      return 'PrepPilot';
   }
 }

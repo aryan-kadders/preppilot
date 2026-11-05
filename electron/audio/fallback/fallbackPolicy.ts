@@ -6,10 +6,13 @@
 // dead: the meeting started with a "Native audio engine unavailable" banner
 // and no transcript. Interview Coder captures on Windows exactly this way
 // (getUserMedia + getDisplayMedia with loopback audio).
-// macOS: never in a shipped build: the native tap and ScreenCaptureKit paths
-// stay the only ones there. A development build can force it with
-// NATIVELY_FORCE_RENDERER_AUDIO=1 to exercise the fallback on a Mac (Chromium's
-// loopback uses the Core Audio tap there from macOS 14.2).
+// macOS: whenever the native module did not load, too (PrepPilot). Upstream
+// kept macOS on the native path only, so a Mac without the module (a source
+// checkout whose Rust module needs full Xcode to build, or a damaged install)
+// had no audio at all. Chromium's loopback uses the Core Audio tap from macOS
+// 14.2; with the module present the native tap and ScreenCaptureKit paths stay
+// the only ones, exactly as before. A development build can still force the
+// fallback with NATIVELY_FORCE_RENDERER_AUDIO=1.
 
 export interface FallbackPolicyInput {
   platform: NodeJS.Platform;
@@ -24,7 +27,7 @@ export function useRendererCaptureFallback(input: FallbackPolicyInput): boolean 
     case 'win32':
       return !input.nativeAvailable;
     case 'darwin':
-      return !input.isPackaged && input.forceEnv === '1';
+      return !input.nativeAvailable || (!input.isPackaged && input.forceEnv === '1');
     default:
       return false;
   }

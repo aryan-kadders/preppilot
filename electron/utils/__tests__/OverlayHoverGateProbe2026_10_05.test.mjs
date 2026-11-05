@@ -54,11 +54,20 @@ test('the probe runs while the gate is shut on a visible overlay', () => {
   assert.equal(shouldProbeHover(SHUT), true);
 });
 
-test('it does not run when the gate is open, the overlay is hidden, or the user chose click-through', () => {
+test('it does not run when the gate is open, the overlay is hidden, or forward is unsupported', () => {
   assert.equal(shouldProbeHover({ ...SHUT, hoverInteractive: true }), false);
   assert.equal(shouldProbeHover({ ...SHUT, visible: false }), false);
-  assert.equal(shouldProbeHover({ ...SHUT, passthrough: true }), false, 'stealth passthrough is meant to stay click-through');
   assert.equal(shouldProbeHover({ ...SHUT, forwardSupported: false }), false, 'no hover gate where forward is unsupported');
+});
+
+// PrepPilot: click-through mode keeps an escape hatch over its own button
+// (PrepPilotClickThroughEscape.test.mjs), so the probe runs in that mode too —
+// until the pointer is over the button and the window already takes clicks.
+test('in click-through mode it runs until the pointer is over the click-through button', () => {
+  assert.equal(shouldProbeHover({ ...SHUT, passthrough: true }), true);
+  assert.equal(shouldProbeHover({ ...SHUT, passthrough: true, hoverInteractive: true }), true, 'the panel verdict does not matter in click-through');
+  assert.equal(shouldProbeHover({ ...SHUT, passthrough: true, escapeHover: true }), false);
+  assert.equal(shouldProbeHover({ ...SHUT, passthrough: true, forwardSupported: false }), false);
 });
 
 test('a pointer inside the window is reported in window coordinates', () => {

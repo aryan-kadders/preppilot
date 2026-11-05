@@ -5,6 +5,8 @@ import { ProfileIntelligenceIcon } from './ProfileIntelligenceIcon';
 import { NativelyWordmark } from './NativelyWordmark';
 import mainui from "../UI_comp/mainui.png";
 import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
+import { AiSetupCard } from './AiSetupCard';
+import { BRAND_MARK_D } from '../lib/brandMark';
 import AssistToday from './assist/AssistToday';
 import type { AssistEvent } from '../types/assist';
 import { useToggleInit } from './settings/useToggleInit';
@@ -66,6 +68,8 @@ interface LauncherProps {
     onStartMeeting: () => void;
     onOpenSettings: (tab?: string) => void;
     onOpenProfile?: () => void;
+    /** PrepPilot: open the mock interview. */
+    onOpenPractice?: () => void;
     onOpenModes?: () => void;
     onPageChange?: (isMain: boolean) => void;
     ollamaPullStatus?: 'idle' | 'downloading' | 'complete' | 'failed';
@@ -98,7 +102,7 @@ const formatTime = (dateStr: string) => {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
 };
 
-const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSettings, onOpenProfile, onOpenModes, onPageChange, ollamaPullStatus = 'idle', ollamaPullPercent = 0, ollamaPullMessage = '' }) => {
+const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSettings, onOpenProfile, onOpenModes, onOpenPractice, onPageChange, ollamaPullStatus = 'idle', ollamaPullPercent = 0, ollamaPullMessage = '' }) => {
     const t = useT();
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [isDetectable, setIsDetectable] = useState(false);
@@ -1097,6 +1101,18 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                             </AnimatePresence>
                                         </div>
 
+                                        {/* PrepPilot: practise with an AI interviewer (MockInterviewPanel). */}
+                                        {onOpenPractice && !isMeetingActive && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onOpenPractice()}
+                                                className="mr-3 shrink-0 rounded-full border border-border-subtle bg-bg-elevated px-5 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                                                data-testid="launcher-mock-interview"
+                                            >
+                                                Mock interview
+                                            </button>
+                                        )}
+
                                         {/* Unified CTA pill — plain <button> (no `layout`, no `initial`) so both
                                             the pill AND its label appear in their final position on mount with
                                             no fly-in or fade-up. The label swap (idle ↔ meeting-active) still
@@ -1186,7 +1202,7 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                                                 viewBox="106 106 812 812" aria-hidden
                                                                 className="w-[18px] h-[18px] shrink-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)] opacity-90"
                                                             >
-                                                                <path fill="currentColor" d="M512 106 A406 406 0 1 1 512 918 A406 406 0 1 1 512 106 Z M512 181 A331 331 0 1 0 512 843 A331 331 0 1 0 512 181 Z M288 194.91 H363 V829.09 H288 Z M661 194.91 H736 V829.09 H661 Z M269.75 211 L359.44 211 L754.25 813 L664.56 813 Z" />
+                                                                <path fill="currentColor" d={BRAND_MARK_D} />
                                                             </svg>
                                                             <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] text-[20px] leading-none">
                                                                 {t('Start PrepPilot')}
@@ -1197,6 +1213,11 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                             </div>
                                         </button>
                                     </div>
+
+                                    {/* PrepPilot: while no AI is connected, the one setup step a
+                                        new user needs (paste a free key, or use local Ollama).
+                                        Renders nothing once an AI is connected. */}
+                                    <AiSetupCard className="mb-3" />
 
                                     {/* 2. Hero Section Cards */}
                                     <div className="grid grid-cols-1 gap-3 h-[198px]">

@@ -18,7 +18,7 @@
 import { DictationController, type DictationAudioSink, type DictationCapture } from './DictationController';
 import { formatDictation } from './dictationFormatter';
 import { liveTimingFor } from './dictationSession';
-import type { DictationNotice } from './dictationCopy';
+import type { DictationNotice, DictationNoticeKind } from './dictationCopy';
 import type { ReplayableStt, SpeechClip } from '../../audio/sttGapRecovery';
 
 export interface DictationWiring {
@@ -171,6 +171,42 @@ export function wireDictation(w: DictationWiring): DictationController {
         },
         notify: (notice) => showNotice(w, notice),
     });
+}
+
+/**
+ * PrepPilot: a second controller on the same microphone and speech pipeline
+ * whose text goes to `deliver` instead of the clipboard — spoken answers in the
+ * mock interview. The text is kept as spoken (no tidy-up pass), because filler
+ * words and false starts are part of what the practice feedback looks at.
+ * Notices go to `onNotice` (shown in the practice panel), never to the OS.
+ */
+export function wireDictationTo(
+    w: DictationWiring,
+    deliver: (text: string) => void,
+    onNotice: (kind: DictationNoticeKind, notice: DictationNotice) => void,
+    /** Sees every microphone chunk (PrepPilot: ends an answer on silence). */
+    onAudio?: (chunk: Buffer, sampleRate: number) => void,
+): DictationController {
+    return new DictationController({
+        platform: w.platform,
+        accelerator: w.accelerator,
+        isMeetingActive: w.isMeetingActive,
+        hasProvider: () => sttProvider() !== 'none',
+        startCapture: (sink) => openMicrophone(w, onAudio
+            ? { onAudio: (chunk, rate) => { sink.onAudio(chunk, rate); try { onAudio(chunk, rate); } catch { /* a listener never breaks capture */ } }, onError: (err) => sink.onError(err) }
+            : sink),
+        createLive: () => createLiveInstance(w),
+        liveTiming: () => liveTimingFor(sttProvider(), {}),
+        transcribeClip: (clip) => transcribeWithPlan(w, clip),
+        format: async (raw) => raw,
+        writeClipboard: deliver,
+        notify: (notice, kind) => onNotice(kind, notice),
+    });
+}
+
+/** The live dictation wiring, once main has registered it. */
+export function dictationWiring(): DictationWiring | null {
+    return registered?.wiring ?? null;
 }
 
 // The running controller, for the shortcut handler and the Settings switch.

@@ -57,10 +57,24 @@ Stealth features (undetectable mode, disguise, content protection, the
 - [ ] Launch the app (`npm start`) and walk through settings, overlay and a meeting
 - [ ] Review the 42 `npm audit` findings (no `--force`)
 
+## Phase 4b — Rebuild the private premium features as our own (`electron/profile/`)
+
+Upstream's premium module is a private repo; 51 test files that load it are
+left out by `scripts/run-electron-tests.mjs` while `premium/` is absent.
+
+- [x] Résumé + JD upload: text extraction, AI structuring (heuristic fallback when
+      no model answers), SQLite storage, status/profile read-back, delete, answer
+      context block — `ProfileOrchestrator` plugs into the existing IPC + UI
+- [x] Profile Intelligence panel unlocked (no Pro gate / upgrade button)
+- [ ] Question intent classification (intro / experience / technical …)
+- [ ] Company research (Tavily key) and the company dossier
+- [ ] Modes manager screen
+- [ ] Negotiation coaching, cover letter (optional)
+
 ## Phase 5 — Practice mode (core feature)
 
 - [ ] Pick role / topic / difficulty
-- [ ] Résumé + JD context (upstream's parser lived in premium; needs our own)
+- [x] Résumé + JD context (see Phase 4b)
 - [ ] AI interviewer asks questions (text + optional TTS)
 - [ ] Capture spoken answer via existing mic STT pipeline (mac + win)
 - [ ] AI feedback: score, strengths, improvements, model answer

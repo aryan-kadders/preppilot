@@ -1991,7 +1991,6 @@ function ProfileIntelligenceProGate({ onOpenNativelyAPI, onClose }: {
 // ─── Main export ──────────────────────────────────────────────────────────────
 export function ProfileIntelligenceSettings({
     onClose,
-    isTrialActive = false,
     onOpenNativelyAPI,
 }: {
     onClose: () => void;
@@ -2016,7 +2015,8 @@ export function ProfileIntelligenceSettings({
     // closes this panel), and the licence is read again on the next mount.
     const openPlans = () => onOpenNativelyAPI?.();
     const [licenseLoaded, setLicenseLoaded] = useState(false);
-    const hasProfileAccess = isPremium || isTrialActive;
+    // PrepPilot: no paid tier — Profile Intelligence is always available.
+    const hasProfileAccess = true;
     const theme = useResolvedTheme();
     /* The CTA's Liquid Glass lens. Shared with LiquidGlassButton so the rAF
        gate and the focus-clears-the-pointer rule have one implementation. */
@@ -3885,46 +3885,6 @@ export function ProfileIntelligenceSettings({
                     ))}
                 </div>
 
-                {/* CTA footer */}
-                <div style={{ padding: '12px', borderTop: '1px solid var(--pi-border)', flexShrink: 0 }}>
-                    {isTrialActive && !isPremium ? (
-                        /* During a free trial: the shared Liquid Glass button
-                           (src/ui-components), label only. Colour and size come
-                           from .pi-upgrade-lg in the style block above. */
-                        <LiquidGlassButton
-                            variant="action"
-                            className="lg-sm lg-wide pi-upgrade-lg"
-                            onClick={() => openPlans()}
-                        >
-                            Upgrade
-                        </LiquidGlassButton>
-                    ) : (
-                    <button
-                        ref={ctaLens.ref}
-                        onClick={() => openPlans()}
-                        onPointerMove={ctaLens.onPointerMove}
-                        onFocus={ctaLens.onFocus}
-                        className={ctaClass}
-                        style={{ width: '100%' }}
-                        aria-label={isPremium ? 'Manage Pro' : 'Unlock Pro'}
-                    >
-                        {/* Painted above the flat fill and the rim, below the
-                            content. Both pseudos are the material's already. */}
-                        <span className="pi-cta-lens" aria-hidden="true" />
-                        {!isPremium
-                            ? <span className="pi-cta-shimmer" aria-hidden="true" />
-                            : null}
-                        <span className="pi-cta-label">
-                            {isPremium ? 'Manage Pro' : 'Unlock Pro'}
-                        </span>
-                        <div className="pi-cta-ring">
-                            {isPremium
-                                ? <CheckCircle size={13} strokeWidth={2.5} />
-                                : <ArrowUpRight size={13} strokeWidth={2.5} />}
-                        </div>
-                    </button>
-                    )}
-                </div>
             </div>
 
             {/* ── Right panel ── */}

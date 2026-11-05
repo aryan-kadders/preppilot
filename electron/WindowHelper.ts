@@ -20,7 +20,7 @@ import {
 } from './utils/launcherResizeAnimation';
 import { attachNoActivate, isNoActivateManaged, restoreFocusableOffTaskbar } from './utils/windowsFocusPolicy';
 import { raiseAboveOverlay } from './utils/overlayStackOrder';
-import { HOVER_PROBE_INTERVAL_MS, hoverProbePoint, shouldProbeHover } from './utils/overlayHoverProbe';
+import { HOVER_PROBE_INTERVAL_MS, hoverProbePoint, overlayIgnoresMouse, shouldProbeHover } from './utils/overlayHoverProbe';
 import { setVisibleOnAllWorkspacesKeepingDock } from './utils/macDockPolicy';
 import { clearStaleHover } from './utils/overlayAuxHover';
 import { resizeEnvelopeFor, OVERLAY_PANEL_INSET } from '../src/lib/overlayCustomSize.mjs';
@@ -181,6 +181,10 @@ export class WindowHelper {
   // state): true (default, safe) = window interactive; false = pointer is
   // over a transparent margin → click-through. See syncOverlayInteractionPolicy.
   private overlayHoverInteractive = true;
+  // Click-through mode's escape hatch (PrepPilot): true while the page reports
+  // the pointer over the click-through button, so that one button takes the
+  // click that turns the mode off. Reset whenever the mode or the page changes.
+  private overlayPassthroughEscape = false;
   // Runs only while the hover gate has the overlay click-through: asks the
   // overlay's page where the pointer is, in case the forwarded mouse moves
   // that normally reopen the gate have stopped (utils/overlayHoverProbe.ts).
@@ -1443,7 +1447,9 @@ export class WindowHelper {
   // Apply the click-through (mouse passthrough) policy on the overlay window.
   // TWO inputs:
   //   • overlayMousePassthrough (master stealth toggle) — when ON the whole
-  //     group (overlay + pill + toggle) is fully click-through.
+  //     group (overlay + pill + toggle) is click-through, except the overlay's
+  //     click-through button while the pointer is over it
+  //     (overlayPassthroughEscape), so the mode can be turned off by clicking.
   //   • overlayHoverInteractive (renderer hover hit-test) — when the pointer
   //     is over one of the fixed window's transparent side margins (collapsed
   //     state, 66px each side) the overlay alone goes click-through with
@@ -1472,7 +1478,13 @@ export class WindowHelper {
     // does not support — there the margins stay interactive (dead-click), the
     // pre-gate behavior.
     const forwardSupported = process.platform !== 'linux';
-    const overlayIgnore = passthrough || (forwardSupported && !this.overlayHoverInteractive);
+    if (!passthrough) this.overlayPassthroughEscape = false;
+    const overlayIgnore = overlayIgnoresMouse({
+      passthrough,
+      escapeHover: this.overlayPassthroughEscape,
+      hoverInteractive: this.overlayHoverInteractive,
+      forwardSupported,
+    });
 
     if (overlayIgnore) {
       // forward: true — pointer events are still delivered to the OS layer
@@ -1530,6 +1542,7 @@ export class WindowHelper {
       passthrough: this.appState.getOverlayMousePassthrough(),
       hoverInteractive: this.overlayHoverInteractive,
       forwardSupported: process.platform !== 'linux',
+      escapeHover: this.overlayPassthroughEscape,
     });
     if (!want) {
       if (this.hoverProbeTimer) clearInterval(this.hoverProbeTimer);
@@ -1558,6 +1571,15 @@ export class WindowHelper {
   // Renderer hover hit-test → margins click-through. Called on every
   // interactive↔margin boundary crossing (state changes only, not per
   // mousemove), so `quiet` keeps the log usable.
+  // Click-through mode: the page says whether the pointer is over the
+  // click-through button (see overlayIgnoresMouse). State changes only.
+  public setOverlayPassthroughEscape(overButton: boolean): void {
+    const next = overButton && this.appState.getOverlayMousePassthrough();
+    if (this.overlayPassthroughEscape === next) return;
+    this.overlayPassthroughEscape = next;
+    this.syncOverlayInteractionPolicy(true);
+  }
+
   public setOverlayHoverInteractive(interactive: boolean, source?: 'probe', idleMs?: number): void {
     if (this.overlayHoverInteractive === interactive) return;
     this.overlayHoverInteractive = interactive;
@@ -1896,6 +1918,7 @@ export class WindowHelper {
       // Safe default on every show: interactive until the renderer's hover
       // hit-test says the pointer is over a transparent margin.
       this.overlayHoverInteractive = true;
+      this.overlayPassthroughEscape = false;
       this.syncOverlayInteractionPolicy(true);
       this.syncOverlayAuxVisibility();
       // The page keeps its own copy of the verdict and only reports changes.
@@ -1921,6 +1944,7 @@ export class WindowHelper {
     // would otherwise leave the panel click-through with no recovery path.
     this.overlayWindow.webContents.on('did-finish-load', () => {
       this.overlayHoverInteractive = true;
+      this.overlayPassthroughEscape = false;
       this.syncOverlayInteractionPolicy(true);
     });
     this.overlayWindow.on('closed', () => {

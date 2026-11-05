@@ -110,7 +110,9 @@ test('a natively STT provider is reverted and reported (the caller must rebuild 
 
   const changed = cm.revertNativelyAutoDefaults('Natively key refused by server');
 
-  assert.equal(cm.getSttProvider(), 'none');
+  // PrepPilot: the stored provider is reset to 'none', which reads as the automatic
+  // free on-device default (electron/audio/defaultSttProvider.ts), never 'natively'.
+  assert.ok(['apple-speech', 'local-whisper'].includes(cm.getSttProvider()), cm.getSttProvider());
   assert.equal(changed.sttProvider, 'none', 'reconfigureSttProvider() is gated on this being reported');
 });
 
@@ -149,7 +151,9 @@ test('clearing the key still reverts (regression on the extracted helper)', () =
   cm.setNativelyApiKey('');
 
   assert.equal(cm.getDefaultModel(), 'gemini-3.1-flash-lite');
-  assert.equal(cm.getSttProvider(), 'none');
+  // PrepPilot: the stored provider is reset to 'none', which reads as the automatic
+  // free on-device default (electron/audio/defaultSttProvider.ts), never 'natively'.
+  assert.ok(['apple-speech', 'local-whisper'].includes(cm.getSttProvider()), cm.getSttProvider());
 });
 
 // ---------------------------------------------------------------------------

@@ -28,11 +28,41 @@ export interface HoverProbeConditions {
   hoverInteractive: boolean;
   /** `forward: true` exists on this platform (the hover gate is off without it). */
   forwardSupported: boolean;
+  /**
+   * Click-through mode only: the page's last verdict that the pointer is over
+   * the click-through button itself (PrepPilot's escape hatch, see
+   * overlayIgnoresMouse).
+   */
+  escapeHover?: boolean;
 }
 
-/** Should main be probing right now? Only while the hover gate itself has the window shut. */
+/**
+ * Should main be probing right now? While the window is shut to the mouse and
+ * the page could reopen it: the hover gate over a margin, or click-through mode
+ * with the pointer not (yet) over the click-through button.
+ */
 export function shouldProbeHover(c: HoverProbeConditions): boolean {
-  return c.visible && c.forwardSupported && !c.passthrough && !c.hoverInteractive;
+  if (!c.visible || !c.forwardSupported) return false;
+  if (c.passthrough) return !c.escapeHover;
+  return !c.hoverInteractive;
+}
+
+/**
+ * Does the overlay window ignore the mouse right now?
+ *
+ * - Click-through mode: yes, everywhere except over the click-through button.
+ *   Upstream made the whole window ignore the mouse, so the button that turned
+ *   the mode on could not turn it off: only the keyboard shortcut could, and a
+ *   user who did not know it saw an overlay where nothing responded. With
+ *   `forward: true` the page still sees the pointer, reports when it is over
+ *   the button, and the window takes that click. Without `forward` (Linux)
+ *   there is no pointer feed, so the window keeps ignoring the mouse.
+ * - Otherwise: only while the hover gate has the pointer over a transparent
+ *   margin (needs `forward`, else margins stay interactive).
+ */
+export function overlayIgnoresMouse(c: Omit<HoverProbeConditions, 'visible'>): boolean {
+  if (c.passthrough) return !(c.forwardSupported && c.escapeHover);
+  return c.forwardSupported && !c.hoverInteractive;
 }
 
 /**

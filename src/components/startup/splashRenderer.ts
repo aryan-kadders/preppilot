@@ -4,9 +4,10 @@ import {
     FOCUS_MS, LOGO_SCALE, SETTLE_AT_MS, STEP_MS,
     animationTime, cameraAt, cellTimes, churnClock, easeOut, hash, prog, smoothstep,
 } from './splashTimeline';
+import { BRAND_MARK_D } from '../../lib/brandMark';
 
-// The Natively mark: brand/natively-mark-*.svg, the same path as NativelyLogoMark.tsx.
-const MARK_D = 'M512 106 A406 406 0 1 1 512 918 A406 406 0 1 1 512 106 Z M512 174 A338 338 0 1 0 512 850 A338 338 0 1 0 512 174 Z M288 192.77 H356 V831.23 H288 Z M668 192.77 H736 V831.23 H668 Z M271.30 207 L352.62 207 L752.70 817 L671.38 817 Z';
+// The PrepPilot mark (src/lib/brandMark.ts), in the same 1024 box as upstream's.
+const MARK_D = BRAND_MARK_D;
 const MARK_ORIGIN = 106, MARK_BOX = 812;
 const MARK_PX = 96;
 

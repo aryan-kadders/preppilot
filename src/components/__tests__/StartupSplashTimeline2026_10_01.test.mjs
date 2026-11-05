@@ -170,15 +170,14 @@ describe('splash wiring', () => {
     assert.match(component, /setTimeout\(\(\) => \{\s*onCompleteRef\.current\(\);\s*\}, SPLASH_DISMISS_MS\)/);
     assert.match(component, /try \{ onCompleteRef\.current\(\); \} catch \{[^}]*\}\s*\}, SPLASH_HARD_CAP_MS\)/);
     assert.equal(tl.SPLASH_HARD_CAP_MS, 5000);
-    const timers = component.slice(component.indexOf('useEffect(() => {'), component.indexOf('const canvasRef'));
+    const timers = component.slice(component.indexOf('useEffect(() => {'), component.indexOf('// The exit starts when AnimatePresence'));
     assert.match(timers, /\}, \[\]\);/, 'deps other than [] re-arm the hard cap on every boot re-render');
     assert.match(timers, /clearTimeout\(timer\);\s*clearTimeout\(hardCap\);/);
   });
 
   test('no frame callback and no exit animation can dismiss the splash', () => {
-    const draw = component.slice(component.indexOf('const draw = () => {'), component.indexOf('const layout = () => {'));
-    assert.ok(draw.length > 0);
-    assert.doesNotMatch(draw, /onComplete/, 'requestAnimationFrame stops for a covered window: the handover must stay on a timer');
+    // PrepPilot's splash has no frame loop at all; the handover stays on timers.
+    assert.doesNotMatch(component, /requestAnimationFrame\(/, 'requestAnimationFrame stops for a covered window: the handover must stay on a timer');
     assert.doesNotMatch(component, /usePresence|safeToRemove/, 'the exit must not hold the splash on screen: it only watches useIsPresent');
     assert.doesNotMatch(exitBlock, /onComplete|\.finished|onfinish/, 'nothing may wait for the exit animations');
     assert.equal(component.match(/onCompleteRef\.current\(\)/g).length, 2, 'only the two timers may dismiss');
@@ -204,25 +203,20 @@ describe('splash wiring', () => {
     assert.doesNotMatch(renderer, /destination-out|exitT/);
   });
 
-  test('the frame loop stops at the settle and on unmount', () => {
-    assert.match(component, /renderSplash\(ctx, scene, t\);/);
-    assert.match(component, /if \(t < SPLASH_SETTLE_MS\) raf = requestAnimationFrame\(draw\);/);
-    assert.match(component, /return \(\) => \{\s*resize\.disconnect\(\);\s*if \(raf\) cancelAnimationFrame\(raf\);\s*\};/);
+  // PrepPilot: a clean splash replaced upstream's logo rebuilt from 0s and 1s.
+  test('the splash is the A mark, the name and "Made by Aryan": no canvas, no characters', () => {
+    assert.doesNotMatch(component, /<canvas|renderSplash|prepareSplash|getContext/);
+    assert.match(component, /<NativelyLogoMark size=\{88\} \/>/);
+    assert.match(component, />PrepPilot</);
+    assert.match(component, />Made by Aryan</);
+    // the exit still moves the first child of the box: the logo group
+    assert.match(component, /<div ref=\{boxRef\}[^>]*>\s*<div ref=\{logoRef\}/);
   });
 
-  test('reduced motion shows the settled frame, and it fades in and out without moving', () => {
-    assert.match(component, /const t = reduced \? SPLASH_SETTLE_MS : performance\.now\(\) - startedAt;/);
-    // App adds no entrance any more, so without this the still frame would cut in
-    assert.match(component, /if \(reduced\) canvas\.animate\(\[\{ opacity: 0 \}, \{ opacity: 1 \}\]/, 'reduced motion means gentler, not a hard cut');
-    // ...and on the way out the still frame dissolves instead of moving
+  test('reduced motion fades the logo in and out without moving it', () => {
+    assert.match(component, /reduced\s*\? \[\{ opacity: 0 \}, \{ opacity: 1 \}\]/, 'reduced motion means gentler, not a hard cut');
     assert.match(exitBlock, /if \(!logo \|\| prefersReducedMotion\(\)\) \{[\s\S]*?box\.animate\(\[\{ opacity: 1 \}, \{ opacity: 0 \}\], \{ duration: 300, easing: 'ease-out', fill: 'forwards' \}\);\s*return;/);
-    // ...and the launcher does not land: it keeps its plain entrance
     assert.match(app, /const launcherLands = !cameFromWelcome\.current && !reduceManagerMotion;/);
-  });
-
-  test('a canvas failure falls back to the plain logo instead of a blank window', () => {
-    assert.match(component, /catch \(err\) \{[\s\S]*?setPlain\(true\);/);
-    assert.match(component, /plain \? \(\s*<img src=\{appIcon\}/);
   });
 
   test('a frame depends on its clock alone, and the timeline stays testable in node', () => {
@@ -269,15 +263,14 @@ describe('splash wiring', () => {
   // white logo everywhere else went to 75 and the owner asked for this animation to stay exactly as
   // it is, so the splash and the app logo are no longer one path. Do not make them agree again by
   // editing the splash.
-  test('the splash keeps its own equal-stroke mark (every stroke 68 wide)', () => {
-    const d = renderer.match(/const MARK_D = '([^']+)'/)[1];
-    assert.ok(d.includes('A338 338'), 'ring: outer radius 406, inner 338');
-    assert.ok(d.includes('M288 192.77 H356') && d.includes('M668 192.77 H736'), 'uprights 68 wide');
+  test('every logo draws the one PrepPilot mark (src/lib/brandMark.ts)', () => {
+    const brand = read('../../lib/brandMark.ts');
+    const d = [...brand.matchAll(/'(M[^']+)'/g)].map((m) => m[1]).join(' ');
+    assert.ok(d.includes('A331 331'), 'ring: outer radius 406, inner 331');
+    assert.ok(d.includes('M474 230 H550'), 'the A');
+    assert.match(renderer, /const MARK_D = BRAND_MARK_D;/);
+    assert.match(read('../NativelyLogoMark.tsx'), /d=\{BRAND_MARK_D\}/);
+    assert.ok(read('../../../brand/preppilot-mark.svg').includes(`d="${d}"`), 'the master SVG drifted from brandMark.ts');
   });
 
-  test('NativelyLogoMark draws the white logo master (brand/natively-mark-white.svg)', () => {
-    const mark = read('../NativelyLogoMark.tsx');
-    const master = read('../../../brand/natively-mark-white.svg').match(/ d="([^"]+)"/)[1];
-    assert.ok(mark.includes(`d="${master}"`), 'the app logo and its master have drifted apart');
-  });
 });

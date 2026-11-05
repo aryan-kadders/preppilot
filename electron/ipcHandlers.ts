@@ -492,7 +492,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       const orchestrator = appState.getKnowledgeOrchestrator();
       if (!orchestrator) return;
       orchestrator.setKnowledgeMode(false);
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       orchestrator.deleteDocumentsByType(DocType.RESUME);
       orchestrator.deleteDocumentsByType(DocType.JD);
       // …and their raw-text indexes (text + vectors under profile:<kind>:<version>).
@@ -1508,6 +1508,17 @@ export function initializeIpcHandlers(appState: AppState): void {
     appState.getWindowHelper().setOverlayHoverInteractive(!!interactive, source === 'probe' ? 'probe' : undefined, idleMs);
   });
 
+
+  // Overlay renderer → main, click-through mode only: whether the pointer is
+  // over the click-through button, so that button alone can take the click
+  // that turns the mode off (WindowHelper.setOverlayPassthroughEscape).
+  // Only the overlay may send.
+  safeHandle('overlay-passthrough-escape-hover', async (event, overButton: boolean) => {
+    const overlayWin = appState.getWindowHelper().getOverlayWindow();
+    if (!overlayWin || overlayWin.isDestroyed()) return;
+    if (overlayWin.webContents.id !== event.sender.id) return;
+    appState.getWindowHelper().setOverlayPassthroughEscape(!!overButton);
+  });
 
   // Any Natively window → main: dismiss the overlay dropdowns (settings /
   // model selector). Fired by the click-catcher window (a click landed
@@ -7388,6 +7399,17 @@ export function initializeIpcHandlers(appState: AppState): void {
   // already-running process until the app is relaunched.
   safeHandle('restart-app', () => {
     console.log('[IPC] restart-app requested');
+    if (!app.isPackaged) {
+      // Development (`npm start`): app.relaunch() would start Electron alone,
+      // while `concurrently --kill-others` stops the Vite server the moment this
+      // process exits. The relaunched copy then loads a dead URL — blank windows,
+      // no dev server — and holds the single-instance lock, so the next
+      // `npm start` exits with "Another instance is already running". Quit
+      // instead; the developer runs `npm start` again. Same on macOS and Windows.
+      console.log('[IPC] development build: quitting instead of relaunching. Run `npm start` again to apply the change.');
+      app.exit(0);
+      return;
+    }
     app.relaunch();
     app.exit(0);
   });
@@ -13392,7 +13414,8 @@ export function initializeIpcHandlers(appState: AppState): void {
         // main never disagree about who is "key-less".
         hasOwnAiKey: hasOwnAiKey(creds, { codexReady: codexRouteReady() }),
         googleServiceAccountPath: creds.googleServiceAccountPath || null,
-        sttProvider: creds.sttProvider || 'none',
+        // The effective provider, so Settings shows the automatic default (PrepPilot) too.
+        sttProvider: CredentialsManager.getInstance().getSttProvider(),
         nvidiaNimSttModel: creds.nvidiaNimSttModel || 'nemotron-asr-streaming',
         groqSttModel: creds.groqSttModel || 'whisper-large-v3-turbo',
         // Resolved, not raw: a stored id the catalogue has since dropped reads
@@ -17057,7 +17080,8 @@ export function initializeIpcHandlers(appState: AppState): void {
   // Start automatically (Settings › Calendar, under Detect meetings): a detected
   // call starts Natively after a 10 s countdown unless Not now. Unset = off.
   // Read when each offer is made.
-  safeHandle('get-meeting-auto-start-enabled', async () => SettingsManager.getInstance().get('meetingAutoStartEnabled') === true);
+  // PrepPilot: Start automatically is on by default (unset reads as on).
+  safeHandle('get-meeting-auto-start-enabled', async () => SettingsManager.getInstance().get('meetingAutoStartEnabled') !== false);
   safeHandle('set-meeting-auto-start-enabled', async (_, on: boolean) => {
     if (typeof on !== 'boolean') return { success: false };
     if (!SettingsManager.getInstance().set('meetingAutoStartEnabled', on)) return { success: false, error: 'settings_store_degraded' };
@@ -18251,7 +18275,7 @@ export function initializeIpcHandlers(appState: AppState): void {
           error: 'Knowledge engine not initialized. Please ensure API keys are configured.',
         };
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       const result = await orchestrator.ingestDocument(resolvedPath, DocType.RESUME);
       // Index the raw text for the profile path's semantic arm (fire and forget).
       if (result?.success) { try { require('./services/knowledge/v3ProfileSources').kickProfileRawIndex(orchestrator); } catch { /* non-fatal */ } }
@@ -18315,7 +18339,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       // upload slot and invites a duplicate upload. NOT covered by
       // aot_pipeline_running: that is JD-side and, per the comment above,
       // deliberately excluded from the resume readiness signal.
-      const { DocType: StatusDocType } = require('../premium/electron/knowledge/types');
+      const { DocType: StatusDocType } = require('./profile/types');
       return {
         hasProfile: status.hasResume,
         profileMode: status.activeMode,
@@ -18377,7 +18401,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       if (!orchestrator) {
         return { success: false, error: 'Knowledge engine not initialized' };
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       // Both tiers in ONE transaction. Deleting only Tier 1 here left Tier 2's
       // PII-bearing knowledge_cards orphaned — the user asked for their résumé
       // to be removed and half of it stayed on disk. Tier 1 (premium
@@ -18437,6 +18461,9 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
+  // PrepPilot: mock interview practice (electron/practice).
+  require('./practice/practiceIpc').registerPracticeIpc(safeHandle, appState);
+
   safeHandle('profile:select-file', async () => {
     try {
       const extensions = [...SAFE_DOCUMENT_EXTENSIONS].map(extension => extension.slice(1));
@@ -18487,7 +18514,7 @@ export function initializeIpcHandlers(appState: AppState): void {
           error: 'Knowledge engine not initialized. Please ensure API keys are configured.',
         };
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       const result = await orchestrator.ingestDocument(resolvedPath, DocType.JD);
       // Index the raw text for the profile path's semantic arm (fire and forget).
       if (result?.success) { try { require('./services/knowledge/v3ProfileSources').kickProfileRawIndex(orchestrator); } catch { /* non-fatal */ } }
@@ -18522,7 +18549,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       if (!orchestrator) {
         return { success: false, error: 'Knowledge engine not initialized' };
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       // Same cross-tier transaction as profile:delete above — see the comment
       // there for why a Tier-1-only delete is a partial delete.
       const { deleteProfileTransactional } = require('./services/knowledge/deleteProfileTransactional') as typeof import('./services/knowledge/deleteProfileTransactional');
@@ -19050,7 +19077,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       const resolved = consumeSelectedProfilePath(tempPath);
       if (!resolved) return { success: false, error: 'Could not stage the pasted job description.' };
 
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       const result = await orchestrator.ingestDocument(resolved, DocType.JD);
       // Index the raw text for the profile path's semantic arm (fire and forget).
       if (result?.success) { try { require('./services/knowledge/v3ProfileSources').kickProfileRawIndex(orchestrator); } catch { /* non-fatal */ } }
@@ -19114,7 +19141,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       const staged = consumeSelectedProfilePath(tempPath);
       if (!staged) return { success: false, error: 'Could not stage the imported job description.' };
 
-      const { DocType } = require('../premium/electron/knowledge/types');
+      const { DocType } = require('./profile/types');
       const result = await orchestrator.ingestDocument(staged, DocType.JD);
       // Index the raw text for the profile path's semantic arm (fire and forget).
       if (result?.success) { try { require('./services/knowledge/v3ProfileSources').kickProfileRawIndex(orchestrator); } catch { /* non-fatal */ } }
@@ -21450,7 +21477,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       try {
         const orchestrator = appState.getKnowledgeOrchestrator();
         if (!orchestrator) return { success: false, error: 'orchestrator_not_initialized' };
-        const { DocType } = require('../premium/electron/knowledge/types');
+        const { DocType } = require('./profile/types');
         const dt = params.docType === 'jd' ? DocType.JD : DocType.RESUME;
         const result = await orchestrator.ingestDocument(params.filePath, dt);
         // Index the raw text for the profile path's semantic arm (fire and forget).
@@ -21544,7 +21571,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       try {
         const orchestrator = appState.getKnowledgeOrchestrator();
         if (!orchestrator) return { success: false, error: 'orchestrator_not_initialized' };
-        const { DocType } = require('../premium/electron/knowledge/types');
+        const { DocType } = require('./profile/types');
         orchestrator.deleteDocumentsByType(DocType.RESUME);
         orchestrator.deleteDocumentsByType(DocType.JD);
         return { success: true };

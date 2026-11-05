@@ -67,7 +67,7 @@ export interface MeetingDetectionDeps {
     closeNotification?: () => void;
     /** The launcher is on screen and in front: its panel is enough. */
     launcherFocused?: () => boolean;
-    /** Settings › Calendar › Start automatically (default off). */
+    /** Settings › Calendar › Start automatically (PrepPilot: default on). */
     autoStart?: () => boolean;
     setTimeout?: (fn: () => void, ms: number) => unknown;
     clearTimeout?: (handle: unknown) => void;

@@ -2934,6 +2934,19 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
 
   // Mouse Passthrough State
   const [isMousePassthrough, setIsMousePassthrough] = useState(false);
+  // Click-through's escape hatch (PrepPilot): the hover listener below is set
+  // up once, so it reads the mode and the button through refs. While the mode
+  // is on, the pointer over the click-through button makes that button alone
+  // clickable (main: overlayIgnoresMouse), so the click that turned the mode
+  // on can turn it off again — the keyboard shortcut is no longer the only way.
+  const isMousePassthroughRef = useRef(false);
+  const clickThroughButtonRef = useRef<HTMLDivElement | null>(null);
+  const overClickThroughRef = useRef(false);
+  useEffect(() => {
+    isMousePassthroughRef.current = isMousePassthrough;
+    // Main forgets the escape whenever the mode changes; so does this page.
+    overClickThroughRef.current = false;
+  }, [isMousePassthrough]);
   useEffect(() => {
     window.electronAPI
       ?.getOverlayMousePassthrough?.()
@@ -4937,8 +4950,17 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     // When this page last saw the mouse move (0 = never). Reported with a
     // probe-driven reopen so a log can tell a resting pointer from a dead feed.
     let lastMoveAt = 0;
+    // Click-through mode: report crossings of the click-through button only.
+    const reportClickThroughHover = (point: { x: number; y: number }) => {
+      const over = isMousePassthroughRef.current
+        && pointerOverPanel(point, clickThroughButtonRef.current?.getBoundingClientRect() ?? null, 2);
+      if (over === overClickThroughRef.current) return;
+      overClickThroughRef.current = over;
+      window.electronAPI?.setOverlayPassthroughEscapeHover?.(over).catch(() => {});
+    };
     const onMouseMove = (e: MouseEvent) => {
       lastMoveAt = performance.now();
+      reportClickThroughHover({ x: e.clientX, y: e.clientY });
       // A resize drag renders inside a window grown to its envelope, where
       // this margin math is wrong and a false "outside" would flip the window
       // click-through under a captured pointer. The drag forces interactive at
@@ -4975,6 +4997,9 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     // later, reopen it from here. A probe only ever opens the gate.
     let probeTimer = 0;
     const unsubscribeProbe = window.electronAPI?.onOverlayHoverProbe?.((point) => {
+      // A resting pointer over the click-through button, or a dropped move feed
+      // (Windows), still reaches the escape hatch through the probe.
+      reportClickThroughHover(point);
       if (isResizingRef.current) return;
       const inside = pointerOverPanel(point, contentRef.current?.getBoundingClientRect() ?? null, PAD);
       if (!inside) return;
@@ -13089,10 +13114,11 @@ Provide only the answer, nothing else.`;
                         notepad is reached from Settings › Overlay, so the row keeps
                         settings and click-through only. */}
                     {/* Mouse Passthrough Toggle. Opens into a pill with the
-                        exit hotkey when turned on — once click-through is on
-                        this button can no longer be clicked, so the hotkey is
-                        the only way back (ClickThroughToggle). */}
-                    <div className="relative">
+                        exit hotkey when turned on. PrepPilot: the button stays
+                        clickable while click-through is on (the escape hatch:
+                        clickThroughButtonRef + overlayIgnoresMouse in main), so
+                        a click turns it off too, not only the hotkey. */}
+                    <div className="relative" ref={clickThroughButtonRef}>
                       <ClickThroughToggle
                         on={isMousePassthrough}
                         onToggle={() => {

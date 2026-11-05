@@ -32,6 +32,16 @@ export function audioWarningAction(w) {
     return { type: 'settings-tab', tab: 'audio' };
   }
 
+  // The native audio module itself did not load (dev: not built yet; packaged:
+  // a damaged install). No privacy pane grants anything here, and the macOS
+  // routing below used to send a mic-channel failure to the Microphone pane —
+  // after which the banner offered Restart, which only closed the app. Settings
+  // → Audio, on either platform; the message says how to fix it.
+  // The plain wording (electron/audio/captureFailureMessage.ts) or the raw error.
+  if (/a part of PrepPilot that handles audio is missing|native audio engine unavailable|capture module failed to load/i.test(message)) {
+    return { type: 'settings-tab', tab: 'audio' };
+  }
+
   if (w.platform === 'darwin') {
     // macOS routing, unchanged: the title names the pane when it can; else the
     // channel decides (an absent channel is compared with === 'system').

@@ -55,6 +55,24 @@ const PROVENANCE_PATH = path.join(app.getPath('userData'), 'credentials.provenan
  * key it used, and a later session that cannot decrypt it back is provably
  * holding a different key.
  */
+/**
+ * macOS only: the Apple Speech helper binary is on disk (dev: built by
+ * scripts/ensure-apple-speech-dev.cjs; packaged: after-pack). A found helper is
+ * remembered; a missing one is looked for again, since a dev build can add it.
+ */
+let appleSpeechHelperFound = false;
+function appleSpeechHelperPresent(): boolean {
+    if (process.platform !== 'darwin') return false;
+    if (appleSpeechHelperFound) return true;
+    try {
+        const { appleSpeechExecutablePath } = require('../audio/AppleSpeechSTT') as typeof import('../audio/AppleSpeechSTT');
+        appleSpeechHelperFound = fs.existsSync(appleSpeechExecutablePath());
+    } catch {
+        appleSpeechHelperFound = false;
+    }
+    return appleSpeechHelperFound;
+}
+
 const KEY_CANARY_PLAINTEXT = 'natively.safe-storage.key-canary.v1';
 const DECRYPT_FAIL_PERMANENT_THRESHOLD = 3;
 
@@ -1060,6 +1078,14 @@ export class CredentialsManager {
                 console.log('[CredentialsManager] Self-healed sttProvider: none→natively (Natively key present)');
             }
             return 'natively';
+        }
+        if (provider === 'none') {
+            // PrepPilot: nothing chosen → a free on-device provider, so a new
+            // user gets a transcript without visiting Settings. Derived, not
+            // stored: choosing a provider in Settings replaces it, and a Mac
+            // whose Apple Speech helper appears later moves up to it.
+            const { defaultSttProviderFor } = require('../audio/defaultSttProvider') as typeof import('../audio/defaultSttProvider');
+            return defaultSttProviderFor(process.platform, { appleSpeechAvailable: appleSpeechHelperPresent() });
         }
         return provider;
     }

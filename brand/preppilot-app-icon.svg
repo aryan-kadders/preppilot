@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="PrepPilot">
+<defs><linearGradient id="bg" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#15295A"/><stop offset="1" stop-color="#0C1C40"/></linearGradient></defs>
+<rect x="0" y="0" width="1024" height="1024" rx="230" fill="url(#bg)"/>
+<g transform="translate(143.36 143.36) scale(0.9079802955665024) translate(-106 -106)"><path fill="#FFFFFF" d="M512 106 A406 406 0 1 1 512 918 A406 406 0 1 1 512 106 Z M512 181 A331 331 0 1 0 512 843 A331 331 0 1 0 512 181 Z M474 230 H550 L722 794 H643 L602.1 660 H421.9 L381 794 H302 Z M512 364.5 L443.2 590 H580.8 Z"/></g>
+</svg>
