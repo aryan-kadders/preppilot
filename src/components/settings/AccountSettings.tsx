@@ -43,17 +43,23 @@ export const AccountSettings: React.FC = () => {
   const redeem = async () => {
     setBusy(true);
     setError(null);
-    const r = await window.electronAPI?.cloudRedeem?.(code).catch(() => ({ success: false, error: t('Could not reach PrepPilot Cloud. Check your internet connection.') }));
-    setBusy(false);
-    if (r?.success) { setCode(''); await refresh(); } else setError(r?.error ?? t('Something went wrong.'));
+    try {
+      const r = await window.electronAPI?.cloudRedeem?.(code).catch(() => ({ success: false, error: t('Could not reach PrepPilot Cloud. Check your internet connection.') }));
+      if (r?.success) { setCode(''); await refresh(); } else setError(r?.error ?? t('Something went wrong.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const signOut = async () => {
     setBusy(true);
-    const r = await window.electronAPI?.cloudSignOut?.().catch(() => undefined);
-    setBusy(false);
-    if (r && !r.success) setError(r.error ?? null);
-    await refresh();
+    try {
+      const r = await window.electronAPI?.cloudSignOut?.().catch(() => undefined);
+      if (r && !r.success) setError(r.error ?? null);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!account) return null;
