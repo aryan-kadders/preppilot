@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Activity, BarChart3, Clock, DollarSign, Download, Sparkles } from 'lucide-react';
 import { supabase } from '../supabase';
 import { minutesLabel, money } from '../lib/format';
 import { downloadCsv, toCsv } from '../lib/csv';
-import { Empty, Notice, useAction } from '../components/ui';
+import { Alert, Avatar, EmptyState, Kpi, SkeletonRows, useAction } from '../components/ui';
 
 interface ReportRow {
   candidate_id: string; candidate_name: string; team_name: string; sessions: number; used_seconds: number;
@@ -19,22 +20,25 @@ export const Usage: React.FC = () => {
   const [range, setRange] = useState('30');
   const [rows, setRows] = useState<ReportRow[] | null>(null);
   const load = useAction();
+  const { run } = load;
 
-  const refresh = useCallback(() => load.run(async () => {
+  const refresh = useCallback(() => run(async () => {
+    setRows(null);
     const days = RANGES.find((r) => r.id === range)?.days ?? 30;
     const to = new Date();
     const from = new Date(to.getTime() - days * 86400_000);
     const { data, error } = await supabase.rpc('pp_usage_report', { p_from: from.toISOString(), p_to: to.toISOString() });
     if (error) throw error;
     setRows((data as ReportRow[]).map((r) => ({ ...r, cost_usd: Number(r.cost_usd), input_tokens: Number(r.input_tokens), output_tokens: Number(r.output_tokens) })));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [range]);
+  }), [range, run]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
   const total = (rows ?? []).reduce((t, r) => ({
     sessions: t.sessions + r.sessions, used: t.used + r.used_seconds, calls: t.calls + r.ai_calls, cost: t.cost + r.cost_usd,
   }), { sessions: 0, used: 0, calls: 0, cost: 0 });
+  const active = (rows ?? []).filter((r) => r.sessions > 0).sort((a, b) => b.used_seconds - a.used_seconds);
+  const idle = (rows ?? []).filter((r) => r.sessions === 0);
 
   const exportCsv = () => {
     if (!rows) return;
@@ -44,45 +48,59 @@ export const Usage: React.FC = () => {
     );
     downloadCsv(`preppilot-usage-${range}d-${new Date().toISOString().slice(0, 10)}.csv`, csv);
   };
+  const maxUsed = Math.max(1, ...active.map((r) => r.used_seconds));
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Usage &amp; cost</h1>
-          <p className="subtitle">Minutes used and AI cost per candidate. Transcription cost is on your Deepgram bill.</p>
+          <h1 className="page-title">Usage &amp; cost</h1>
+          <p className="page-desc">Practice time and AI cost per candidate. Transcription is billed by Deepgram separately.</p>
         </div>
         <div className="row">
-          <select className="input" style={{ width: 160 }} value={range} onChange={(e) => setRange(e.target.value)} aria-label="Period">
+          <select className="input" style={{ width: 150 }} value={range} onChange={(e) => setRange(e.target.value)} aria-label="Period">
             {RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
           </select>
-          <button className="btn" onClick={exportCsv} disabled={!rows?.length}>Export CSV</button>
+          <button className="btn" onClick={exportCsv} disabled={!rows?.length}><Download size={14} /> Export CSV</button>
         </div>
       </div>
-      <div className="stats">
-        <div className="stat"><div className="label">Sessions</div><div className="value">{total.sessions}</div></div>
-        <div className="stat"><div className="label">Minutes used</div><div className="value">{minutesLabel(total.used)}</div></div>
-        <div className="stat"><div className="label">AI answers</div><div className="value">{total.calls}</div></div>
-        <div className="stat"><div className="label">AI cost (estimate)</div><div className="value">{money(total.cost)}</div></div>
+
+      <div className="kpis">
+        <Kpi icon={<Activity size={14} />} label="Sessions" value={total.sessions} hint={`${active.length} candidates practised`} />
+        <Kpi icon={<Clock size={14} />} label="Minutes practised" value={minutesLabel(total.used)} />
+        <Kpi icon={<Sparkles size={14} />} label="AI answers" value={total.calls} />
+        <Kpi icon={<DollarSign size={14} />} label="AI cost" value={money(total.cost)} hint="Estimate from server rates" />
       </div>
-      <div className="card">
-        {load.error && <Notice kind="error">{load.error}</Notice>}
-        {rows === null ? <Empty>Loading…</Empty> : rows.length === 0 ? <Empty>No candidates yet.</Empty> : (
+
+      <section className="card">
+        {load.error && <div style={{ padding: 12 }}><Alert kind="error">{load.error}</Alert></div>}
+        {rows === null ? <SkeletonRows cols={6} /> : rows.length === 0 ? (
+          <EmptyState icon={<BarChart3 size={20} />} title="No candidates yet" description="Usage appears here once candidates start practising." />
+        ) : (
           <div className="table-wrap"><table className="table">
-            <thead><tr><th>Candidate</th><th>Team</th><th className="num">Sessions</th><th className="num">Minutes used</th><th className="num">AI answers</th><th className="num">AI cost</th></tr></thead>
+            <thead><tr><th>Candidate</th><th>Team</th><th className="num">Sessions</th><th style={{ width: '24%' }}>Minutes practised</th><th className="num">AI answers</th><th className="num">AI cost</th></tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {[...active, ...idle].map((r) => (
                 <tr key={r.candidate_id} className="clickable" onClick={() => { window.location.hash = `#/candidates/${r.candidate_id}`; }}>
-                  <td><strong>{r.candidate_name}</strong></td><td className="muted">{r.team_name}</td>
-                  <td className="num">{r.sessions}</td><td className="num">{minutesLabel(r.used_seconds)}</td>
-                  <td className="num">{r.ai_calls}</td><td className="num">{money(r.cost_usd)}</td>
+                  <td><div className="cell-main"><Avatar name={r.candidate_name} /><span className="cell-title">{r.candidate_name}</span></div></td>
+                  <td className="muted">{r.team_name}</td>
+                  <td className="num">{r.sessions}</td>
+                  <td>
+                    <div className="row" style={{ flexWrap: 'nowrap' }}>
+                      <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
+                        <div style={{ width: `${(r.used_seconds / maxUsed) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
+                      </div>
+                      <span className="num" style={{ minWidth: 64 }}>{minutesLabel(r.used_seconds)}</span>
+                    </div>
+                  </td>
+                  <td className="num">{r.ai_calls}</td>
+                  <td className="num">{money(r.cost_usd)}</td>
                 </tr>
               ))}
             </tbody>
           </table></div>
         )}
-        <p className="faint" style={{ marginBottom: 0 }}>AI cost uses the rates set on the server (GEMINI_PRICES); check your Google bill for exact amounts.</p>
-      </div>
+      </section>
     </>
   );
 };

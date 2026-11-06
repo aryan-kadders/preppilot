@@ -1,25 +1,148 @@
-import React, { useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
-export const Notice: React.FC<{ kind: 'error' | 'ok' | 'info'; children: React.ReactNode }> = ({ kind, children }) =>
-  <div className={`notice ${kind}`} role={kind === 'error' ? 'alert' : 'status'}>{children}</div>;
+// ── Feedback ────────────────────────────────────────────────
 
-export const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => <div className="empty">{children}</div>;
+export const Alert: React.FC<{ kind: 'error' | 'ok' | 'info'; children: React.ReactNode }> = ({ kind, children }) => {
+  const Icon = kind === 'error' ? AlertCircle : kind === 'ok' ? CheckCircle2 : Info;
+  return <div className={`alert ${kind}`} role={kind === 'error' ? 'alert' : 'status'}><Icon size={16} style={{ marginTop: 1 }} /><div>{children}</div></div>;
+};
 
-export const Badge: React.FC<{ tone?: 'good' | 'warn' | 'bad' | 'accent'; dot?: boolean; children: React.ReactNode }> = ({ tone, dot, children }) =>
-  <span className={`badge ${tone ?? ''}`}>{dot && <span className="dot" />}{children}</span>;
+export const EmptyState: React.FC<{ icon: React.ReactNode; title: string; description?: React.ReactNode; action?: React.ReactNode }> = ({ icon, title, description, action }) => (
+  <div className="empty">
+    <div className="empty-icon">{icon}</div>
+    <div className="empty-title">{title}</div>
+    {description && <div className="empty-desc">{description}</div>}
+    {action}
+  </div>
+);
 
-/** A button that runs an async action, shows it is busy, and reports a failure. */
+export const SkeletonRows: React.FC<{ rows?: number; cols?: number }> = ({ rows = 5, cols = 5 }) => (
+  <table className="table"><tbody>
+    {Array.from({ length: rows }, (_, r) => (
+      <tr key={r}>{Array.from({ length: cols }, (_, c) => <td key={c}><div className="skeleton" style={{ width: c === 0 ? '70%' : '50%' }} /></td>)}</tr>
+    ))}
+  </tbody></table>
+);
+
+export const Badge: React.FC<{ tone?: 'good' | 'warn' | 'danger' | 'accent'; dot?: boolean; pulse?: boolean; children: React.ReactNode }> = ({ tone, dot, pulse, children }) =>
+  <span className={`badge ${tone ?? ''}`}>{dot && <span className={`dot ${pulse ? 'pulse' : ''}`} />}{children}</span>;
+
+export function initials(name: string | null | undefined): string {
+  const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+export const Avatar: React.FC<{ name: string | null | undefined; large?: boolean }> = ({ name, large }) =>
+  <span className={`avatar ${large ? 'lg' : ''}`} aria-hidden="true">{initials(name)}</span>;
+
+export const Kpi: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: React.ReactNode }> = ({ icon, label, value, hint }) => (
+  <div className="kpi">
+    <div className="kpi-label">{icon}{label}</div>
+    <div className="kpi-value">{value}</div>
+    {hint && <div className="kpi-hint">{hint}</div>}
+  </div>
+);
+
+export const Card: React.FC<{ title?: string; description?: string; actions?: React.ReactNode; children: React.ReactNode; flush?: boolean }> = ({ title, description, actions, children, flush }) => (
+  <section className="card">
+    {(title || actions) && (
+      <div className="card-head">
+        <div style={{ minWidth: 0 }}>
+          {title && <h2 className="card-title">{title}</h2>}
+          {description && <p className="card-desc">{description}</p>}
+        </div>
+        <span className="spacer" />
+        {actions}
+      </div>
+    )}
+    {flush ? children : <div className="card-body">{children}</div>}
+  </section>
+);
+
+export const Field: React.FC<{ label: string; hint?: string; full?: boolean; children: React.ReactNode }> = ({ label, hint, full, children }) => (
+  <label className={`field ${full ? 'full' : ''}`}>
+    <span className="field-label">{label}</span>
+    {children}
+    {hint && <span className="field-hint">{hint}</span>}
+  </label>
+);
+
+// ── Dialog (native <dialog>: focus trap and Esc for free) ────
+
+export const Dialog: React.FC<{
+  open: boolean; onClose: () => void; title: string; description?: string;
+  children: React.ReactNode; footer?: React.ReactNode; onSubmit?: () => void; wide?: boolean;
+}> = ({ open, onClose, title, description, children, footer, onSubmit, wide }) => {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog ref={ref} className="dialog" style={wide ? { width: 'min(680px, calc(100vw - 32px))' } : undefined}
+      onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose(); }}
+      onClick={(e) => { if (e.target === ref.current) onClose(); }}>
+      {open && (
+        <form method="dialog" onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }}>
+          <div className="dialog-head">
+            <div style={{ flex: 1 }}>
+              <h2 className="dialog-title">{title}</h2>
+              {description && <p className="dialog-desc">{description}</p>}
+            </div>
+            <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close"><X size={16} /></button>
+          </div>
+          <div className="dialog-body">{children}</div>
+          {footer && <div className="dialog-foot">{footer}</div>}
+        </form>
+      )}
+    </dialog>
+  );
+};
+
+// ── Toasts ──────────────────────────────────────────────────
+
+type Toast = { id: number; text: string; error?: boolean };
+const ToastContext = createContext<(text: string, error?: boolean) => void>(() => {});
+export const useToast = () => useContext(ToastContext);
+
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const push = useCallback((text: string, error?: boolean) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, text, error }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+  }, []);
+  return (
+    <ToastContext.Provider value={push}>
+      {children}
+      <div className="toasts" aria-live="polite">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast ${t.error ? 'error' : ''}`}>
+            {t.error ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{t.text}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+};
+
+// ── Async actions ───────────────────────────────────────────
+
+/** Runs an async action, tracks busy, and turns a failure into a message. */
 export function useAction(): { busy: boolean; error: string | null; run: (fn: () => Promise<void>) => Promise<boolean>; clear: () => void } {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  return {
-    busy, error, clear: () => setError(null),
-    run: async (fn) => {
-      setBusy(true);
-      setError(null);
-      try { await fn(); return true; } catch (e) { setError(friendlyError(e)); return false; } finally { setBusy(false); }
-    },
-  };
+  const run = useCallback(async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try { await fn(); return true; } catch (e) { setError(friendlyError(e)); return false; } finally { setBusy(false); }
+  }, []);
+  const clear = useCallback(() => setError(null), []);
+  return { busy, error, run, clear };
 }
 
 /** Database and network errors in words a manager can act on. */

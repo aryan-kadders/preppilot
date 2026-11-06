@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabase';
-import { Notice, useAction } from '../components/ui';
+import { Alert, Field, useAction } from '../components/ui';
+
+const Brand: React.FC = () => (
+  <div className="auth-brand"><div className="org-mark">P</div>PrepPilot Manager</div>
+);
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -17,30 +21,31 @@ export const Login: React.FC = () => {
   };
 
   const reset = () => void action.run(async () => {
-    if (!email.trim()) throw new Error('Enter your email first.');
+    if (!email.trim()) throw new Error('Enter your email first, then choose Forgot password.');
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
     if (error) throw error;
     setSent(true);
   });
 
   return (
-    <div className="center-page">
-      <form className="card auth-card stack" onSubmit={signIn}>
-        <div>
-          <h1>PrepPilot Manager</h1>
-          <p className="subtitle" style={{ margin: 0 }}>Sign in to manage candidates, time and assignments.</p>
-        </div>
-        <label className="field">Email
-          <input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label className="field">Password
-          <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        {action.error && <Notice kind="error">{action.error}</Notice>}
-        {sent && <Notice kind="ok">If that email has an account, a reset link is on its way.</Notice>}
-        <button className="btn primary" type="submit" disabled={action.busy}>{action.busy ? 'Signing in…' : 'Sign in'}</button>
-        <button className="btn" type="button" onClick={reset} disabled={action.busy}>Forgot password</button>
-      </form>
+    <div className="auth">
+      <div className="auth-card">
+        <Brand />
+        <form className="card" onSubmit={signIn}>
+          <div className="card-body stack" style={{ gap: 14 }}>
+            <div>
+              <h1 className="page-title" style={{ fontSize: 18 }}>Sign in</h1>
+              <p className="page-desc">Manage candidates, practice time and assignments.</p>
+            </div>
+            <Field label="Email"><input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
+            <Field label="Password"><input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+            {action.error && <Alert kind="error">{action.error}</Alert>}
+            {sent && <Alert kind="ok">If that email has an account, a reset link is on its way.</Alert>}
+            <button className="btn btn-primary" type="submit" disabled={action.busy} style={{ height: 36 }}>{action.busy ? 'Signing in…' : 'Sign in'}</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={reset} disabled={action.busy} style={{ alignSelf: 'center' }}>Forgot password?</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
@@ -61,19 +66,22 @@ export const SetPassword: React.FC<{ onDone: () => void }> = ({ onDone }) => {
     });
   };
   return (
-    <div className="center-page">
-      <form className="card auth-card stack" onSubmit={save}>
-        <h1>Choose your password</h1>
-        <p className="subtitle" style={{ margin: 0 }}>You will use it with your email to sign in next time.</p>
-        <label className="field">New password
-          <input className="input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <label className="field">Confirm password
-          <input className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-        </label>
-        {action.error && <Notice kind="error">{action.error}</Notice>}
-        <button className="btn primary" type="submit" disabled={action.busy}>Save password</button>
-      </form>
+    <div className="auth">
+      <div className="auth-card">
+        <Brand />
+        <form className="card" onSubmit={save}>
+          <div className="card-body stack" style={{ gap: 14 }}>
+            <div>
+              <h1 className="page-title" style={{ fontSize: 18 }}>Choose your password</h1>
+              <p className="page-desc">You will sign in with your email and this password.</p>
+            </div>
+            <Field label="New password" hint="At least 10 characters."><input className="input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></Field>
+            <Field label="Confirm password"><input className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required /></Field>
+            {action.error && <Alert kind="error">{action.error}</Alert>}
+            <button className="btn btn-primary" type="submit" disabled={action.busy} style={{ height: 36 }}>Save and continue</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

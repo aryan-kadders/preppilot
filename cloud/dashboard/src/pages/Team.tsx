@@ -1,28 +1,31 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Copy, Plus, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import { supabase } from '../supabase';
 import { API_URL } from '../config';
 import type { Me, Role, Team } from '../lib/types';
-import { Badge, Empty, Notice, copyText, useAction } from '../components/ui';
+import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
 
 interface StaffRow { user_id: string; role: Role; display_name: string | null; created_at: string }
 interface Membership { team_id: string; user_id: string }
 
 const ROLE_HELP: Record<Role, string> = {
-  admin: 'Everything in the organization, including staff and the audit log.',
-  manager: 'Their teams: candidates, minutes, slots, invites and assignments.',
-  coach: 'Read their teams and add notes to sessions.',
+  admin: 'Everything in the organization, including staff and the audit log',
+  manager: 'Their teams: candidates, minutes, slots, invite codes and assignments',
+  coach: 'Read their teams and add notes to sessions',
 };
 
 export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [members, setMembers] = useState<Membership[]>([]);
-  const [newTeam, setNewTeam] = useState('');
+  const [dialog, setDialog] = useState<null | 'team' | 'invite'>(null);
   const load = useAction();
   const edit = useAction();
+  const toast = useToast();
   const isAdmin = me.role === 'admin';
+  const { run } = load;
 
-  const refresh = useCallback(() => load.run(async () => {
+  const refresh = useCallback(() => run(async () => {
     const [t, s, m] = await Promise.all([
       supabase.from('teams').select('id, name, org_id').order('name'),
       supabase.from('staff').select('user_id, role, display_name, created_at').order('created_at'),
@@ -32,19 +35,9 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
     setTeams(t.data as Team[]);
     setStaff(s.data as StaffRow[]);
     setMembers(m.data as Membership[]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), []);
+  }), [run]);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const addTeam = (e: React.FormEvent) => {
-    e.preventDefault();
-    void edit.run(async () => {
-      const { error } = await supabase.from('teams').insert({ org_id: me.orgId, name: newTeam.trim() });
-      if (error) throw error;
-      setNewTeam('');
-      await refresh();
-    });
-  };
   const toggleMember = (teamId: string, userId: string, on: boolean) => void edit.run(async () => {
     const r = on
       ? await supabase.from('staff_teams').insert({ team_id: teamId, user_id: userId })
@@ -55,83 +48,117 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
   const setRole = (userId: string, role: Role) => void edit.run(async () => {
     const { error } = await supabase.from('staff').update({ role }).eq('user_id', userId);
     if (error) throw error;
+    toast('Role updated');
     await refresh();
   });
   const remove = (s: StaffRow) => {
-    if (!window.confirm(`Remove ${s.display_name ?? 'this person'} from ${me.orgName}? They can no longer sign in to this dashboard's data.`)) return;
+    if (!window.confirm(`Remove ${label(s)} from ${me.orgName}? They lose access to this dashboard.`)) return;
     void edit.run(async () => {
       const { error } = await supabase.from('staff').delete().eq('user_id', s.user_id);
       if (error) throw error;
+      toast('Staff member removed');
       await refresh();
     });
   };
-
-  const name = (s: StaffRow) => (s.user_id === me.userId ? `${s.display_name ?? me.email ?? 'You'} (you)` : s.display_name ?? `Staff member ${s.user_id.slice(0, 6)}`);
+  const label = (s: StaffRow) => (s.user_id === me.userId ? (s.display_name ?? me.email ?? 'You') : s.display_name ?? `Staff member ${s.user_id.slice(0, 6)}`);
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Teams &amp; staff</h1>
-          <p className="subtitle">Managers and coaches see only the teams they belong to.</p>
+          <h1 className="page-title">Teams &amp; staff</h1>
+          <p className="page-desc">Managers and coaches see only the teams they belong to. Admins see everything.</p>
         </div>
+        {isAdmin && (
+          <div className="row">
+            <button className="btn" onClick={() => setDialog('team')}><Plus size={15} /> New team</button>
+            <button className="btn btn-primary" onClick={() => setDialog('invite')} disabled={!teams}><UserPlus size={15} /> Invite staff</button>
+          </div>
+        )}
       </div>
-      {load.error && <Notice kind="error">{load.error}</Notice>}
-      {edit.error && <Notice kind="error">{edit.error}</Notice>}
+      {load.error && <div style={{ marginBottom: 16 }}><Alert kind="error">{load.error}</Alert></div>}
+      {edit.error && <div style={{ marginBottom: 16 }}><Alert kind="error">{edit.error}</Alert></div>}
 
-      <div className="grid grid-2">
-        <div className="card stack">
-          <h2>Teams</h2>
-          {teams === null ? <Empty>Loading…</Empty> : teams.length === 0 ? <span className="faint">No teams yet.</span> : (
-            <table className="table"><tbody>
-              {teams.map((t) => <tr key={t.id}><td><strong>{t.name}</strong></td>
-                <td className="faint num">{members.filter((m) => m.team_id === t.id).length} staff</td></tr>)}
-            </tbody></table>
+      <div className="stack" style={{ gap: 16 }}>
+        <Card title="Teams" description="Candidates belong to one team" flush>
+          {teams === null ? <SkeletonRows rows={2} cols={2} /> : teams.length === 0 ? (
+            <EmptyState icon={<UsersRound size={20} />} title="No teams yet" description="Create a team, then add candidates to it and give managers access."
+              action={isAdmin ? <button className="btn btn-primary" onClick={() => setDialog('team')}><Plus size={15} /> New team</button> : undefined} />
+          ) : (
+            <div className="list">{teams.map((t) => {
+              const people = staff.filter((s) => s.role !== 'admin' && members.some((m) => m.team_id === t.id && m.user_id === s.user_id));
+              return (
+                <div key={t.id} className="list-row">
+                  <div className="avatar" style={{ borderRadius: 7 }}>{t.name.slice(0, 1).toUpperCase()}</div>
+                  <span className="cell-title" style={{ flex: 1 }}>{t.name}</span>
+                  <span className="faint">{people.length ? people.map(label).join(', ') : 'Admins only'}</span>
+                </div>
+              );
+            })}</div>
           )}
-          {isAdmin && (
-            <form className="row" onSubmit={addTeam}>
-              <input className="input" style={{ flex: 1 }} placeholder="New team name" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} maxLength={200} />
-              <button className="btn primary" type="submit" disabled={edit.busy || !newTeam.trim()}>Add team</button>
-            </form>
-          )}
-        </div>
-        {isAdmin && teams && <InviteStaff teams={teams} onInvited={refresh} />}
-      </div>
+        </Card>
 
-      <div className="card stack" style={{ marginTop: 16 }}>
-        <h2>Staff</h2>
-        <div className="table-wrap"><table className="table">
-          <thead><tr><th>Name</th><th>Role</th>{(teams ?? []).map((t) => <th key={t.id}>{t.name}</th>)}{isAdmin && <th />}</tr></thead>
-          <tbody>
-            {staff.map((s) => {
+        <Card title="Staff" description={`${staff.length} ${staff.length === 1 ? 'person' : 'people'} in ${me.orgName}`} flush>
+          <div className="table-wrap"><table className="table">
+            <thead><tr><th>Person</th><th>Role</th><th>Teams</th>{isAdmin && <th />}</tr></thead>
+            <tbody>{staff.map((s) => {
               const self = s.user_id === me.userId;
               return (
                 <tr key={s.user_id}>
-                  <td><strong>{name(s)}</strong></td>
+                  <td><div className="cell-main"><Avatar name={label(s)} /><div><div className="cell-title">{label(s)}{self && <span className="faint"> (you)</span>}</div><div className="cell-sub">Joined {new Date(s.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div></div></div></td>
                   <td>{isAdmin && !self ? (
-                    <select className="input" style={{ width: 120, padding: '4px 8px' }} value={s.role} onChange={(e) => setRole(s.user_id, e.target.value as Role)} aria-label="Role">
+                    <select className="input" style={{ width: 130, height: 30 }} value={s.role} onChange={(e) => setRole(s.user_id, e.target.value as Role)} aria-label={`Role of ${label(s)}`}>
                       <option value="admin">Admin</option><option value="manager">Manager</option><option value="coach">Coach</option>
                     </select>
-                  ) : <Badge tone={s.role === 'admin' ? 'accent' : undefined}>{s.role}</Badge>}</td>
-                  {(teams ?? []).map((t) => {
-                    const on = members.some((m) => m.team_id === t.id && m.user_id === s.user_id);
-                    return <td key={t.id}>{s.role === 'admin' ? <span className="faint">All</span> : isAdmin
-                      ? <input type="checkbox" checked={on} onChange={(e) => toggleMember(t.id, s.user_id, e.target.checked)} aria-label={`${name(s)} in ${t.name}`} />
-                      : on ? '✓' : ''}</td>;
-                  })}
-                  {isAdmin && <td className="num">{!self && <button className="btn small danger" onClick={() => remove(s)} disabled={edit.busy}>Remove</button>}</td>}
+                  ) : <Badge tone={s.role === 'admin' ? 'accent' : undefined}>{s.role === 'admin' && <ShieldCheck size={12} />}{s.role}</Badge>}</td>
+                  <td>{s.role === 'admin' ? <span className="faint">All teams</span> : (
+                    <div className="row">{(teams ?? []).map((t) => {
+                      const on = members.some((m) => m.team_id === t.id && m.user_id === s.user_id);
+                      return isAdmin
+                        ? <label key={t.id} className="check"><input type="checkbox" checked={on} onChange={(e) => toggleMember(t.id, s.user_id, e.target.checked)} />{t.name}</label>
+                        : on ? <Badge key={t.id}>{t.name}</Badge> : null;
+                    })}</div>
+                  )}</td>
+                  {isAdmin && <td className="num">{!self && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(s)} disabled={edit.busy} aria-label={`Remove ${label(s)}`}><Trash2 size={14} /></button>}</td>}
                 </tr>
               );
-            })}
-          </tbody>
-        </table></div>
-        <div className="faint">{Object.entries(ROLE_HELP).map(([r, h]) => <div key={r}><strong>{r}</strong>: {h}</div>)}</div>
+            })}</tbody>
+          </table></div>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }} className="stack">
+            {(Object.keys(ROLE_HELP) as Role[]).map((r) => <div key={r} className="faint"><strong style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{r}</strong> · {ROLE_HELP[r]}</div>)}
+          </div>
+        </Card>
       </div>
+
+      <NewTeamDialog open={dialog === 'team'} onClose={() => setDialog(null)} me={me} onDone={refresh} />
+      {teams && <InviteStaffDialog open={dialog === 'invite'} onClose={() => setDialog(null)} teams={teams} onDone={refresh} />}
     </>
   );
 };
 
-const InviteStaff: React.FC<{ teams: Team[]; onInvited: () => void }> = ({ teams, onInvited }) => {
+const NewTeamDialog: React.FC<{ open: boolean; onClose: () => void; me: Me; onDone: () => void }> = ({ open, onClose, me, onDone }) => {
+  const [name, setName] = useState('');
+  const action = useAction();
+  const toast = useToast();
+  const save = () => void action.run(async () => {
+    if (!name.trim()) throw new Error('Enter a team name.');
+    const { error } = await supabase.from('teams').insert({ org_id: me.orgId, name: name.trim() });
+    if (error) throw error;
+    toast(`Team "${name.trim()}" created`);
+    setName('');
+    onClose();
+    onDone();
+  });
+  return (
+    <Dialog open={open} onClose={onClose} onSubmit={save} title="New team" description="For example a batch, a role or a client."
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !name.trim()}>Create team</button></>}>
+      <Field label="Team name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="Backend, November batch" autoFocus /></Field>
+      {action.error && <Alert kind="error">{action.error}</Alert>}
+    </Dialog>
+  );
+};
+
+const InviteStaffDialog: React.FC<{ open: boolean; onClose: () => void; teams: Team[]; onDone: () => void }> = ({ open, onClose, teams, onDone }) => {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<Role>('manager');
@@ -140,60 +167,63 @@ const InviteStaff: React.FC<{ teams: Team[]; onInvited: () => void }> = ({ teams
   const [copied, setCopied] = useState(false);
   const action = useAction();
 
-  const invite = (e: React.FormEvent) => {
-    e.preventDefault();
-    void action.run(async () => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) throw new Error('Your sign-in has expired. Sign in again.');
-      const res = await fetch(`${API_URL}/v1/staff/invite`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: email.trim(), role, team_ids: role === 'admin' ? [] : teamIds, display_name: displayName.trim() || null, redirect_to: window.location.origin }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const messages: Record<string, string> = {
-          admins_only: 'Only admins can invite staff.', bad_email: 'Check the email address.',
-          in_another_organization: 'That person already belongs to another organization.',
-        };
-        throw new Error(messages[body.error] ?? 'Could not create the invitation. Try again.');
-      }
-      setLink(body.link);
-      setCopied(false);
-      setEmail('');
-      setDisplayName('');
-      onInvited();
+  const close = () => { setLink(null); setEmail(''); setDisplayName(''); setTeamIds([]); onClose(); };
+  const invite = () => void action.run(async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Your sign-in has expired. Sign in again.');
+    const res = await fetch(`${API_URL}/v1/staff/invite`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email: email.trim(), role, team_ids: role === 'admin' ? [] : teamIds, display_name: displayName.trim() || null, redirect_to: window.location.origin }),
     });
-  };
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const messages: Record<string, string> = {
+        admins_only: 'Only admins can invite staff.', bad_email: 'Check the email address.',
+        in_another_organization: 'That person already belongs to another organization.',
+      };
+      throw new Error(messages[body.error] ?? 'Could not create the invitation. Try again.');
+    }
+    setLink(body.link);
+    setCopied(false);
+    onDone();
+  });
 
   return (
-    <form className="card stack" onSubmit={invite}>
-      <h2>Invite staff</h2>
-      <div className="form-grid">
-        <label className="field">Email<input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-        <label className="field">Name<input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={120} /></label>
-        <label className="field">Role
-          <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            <option value="manager">Manager</option><option value="coach">Coach</option><option value="admin">Admin</option>
-          </select>
-        </label>
-      </div>
-      {role !== 'admin' && (
-        <div className="row">{teams.length === 0 ? <span className="faint">Add a team first.</span> : teams.map((t) => (
-          <label key={t.id} className="row faint"><input type="checkbox" checked={teamIds.includes(t.id)}
-            onChange={(e) => setTeamIds((ids) => (e.target.checked ? [...ids, t.id] : ids.filter((x) => x !== t.id)))} /> {t.name}</label>
-        ))}</div>
+    <Dialog open={open} onClose={close} onSubmit={link ? close : invite} title="Invite staff" description="They get a one-time link to choose a password and sign in."
+      footer={link
+        ? <><button type="button" className="btn" onClick={() => void copyText(link).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy link'}</button><button type="submit" className="btn btn-primary">Done</button></>
+        : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !email.trim()}><UserPlus size={14} /> Create invitation</button></>}>
+      {link ? (
+        <>
+          <Alert kind="ok">Invitation ready for {email}. Send them this link privately; it works once.</Alert>
+          <input className="input mono" readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" style={{ fontSize: 12 }} />
+        </>
+      ) : (
+        <>
+          <div className="form-grid">
+            <Field label="Email"><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus /></Field>
+            <Field label="Name"><input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={120} placeholder="Shown to your team" /></Field>
+            <Field label="Role" hint={ROLE_HELP[role]} full>
+              <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+                <option value="manager">Manager</option><option value="coach">Coach</option><option value="admin">Admin</option>
+              </select>
+            </Field>
+          </div>
+          {role !== 'admin' && (
+            <div className="field"><span className="field-label">Teams</span>
+              {teams.length === 0 ? <span className="faint">Create a team first.</span> : (
+                <div className="row" style={{ gap: 14 }}>{teams.map((t) => (
+                  <label key={t.id} className="check"><input type="checkbox" checked={teamIds.includes(t.id)}
+                    onChange={(e) => setTeamIds((ids) => (e.target.checked ? [...ids, t.id] : ids.filter((x) => x !== t.id)))} />{t.name}</label>
+                ))}</div>
+              )}
+            </div>
+          )}
+        </>
       )}
-      {action.error && <Notice kind="error">{action.error}</Notice>}
-      <div><button className="btn primary" type="submit" disabled={action.busy || !email.trim()}>Create invitation link</button></div>
-      {link && (
-        <div className="stack">
-          <Notice kind="ok">Invitation ready. Send this one-time link to them privately; it lets them choose a password.</Notice>
-          <div className="row"><input className="input mono" readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" />
-            <button className="btn" type="button" onClick={() => void copyText(link).then(setCopied)}>{copied ? 'Copied' : 'Copy'}</button></div>
-        </div>
-      )}
-    </form>
+      {action.error && <Alert kind="error">{action.error}</Alert>}
+    </Dialog>
   );
 };
