@@ -47,6 +47,21 @@ const deps: Deps = {
     prices,
   },
   randomToken,
+  staff: {
+    async userIdFromJwt(jwt) {
+      const { data, error } = await db.auth.getUser(jwt);
+      return error ? null : data.user?.id ?? null;
+    },
+    async signInLink(email, redirectTo) {
+      // A new person gets an invite link; someone who already has a login, a sign-in link.
+      let r = await db.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo } });
+      if (r.error && /already|registered|exists/i.test(r.error.message)) {
+        r = await db.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } });
+      }
+      if (r.error || !r.data?.user) throw new Error(`sign-in link: ${r.error?.message ?? 'no user'}`);
+      return { userId: r.data.user.id, link: r.data.properties.action_link };
+    },
+  },
   waitUntil: (p) => (globalThis as any).EdgeRuntime?.waitUntil?.(p),
   log: (line, extra) => console.log(line, extra ? JSON.stringify(extra) : ''),
 };

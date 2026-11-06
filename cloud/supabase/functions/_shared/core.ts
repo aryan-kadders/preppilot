@@ -29,6 +29,13 @@ export interface Deps {
     prices?: Record<string, [number, number]>;
   };
   randomToken(): string;
+  /** Dashboard (staff) routes: Supabase Auth, through the service role. */
+  staff?: {
+    /** The user id behind a dashboard session's access token, or null. */
+    userIdFromJwt(jwt: string): Promise<string | null>;
+    /** Creates (or finds) the person and returns a one-time sign-in link for them. */
+    signInLink(email: string, redirectTo: string | undefined): Promise<{ userId: string; link: string }>;
+  };
   /** Keeps work alive after the response is sent (EdgeRuntime.waitUntil). */
   waitUntil?(p: Promise<unknown>): void;
   log?(line: string, extra?: Record<string, unknown>): void;
@@ -114,6 +121,7 @@ export function routeOf(url: string): string {
 
 export async function handle(req: Request, deps: Deps): Promise<Response> {
   const route = routeOf(req.url);
+  if (route.startsWith('/v1/staff/')) return staffRoute(req, route, deps);
   try {
     if (req.method !== 'POST' && !(req.method === 'GET' && route === '/v1/me')) {
       return json(405, { error: 'method_not_allowed' });
@@ -205,4 +213,52 @@ async function refresh(req: Request, deps: Deps): Promise<Response> {
     access_token: t.access, refresh_token: t.refresh, device_id: r.device_id,
     access_expires_at: r.access_expires_at, refresh_expires_at: r.refresh_expires_at,
   });
+}
+
+// ─────────────────────────── dashboard (staff) routes ───────────────────────────
+// Called from the manager dashboard in a browser: CORS, and the caller's
+// Supabase Auth session instead of a device token.
+
+const CORS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-max-age': '600',
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function staffRoute(req: Request, route: string, deps: Deps): Promise<Response> {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  try {
+    if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' }, CORS);
+    if (!deps.staff) return json(503, { error: 'staff_routes_unavailable' }, CORS);
+    const jwt = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    const adminId = jwt ? await deps.staff.userIdFromJwt(jwt) : null;
+    if (!adminId) return json(401, { error: 'not_signed_in' }, CORS);
+
+    if (route === '/v1/staff/invite') {
+      // Checked first, so nobody but an admin can make the server create a login.
+      if ((await deps.rpc('pp_staff_role', { p_user: adminId })) !== 'admin') return json(403, { error: 'admins_only' }, CORS);
+      const body = await readJson(req);
+      const email = String(body?.email ?? '').trim().toLowerCase();
+      const role = String(body?.role ?? '');
+      const teamIds: unknown[] = Array.isArray(body?.team_ids) ? body!.team_ids : [];
+      if (!EMAIL_RE.test(email) || email.length > 254) return json(400, { error: 'bad_email' }, CORS);
+      if (!['admin', 'manager', 'coach'].includes(role)) return json(400, { error: 'bad_role' }, CORS);
+      if (!teamIds.every(isUuid)) return json(400, { error: 'bad_team' }, CORS);
+      const redirectTo = typeof body?.redirect_to === 'string' && /^https?:\/\//.test(body.redirect_to) ? body.redirect_to : undefined;
+      const { userId, link } = await deps.staff.signInLink(email, redirectTo);
+      const r = await deps.rpc('pp_admin_add_staff', {
+        p_admin: adminId, p_user: userId, p_role: role, p_team_ids: teamIds,
+        p_display_name: typeof body?.display_name === 'string' ? body.display_name.slice(0, 120) : null,
+      });
+      if (r?.error) return json(r.error === 'forbidden' ? 403 : 409, { error: r.error }, CORS);
+      return json(200, { user_id: userId, link }, CORS);
+    }
+    return json(404, { error: 'not_found' }, CORS);
+  } catch (e) {
+    deps.log?.('[api] staff route failed', { route, error: String((e as Error)?.message ?? e).slice(0, 300) });
+    return json(500, { error: 'internal_error' }, CORS);
+  }
 }

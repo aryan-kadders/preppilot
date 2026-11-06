@@ -13,6 +13,7 @@ let db: any;
 const ids: Record<string, string> = {};
 const calls: Array<{ url: string; init: any }> = [];
 let geminiReply: (url: string, body: any) => Response;
+const jwts = new Map<string, string>();
 
 const sse = (events: unknown[]) => new Response(new ReadableStream({
   start(c) {
@@ -35,6 +36,15 @@ const deps = (): Deps => ({
   },
   env: { geminiKey: 'g-key', deepgramKey: 'd-key', minAppVersion: '3.0.0' },
   randomToken,
+  staff: {
+    async userIdFromJwt(jwt: string) { return jwts.get(jwt) ?? null; },
+    async signInLink(email: string) {
+      const found = await db.admin.query('select id from auth.users where email = $1', [email]);
+      const id = found.rows[0]?.id ?? randomUUID();
+      if (!found.rows.length) await db.admin.query('insert into auth.users (id, email) values ($1, $2)', [id, email]);
+      return { userId: id, link: `https://proj.supabase.co/auth/v1/verify?token=t-${id.slice(0, 8)}` };
+    },
+  },
   log: () => {},
 });
 
@@ -234,5 +244,49 @@ describe('a session', () => {
     const session = await (await call('/v1/session/start', { token: a.access_token, body: {} })).json();
     const r = await call('/v1/chat', { token: b.access_token, session: session.session_id, body: { messages: [{ content: 'hi' }] } });
     assert.equal(r.status, 409);
+  });
+});
+
+describe('dashboard: inviting staff', () => {
+  const invite = (jwt: string | null, body: unknown, method = 'POST') => handle(new Request(`${BASE}/v1/staff/invite`, {
+    method,
+    headers: { 'content-type': 'application/json', ...(jwt ? { authorization: `Bearer ${jwt}` } : {}) },
+    ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
+  }), deps());
+
+  test('the browser preflight is answered, with CORS on every reply', async () => {
+    const pre = await invite(null, null, 'OPTIONS');
+    assert.equal(pre.status, 204);
+    assert.equal(pre.headers.get('access-control-allow-origin'), '*');
+    assert.match(pre.headers.get('access-control-allow-headers') ?? '', /authorization/);
+    const r = await invite(null, {});
+    assert.equal(r.status, 401);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+  });
+
+  test('an admin invites a manager into a team and gets a one-time sign-in link', async () => {
+    jwts.set('admin-jwt', ids.admin);
+    const r = await invite('admin-jwt', { email: 'New.Manager@Example.com', role: 'manager', team_ids: [ids.team], display_name: 'Priya' });
+    assert.equal(r.status, 200);
+    const body = await r.json();
+    assert.match(body.link, /^https:\/\/proj\.supabase\.co\/auth\/v1\/verify/);
+    const staff = (await db.admin.query('select s.role, s.display_name, (select count(*) from public.staff_teams st where st.user_id = s.user_id)::int as teams from public.staff s join auth.users u on u.id = s.user_id where u.email = $1', ['new.manager@example.com'])).rows[0];
+    assert.deepEqual(staff, { role: 'manager', display_name: 'Priya', teams: 1 });
+  });
+
+  test('a manager cannot invite, and nothing is created', async () => {
+    const managerId = (await db.admin.query(`select u.id from auth.users u where u.email = 'new.manager@example.com'`)).rows[0].id;
+    jwts.set('manager-jwt', managerId);
+    const before = (await db.admin.query('select count(*)::int as n from auth.users')).rows[0].n;
+    const r = await invite('manager-jwt', { email: 'sneaky@example.com', role: 'admin', team_ids: [] });
+    assert.equal(r.status, 403);
+    assert.equal((await db.admin.query('select count(*)::int as n from auth.users')).rows[0].n, before);
+  });
+
+  test('bad input is refused before anything happens', async () => {
+    jwts.set('admin-jwt', ids.admin);
+    assert.equal((await (await invite('admin-jwt', { email: 'nope', role: 'manager' })).json()).error, 'bad_email');
+    assert.equal((await (await invite('admin-jwt', { email: 'a@b.co', role: 'owner' })).json()).error, 'bad_role');
+    assert.equal((await (await invite('admin-jwt', { email: 'a@b.co', role: 'coach', team_ids: ['x'] })).json()).error, 'bad_team');
   });
 });

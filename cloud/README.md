@@ -100,11 +100,36 @@ They start a private Postgres with the local `initdb` and `pg_ctl` (PostgreSQL
 `TEST_DATABASE_URL` at an empty database as a superuser, such as a
 `postgres:16` container.
 
+## Manager dashboard (`dashboard/`)
+
+A React app for admins, managers and coaches. It signs in with Supabase Auth
+and reads everything through the same row-level security, so each person sees
+only their teams.
+
+| Page | What it does |
+|---|---|
+| Candidates | Search and filter, minutes left, slot, status; add a candidate with starting minutes |
+| Candidate | Give or take back minutes, create an invite code (shown once), book slots (repeat on weekdays), assignments, computers with Sign out, sessions with time, AI cost and coach notes, archive |
+| Usage & cost | Minutes, sessions, AI answers and estimated cost per candidate for 7/30/90 days; CSV export |
+| Teams & staff | Teams; staff roles and team membership; invite staff (admins), which returns a one-time link to send |
+| Audit log | Admins only |
+
+Run it locally (`npm install`, then `npm run dev`, at http://localhost:3000)
+or build it (`npm run build`) and host `dist/` on any static host (Vercel,
+Netlify, Cloudflare Pages). Add the hosted address under Supabase
+**Authentication → URL Configuration** (Site URL and Redirect URLs), so invite
+and password-reset links come back to it. `src/config.ts` holds the project URL
+and its publishable key, which is meant for browsers; never put the secret key
+in the dashboard.
+
+Staff invitations: `POST /v1/staff/invite` on the `api` function, with the
+admin's Supabase session token. The function checks the caller is an admin
+before it creates a login, then returns a one-time link (an invite for new
+people, a sign-in link for existing ones).
+
 ## Not in Phase 1
 
 - The desktop sign-in and session client (Phase 2).
-- The manager dashboard (Phase 3); until then, managers use the SQL Editor or
-  Supabase's table editor.
 - Rate limits, monitoring and backups (Phase 4).
 - Measuring Deepgram audio per candidate: the app streams to Deepgram
   directly, so transcription cost is read from Deepgram's own usage report.

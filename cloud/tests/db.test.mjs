@@ -284,3 +284,57 @@ describe('minutes, slots and sessions', () => {
     assert.deepEqual(st.assignments, []);
   });
 });
+
+describe('dashboard read models and staff actions', () => {
+  test('the candidate overview follows the same access rules as the tables', async () => {
+    const names = async (who) => db.asUser(user(who), async (q) => (await q('select name from public.candidate_overview')).rows.map((r) => r.name));
+    assert.ok((await names('manager1')).includes('Asha'));
+    assert.ok(!(await names('manager1')).includes('Ravi'));
+    assert.deepEqual(await names('outsider'), []);
+    const row = await db.asUser(user('manager1'), async (q) => (await q(`select team_name, balance_seconds, in_session from public.candidate_overview where id = $1`, [ids.cand1])).rows[0]);
+    assert.equal(row.team_name, 'Backend');
+    assert.equal(typeof row.balance_seconds, 'number');
+  });
+
+  test('the usage report covers only what the caller may see', async () => {
+    const report = async (who) => db.asUser(user(who), async (q) =>
+      (await q(`select candidate_name, cost_usd from public.pp_usage_report(now() - interval '1 year', now() + interval '1 year')`)).rows);
+    const m1 = await report('manager1');
+    assert.ok(m1.every((r) => r.candidate_name !== 'Ravi'));
+    assert.ok((await report('admin')).some((r) => r.candidate_name === 'Ravi'));
+    assert.deepEqual(await report('outsider'), []);
+  });
+
+  test('only an admin adds staff, into their own organization and teams', async () => {
+    const newcomer = randomUUID();
+    await db.admin.query(`insert into auth.users (id, email) values ($1, 'coach2@example.com')`, [newcomer]);
+    const add = (by, teams) => db.asService(async (q) => (await q(`select public.pp_admin_add_staff($1, $2, 'coach', $3::uuid[], 'Coach Two') as r`, [by, newcomer, teams])).rows[0].r);
+    assert.equal((await add(user('manager1'), [ids.team1])).error, 'forbidden');
+    const ok = await add(user('admin'), [ids.team1]);
+    assert.equal(ok.role, 'coach');
+    const seen = await visibleCandidatesAs(newcomer);
+    assert.ok(seen.includes('Asha') && !seen.includes('Ravi'), 'the new coach sees their team only');
+    await assert.rejects(db.asUser(user('admin'), (q) => q(`select public.pp_admin_add_staff($1, $2, 'coach', '{}', null)`, [user('admin'), newcomer])), /permission denied/);
+    const elsewhere = await db.asService(async (q) => (await q(`select public.pp_admin_add_staff($1, $2, 'manager', '{}', null) as r`, [user('outsider'), newcomer])).rows[0].r);
+    assert.equal(elsewhere.error, 'in_another_organization');
+  });
+
+  test('archiving a candidate signs out their devices and ends their session', async () => {
+    const c = await db.asUser(user('manager1'), async (q) => {
+      const id = (await q(`insert into public.candidates (org_id, team_id, name) values ($1, $2, 'Leaving') returning id`, [ids.org, ids.team1])).rows[0].id;
+      await q('select public.pp_grant_minutes($1, 10)', [id]);
+      await q(`insert into public.slots (candidate_id, starts_at, ends_at) values ($1, now() - interval '1 minute', now() + interval '1 hour')`, [id]);
+      return id;
+    });
+    const d = await newDevice(c);
+    const s = await svc('select public.pp_session_start($1, null) as r', [d.deviceId]);
+    assert.equal(s.status, 'open');
+    await assert.rejects(db.asUser(user('coach1'), (q) => q('select public.pp_archive_candidate($1)', [c])), /forbidden/);
+    await db.asUser(user('manager1'), (q) => q('select public.pp_archive_candidate($1)', [c]));
+    assert.equal((await svc('select public.pp_authenticate($1) as r', [sha(d.access)])).error, 'device_revoked');
+    const ended = (await db.admin.query('select end_reason from public.sessions where id = $1', [s.session_id])).rows[0].end_reason;
+    assert.equal(ended, 'revoked');
+  });
+});
+
+const visibleCandidatesAs = (userId) => db.asUser(userId, async (q) => (await q('select name from public.candidates order by name')).rows.map((r) => r.name));
