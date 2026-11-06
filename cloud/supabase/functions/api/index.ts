@@ -2,9 +2,12 @@
 // the logic and its tests live in ../_shared.
 //
 // Secrets (supabase secrets set ...): GEMINI_API_KEY, DEEPGRAM_API_KEY,
-// optional MIN_APP_VERSION and GEMINI_PRICES ('{"model":[in,out]}' USD per 1M).
+// ANTHROPIC_API_KEY (optional: Claude answers once it is set), MIN_APP_VERSION,
+// MODEL_PRICES ('{"model":[in,out]}' USD per 1M; GEMINI_PRICES still read) and
+// MODEL_ROUTES ('{"fast":["claude:claude-haiku-5-5",...],"long":[...]}').
 // SUPABASE_URL and the server key are provided by Supabase.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import Anthropic from 'npm:@anthropic-ai/sdk@0.127.0';
 import { handle, randomToken, type Deps } from '../_shared/core.ts';
 
 const env = (name: string, required = true): string => {
@@ -30,8 +33,18 @@ const db = createClient(env('SUPABASE_URL'), serverKey(), {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-let prices: Deps['env']['prices'];
-try { prices = Deno.env.get('GEMINI_PRICES') ? JSON.parse(Deno.env.get('GEMINI_PRICES')!) : undefined; } catch { prices = undefined; }
+// A malformed optional secret is ignored (and logged), never fatal.
+function jsonSecret<T>(...names: string[]): T | undefined {
+  for (const name of names) {
+    const raw = Deno.env.get(name);
+    if (!raw) continue;
+    try { return JSON.parse(raw) as T; } catch { console.log(`[api] ignoring malformed secret ${name}`); }
+  }
+  return undefined;
+}
+
+const anthropicKey = env('ANTHROPIC_API_KEY', false);
+const anthropic = anthropicKey ? new Anthropic({ apiKey: anthropicKey, maxRetries: 0 }) : undefined;
 
 const deps: Deps = {
   async rpc(fn, args) {
@@ -44,8 +57,10 @@ const deps: Deps = {
     geminiKey: env('GEMINI_API_KEY', false),
     deepgramKey: env('DEEPGRAM_API_KEY', false),
     minAppVersion: env('MIN_APP_VERSION', false) || undefined,
-    prices,
+    prices: jsonSecret('MODEL_PRICES', 'GEMINI_PRICES'),
+    routes: jsonSecret('MODEL_ROUTES'),
   },
+  anthropic: anthropic as unknown as Deps['anthropic'],
   randomToken,
   staff: {
     async userIdFromJwt(jwt) {

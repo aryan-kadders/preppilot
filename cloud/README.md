@@ -76,9 +76,21 @@ Errors: `401 invalid_token` (refresh), `403 device_revoked` (sign out),
    npx supabase functions deploy api --no-verify-jwt
    npx supabase secrets set GEMINI_API_KEY=... DEEPGRAM_API_KEY=...
    ```
-   Optional: `MIN_APP_VERSION=3.1.0`, and `GEMINI_PRICES='{"gemini-3.1-flash-lite":[0.10,0.40],"gemini-3.8-flash":[0.30,2.50]}'`
-   (USD per 1M input/output tokens; the built-in values are estimates for the
-   usage report).
+   Optional:
+   - `ANTHROPIC_API_KEY`: Claude answers first once it is set (Haiku 5.5 for
+     live answers, Sonnet 5.5 for whole-project builds); Gemini stays as the
+     fallback. Without it, Gemini answers alone. No redeploy needed.
+   - `MODEL_ROUTES`: the order models are tried in, per tier, e.g.
+     `{"fast":["claude:claude-haiku-5-5","gemini:gemini-3.1-flash-lite"],"long":["claude:claude-sonnet-5-5","gemini:gemini-3.8-flash"]}`.
+     Default: `_shared/models.ts`.
+   - `MODEL_PRICES` (USD per 1M tokens, `{"model":[input,output]}`) to match your
+     bills; `GEMINI_PRICES` is still read.
+   - `MIN_APP_VERSION=3.1.0`.
+
+   How answers are routed: each model gets until its first words (6 s live,
+   20 s builds) to start; an error, a refusal or a silence before that moves
+   to the next model without the candidate seeing it. Usage is billed to the
+   model that actually answered; the built-in Gemini prices are estimates.
 4. Create the first admin. Sign up once under **Authentication → Users**, then
    run this in the SQL Editor:
    ```sql

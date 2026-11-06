@@ -13,7 +13,9 @@
 // `error: "time_quota_exceeded"`, which that client already reports as a
 // plan limit instead of a broken provider.
 
-import { geminiChat, type ChatBody } from './gemini.ts';
+import { chat, type ChatBody } from './router.ts';
+import type { AnthropicLike } from './claude.ts';
+import type { Tier } from './models.ts';
 import { deepgramGrant } from './deepgram.ts';
 
 export interface Deps {
@@ -27,7 +29,11 @@ export interface Deps {
     minAppVersion?: string;
     /** USD per 1M tokens, keyed by model: { "<model>": [input, output] }. */
     prices?: Record<string, [number, number]>;
+    /** Model order per tier ("provider:model"), overriding models.ts DEFAULT_ROUTES. */
+    routes?: Partial<Record<Tier, string[]>>;
   };
+  /** The Anthropic SDK client, present only when ANTHROPIC_API_KEY is set. */
+  anthropic?: AnthropicLike;
   randomToken(): string;
   /** Dashboard (staff) routes: Supabase Auth, through the service role. */
   staff?: {
@@ -163,7 +169,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         if (route === '/v1/stt/token') return await deepgramGrant(deps);
         const body = await readJson(req);
         if (!body || !Array.isArray(body.messages) || body.messages.length === 0) return json(400, { error: 'bad_request' });
-        return await geminiChat(body as ChatBody, sessionId, req.signal, deps);
+        return await chat(body as ChatBody, sessionId, req.signal, deps);
       }
       default:
         return json(404, { error: 'not_found' });

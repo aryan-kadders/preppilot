@@ -6,7 +6,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { startDb } from './helpers/db.mjs';
 import { handle, normalizeInviteCode, compareVersions, routeOf, randomToken, type Deps } from '../supabase/functions/_shared/core.ts';
-import { toGeminiRequest, pickModel, costUsd, FAST_MODEL, LONG_MODEL } from '../supabase/functions/_shared/gemini.ts';
+import { toGeminiRequest } from '../supabase/functions/_shared/gemini.ts';
+import { costUsd } from '../supabase/functions/_shared/models.ts';
+
+const FAST_MODEL = 'gemini-3.1-flash-lite';
+const LONG_MODEL = 'gemini-3.8-flash';
 
 const BASE = 'https://proj.supabase.co/functions/v1/api';
 let db: any;
@@ -112,10 +116,9 @@ describe('helpers', () => {
     assert.equal(r.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
     assert.equal((toGeminiRequest({ messages: [{ content: 'x' }] }, LONG_MODEL) as any).generationConfig.thinkingConfig.thinkingLevel, 'low');
   });
-  test('long builds use Flash; everything else Flash-Lite; cost from the price table', () => {
-    assert.equal(pickModel({ messages: [], model_tier: 'long' }), LONG_MODEL);
-    assert.equal(pickModel({ messages: [], fast_mode: true } as any), FAST_MODEL);
-    assert.equal(costUsd(FAST_MODEL, 1_000_000, 1_000_000, { [FAST_MODEL]: [0.1, 0.4] }), 0.5);
+  test('cost from the price table, a secret overriding the defaults', () => {
+    assert.equal(costUsd(FAST_MODEL, 1_000_000, 1_000_000, { [FAST_MODEL]: [0.2, 0.8] }), 1);
+    assert.equal(costUsd('claude-haiku-5-5', 1_000_000, 1_000_000, {}), 0.6);
   });
 });
 
@@ -166,10 +169,10 @@ describe('a session', () => {
     const session = await start.json();
     assert.equal(session.status, 'open');
 
-    geminiReply = (url) => url.includes('stream')
-      ? sse([{ candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text: 'React is ' }] } }] },
-             { candidates: [{ content: { parts: [{ text: 'a UI library.' }] } }], usageMetadata: { promptTokenCount: 6000, candidatesTokenCount: 40, thoughtsTokenCount: 10 } }])
-      : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 1 } }), { status: 200 });
+    geminiReply = (_url, body) => body.contents.at(-1).parts[0].text === 'Say OK'
+      ? sse([{ candidates: [{ content: { parts: [{ text: 'OK' }] } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 1 } }])
+      : sse([{ candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text: 'React is ' }] } }] },
+             { candidates: [{ content: { parts: [{ text: 'a UI library.' }] } }], usageMetadata: { promptTokenCount: 6000, candidatesTokenCount: 40, thoughtsTokenCount: 10 } }]);
 
     const streamed = await call('/v1/chat', { token: s.access_token, session: session.session_id,
       body: { messages: [{ role: 'user', content: 'What is React?' }], system: 'be brief', stream: true } });
