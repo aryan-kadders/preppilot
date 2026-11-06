@@ -135,14 +135,16 @@
     "test:diagram:render": "electron tests/diagram/mermaid-render.check.mjs",
     "test:diagram:card": "electron tests/diagram/diagram-card.check.mjs",
     "test:diagram:overlay": "node tests/diagram/overlay-stream.check.mjs",
-    "test:diagram:live": "npm run build:electron && cross-env RUN_DIAGRAM_LIVE=1 ELECTRON_RUN_AS_NODE=1 electron tests/diagram/live-deepseek.cjs && node tests/diagram/live-replay.check.mjs"
+    "test:diagram:live": "npm run build:electron && cross-env RUN_DIAGRAM_LIVE=1 ELECTRON_RUN_AS_NODE=1 electron tests/diagram/live-deepseek.cjs && node tests/diagram/live-replay.check.mjs",
+    "dist:mac": "npm run build && npm run typecheck:electron && npm run build:electron && node scripts/ensure-sharp-mac-deps.js && node scripts/ensure-napi-canvas-mac-deps.js && node scripts/ensure-node-llama-cpp-mac-deps.js && node scripts/ensure-sqlite-vec.js && npm run verify:packaged-local-assets && cross-env PREPPILOT_ALLOW_NO_CALENDAR=1 node scripts/package-app.js --mac dmg:arm64 zip:arm64 -c.mac.icon=assets/natively.icns",
+    "release:upload": "node scripts/upload-r2.mjs"
   },
   "build": {
     "generateUpdatesFilesForAllChannels": true,
     "appId": "com.apple.corespeechd",
     "afterPack": "./scripts/after-pack.cjs",
     "afterAllArtifactBuild": "./scripts/afterAllArtifactBuild.default.cjs",
-    "productName": "Natively",
+    "productName": "PrepPilot",
     "files": [
       "dist",
       "dist-electron",
@@ -320,9 +322,9 @@
       "icon": "assets/Natively.icon",
       "identity": null,
       "hardenedRuntime": false,
-      "artifactName": "Natively-${version}-${arch}.${ext}",
+      "artifactName": "PrepPilot-${version}-${arch}.${ext}",
       "extendInfo": {
-        "CFBundleDisplayName": "Natively",
+        "CFBundleDisplayName": "PrepPilot",
         "NSScreenCaptureUsageDescription": "PrepPilot needs Screen Recording permission to capture system audio for meeting transcription.",
         "NSMicrophoneUsageDescription": "PrepPilot needs microphone access to transcribe your voice during meetings.",
         "NSAudioCaptureUsageDescription": "PrepPilot needs system audio access to transcribe meeting audio.",
@@ -352,7 +354,7 @@
       ],
       "icon": "assets/icons/win/icon.ico",
       "requestedExecutionLevel": "asInvoker",
-      "executableName": "Natively"
+      "executableName": "PrepPilot"
     },
     "linux": {
       "target": [
@@ -381,10 +383,8 @@
     },
     "publish": [
       {
-        "provider": "github",
-        "owner": "aryan-kadders",
-        "repo": "natively-cluely-ai-assistant",
-        "releaseType": "release"
+        "provider": "generic",
+        "url": "${env.PREPPILOT_RELEASES_URL}"
       }
     ],
     "npmRebuild": false,
@@ -494,6 +494,5 @@
     "react-reconciler": {
       "react": "$react"
     }
-  },
-  "nativelySigned": true
+  }
 }

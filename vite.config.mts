@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execFileSync } from 'node:child_process'
 import { version } from './package.json'
+import { createRequire } from 'node:module'
 
 // Inject version so the React frontend can read it via import.meta.env.VITE_APP_VERSION
 process.env.VITE_APP_VERSION = version;
@@ -32,6 +33,11 @@ if (buildCommit === 'unknown') {
 process.env.VITE_BUILD_COMMIT = buildCommit.startsWith('unknown')
     ? buildCommit
     : `${buildCommit.slice(0, 12)}${buildCommit.endsWith('-dirty') ? '-dirty' : ''}`;
+
+// Where installers are published (scripts/lib/releases-url.cjs): the update
+// card's "download" fallback link. Empty when unset.
+const { resolveReleasesUrl } = createRequire(import.meta.url)('./scripts/lib/releases-url.cjs');
+process.env.VITE_RELEASES_URL = resolveReleasesUrl(__dirname);
 
 // https://vitejs.dev/config/
 export default defineConfig({

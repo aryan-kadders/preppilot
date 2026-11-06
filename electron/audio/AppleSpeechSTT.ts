@@ -48,7 +48,7 @@ export interface AppleSpeechLocales {
 // (= disguise-name.cjs darwin value + "-asr"). Stealth is reverted, so the name
 // carries the brand like the rest of the app. Build + runtime are kept in sync
 // by scripts/__tests__/apple-speech-build.test.mjs.
-const APPLE_SPEECH_HELPER = 'Natively-asr';
+const APPLE_SPEECH_HELPER = 'PrepPilot-asr';
 
 /** Path to the compiled helper (packaged vs development). */
 export function appleSpeechExecutablePath(): string {

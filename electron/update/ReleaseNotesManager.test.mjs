@@ -35,19 +35,19 @@ test('release notes parser accepts GitHub H3 headings and emoji-decorated titles
 });
 
 // PrepPilot: release notes and updates come from this fork's own repository.
-test('release notes manager points at the published GitHub repository', () => {
+test('release notes come from PrepPilot\'s own release host, never upstream\'s GitHub', async () => {
+  // The address layout itself is covered by releasesUrl.test.mjs; here, the
+  // manager asks only that host, and a build without one (this test build:
+  // PREPPILOT_RELEASES_URL unset) asks nobody.
+  const { BAKED_RELEASES_URL, releaseNotesUrl } = await import(
+    pathToFileURL(path.resolve(__dirname, '../../dist-electron/electron/update/releasesUrl.js')).href
+  );
   const manager = ReleaseNotesManager.getInstance();
-  assert.equal(manager.repoOwner, 'aryan-kadders');
-  assert.equal(manager.repoName, 'natively-cluely-ai-assistant');
-});
-
-test('release notes lookup tries both tag spellings (V2.8.8 is published with a capital V)', () => {
-  const manager = ReleaseNotesManager.getInstance();
-  const base = 'https://api.github.com/repos/aryan-kadders/natively-cluely-ai-assistant/releases';
-  for (const version of ['2.8.8', 'v2.8.8', 'V2.8.8']) {
-    assert.deepEqual(manager.buildReleaseUrls(version), [`${base}/tags/v2.8.8`, `${base}/tags/V2.8.8`]);
+  for (const version of ['2.8.8', 'v2.8.8', 'V2.8.8', 'latest']) {
+    const urls = manager.buildReleaseUrls(version);
+    assert.deepEqual(urls, BAKED_RELEASES_URL ? [releaseNotesUrl(version)] : []);
+    assert.ok(urls.every((u) => !u.includes('github.com')));
   }
-  assert.deepEqual(manager.buildReleaseUrls('latest'), [`${base}/latest`]);
 });
 
 test('release notes parser ignores HTML comments, including "- " lines inside them', () => {

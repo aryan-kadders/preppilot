@@ -132,7 +132,7 @@ function verifyPackedNativeArch(appPath, targetArchName) {
         throw new Error(
             `[Arch Guard] FATAL: packed native binaries do not match the ${targetArchName} target:\n` +
             lines.join('\n') +
-            `\n\nThe ${targetArchName === 'x64' ? 'Intel (Natively.dmg)' : 'Apple-Silicon (Natively-arm64.dmg)'} build would crash on launch. ` +
+            `\n\nThe ${targetArchName === 'x64' ? 'Intel (PrepPilot-x64.dmg)' : 'Apple-Silicon (PrepPilot-arm64.dmg)'} build would crash on launch. ` +
             `Ensure scripts/rebuild-native-for-target.cjs (build.beforeBuild) is wired and ran for this arch.`
         );
     }
@@ -183,11 +183,11 @@ function enforceMainAppDisplayName(appOutDir, appName) {
 
     try {
         // CFBundleDisplayName = what Finder/Dock/Spotlight shows (BRAND). Safe to brand.
-        execSync(`/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Natively'" "${plistPath}"`, { stdio: 'pipe' });
+        execSync(`/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'PrepPilot'" "${plistPath}"`, { stdio: 'pipe' });
         // Do NOT touch CFBundleName — it must stay the disguise alias so Electron finds
         // "<alias> Helper.app". Setting it to the brand is the "Unable to find helper app"
         // launch crash.
-        console.log('[Main Display] Main app CFBundleDisplayName set to "Natively" (CFBundleName left as the disguise alias)');
+        console.log('[Main Display] Main app CFBundleDisplayName set to "PrepPilot" (CFBundleName left as the disguise alias)');
     } catch (err) {
         console.warn('[Main Display] PlistBuddy warning for main app:', err.message);
     }

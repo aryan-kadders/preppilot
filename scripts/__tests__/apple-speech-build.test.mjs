@@ -88,7 +88,7 @@ test('generated local helper is gitignored', () => {
 
 test('Apple Speech helper name matches the runtime lookup', () => {
   // Stealth is reverted: the helper carries the brand like the rest of the app
-  // (HELPER_NAME = disguise-name.cjs darwin value + "-asr" = "Natively-asr").
+  // (HELPER_NAME = disguise-name.cjs darwin value + "-asr" = "PrepPilot-asr").
   // The only invariant left is that the BUILT name equals what
   // electron/audio/AppleSpeechSTT.ts looks up, or Apple Speech STT silently
   // breaks at runtime (helper spawn ENOENT).

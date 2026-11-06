@@ -1,5 +1,6 @@
 
 import { net } from "electron";
+import { downloadUrl, releaseNotesUrl } from "./releasesUrl";
 
 const RELEASE_NOTE_BULLET_SECTIONS = new Set(["What's New", "Improvements", "Fixes", "Technical"]);
 const GITHUB_REQUEST_TIMEOUT_MS = 10000;
@@ -20,8 +21,6 @@ export interface ParsedReleaseNotes {
 export class ReleaseNotesManager {
     private static instance: ReleaseNotesManager;
     private cachedNotes: ParsedReleaseNotes | null = null;
-    private readonly repoOwner = "aryan-kadders";
-    private readonly repoName = "natively-cluely-ai-assistant";
 
     private constructor() { }
 
@@ -41,8 +40,9 @@ export class ReleaseNotesManager {
         console.log(`[ReleaseNotesManager] Fetching release notes for ${version}...`);
 
         try {
-            // Tags are published as both "v2.8.8" and "V2.8.8", and the tags
-            // endpoint is case-sensitive: try each spelling until one exists.
+            // PrepPilot publishes notes beside its installers, as
+            // release-notes/v<version>.json in GitHub's release shape
+            // ({ tag_name, body }); scripts/upload-r2.mjs writes them.
             let response: string | null = null;
             for (const url of this.buildReleaseUrls(version)) {
                 response = await this.makeRequest(url);
@@ -56,7 +56,8 @@ export class ReleaseNotesManager {
 
             const data = JSON.parse(response);
             const body = data.body || "";
-            const htmlUrl = data.html_url || "";
+            // The card's link downloads this computer's installer.
+            const htmlUrl = downloadUrl(process.platform, process.arch) || data.html_url || "";
             const tagName = data.tag_name || version; // Use tag_name from API if available
 
             const parsed = this.parseReleaseNotes(body, tagName, htmlUrl);
@@ -70,11 +71,9 @@ export class ReleaseNotesManager {
     }
 
     private buildReleaseUrls(version: string): string[] {
-        const base = `https://api.github.com/repos/${this.repoOwner}/${this.repoName}/releases`;
-        if (version === 'latest') return [`${base}/latest`];
-
-        const bare = version.trim().replace(/^v/i, '');
-        return [`${base}/tags/v${bare}`, `${base}/tags/V${bare}`];
+        // No release host baked into this build: there are no notes to fetch.
+        const url = releaseNotesUrl(version);
+        return url ? [url] : [];
     }
 
     private parseReleaseNotes(body: string, version: string, url: string): ParsedReleaseNotes {

@@ -91,7 +91,7 @@ dist/
 
 # Compiled Apple Speech helper. Built explicitly for local development and
 # injected per target architecture during electron-builder afterPack.
-/resources/apple-speech/Natively-asr
+/resources/apple-speech/PrepPilot-asr
 
 # Compiled Parakeet Neural Engine helper (Apple Silicon), the license notices
 # copied beside it, its SwiftPM build tree, and the FluidAudio source it is

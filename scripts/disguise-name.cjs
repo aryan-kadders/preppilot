@@ -36,9 +36,9 @@
 //     invokes electron-builder directly, so the committed value IS the release
 //     identity) and  "build" → "win" → "executableName".
 //   - package.json  →  "build" → "mac" → "extendInfo": CFBundleDisplayName =
-//     "Natively" and the NS*UsageDescription strings ("Natively needs …").
+//     "PrepPilot" and the NS*UsageDescription strings ("PrepPilot needs …").
 // ────────────────────────────────────────────────────────────────────────────
 module.exports = {
-  darwin: 'Natively',
-  win32: 'Natively',
+  darwin: 'PrepPilot',
+  win32: 'PrepPilot',
 };

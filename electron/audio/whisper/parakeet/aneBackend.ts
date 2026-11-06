@@ -34,7 +34,7 @@ export type ParakeetBackend = 'coreml-ane' | 'onnx';
 
 // MUST match scripts/build-parakeet-ane.js HELPER_NAME (disguise-name.cjs
 // darwin value + "-parakeet"). Guarded by scripts/__tests__/parakeet-ane-build.test.mjs.
-export const PARAKEET_ANE_HELPER = 'Natively-parakeet';
+export const PARAKEET_ANE_HELPER = 'PrepPilot-parakeet';
 
 /** The helper is built for macOS 14 (FluidAudio's floor). Darwin 23 = macOS 14. */
 const MIN_DARWIN_MAJOR = 23;

@@ -52,3 +52,19 @@ test('routes round-trip, and anything unknown goes to Candidates', () => {
   assert.deepEqual(parseRoute('#access_token=abc&type=invite'), { page: 'candidates' });
   assert.deepEqual(parseRoute('#/candidates/not-an-id'), { page: 'candidates' });
 });
+
+test('download links and the invite message', async () => {
+  const { normalizeReleasesUrl, downloadLinks, inviteMessage } = await import('../src/lib/downloads.ts');
+  assert.equal(normalizeReleasesUrl(' https://pub-x.r2.dev/ '), 'https://pub-x.r2.dev');
+  assert.equal(normalizeReleasesUrl('http://pub-x.r2.dev'), '');
+  assert.equal(normalizeReleasesUrl(undefined), '');
+  assert.deepEqual(downloadLinks('https://pub-x.r2.dev').map((l) => l.url),
+    ['https://pub-x.r2.dev/PrepPilot-mac-arm64.dmg', 'https://pub-x.r2.dev/PrepPilot-Setup-win-x64.exe']);
+  assert.deepEqual(downloadLinks(''), []);
+  const msg = inviteMessage('Kishan Patel', 'A146-5560-9438-D08B', 'https://pub-x.r2.dev');
+  assert.match(msg, /^Hi Kishan,/);
+  assert.match(msg, /PrepPilot-mac-arm64\.dmg/);
+  assert.match(msg, /Settings › Account/);
+  assert.match(msg, /A146-5560-9438-D08B/);
+  assert.doesNotMatch(inviteMessage('K', 'X', ''), /https:/);
+});

@@ -161,7 +161,7 @@ test('renderer builds carry version and commit provenance', () => {
 });
 
 test('macOS Dock/Finder show the brand, and CFBundleName is left to the builder default', () => {
-  // Stealth reverted: productName IS the brand ("Natively"), so executable,
+  // Stealth reverted: productName IS the brand ("PrepPilot"), so executable,
   // CFBundleName (builder default) and helpers all read the brand too.
   // CFBundleDisplayName still carries the brand explicitly (Dock, Finder,
   // Spotlight, permission-prompt titles, notifications). CFBundleName must stay
@@ -171,8 +171,8 @@ test('macOS Dock/Finder show the brand, and CFBundleName is left to the builder 
   const extendInfo = pkg.build?.mac?.extendInfo ?? {};
   assert.equal(
     extendInfo.CFBundleDisplayName,
-    'Natively',
-    'build.mac.extendInfo.CFBundleDisplayName must be "Natively" (Dock/Finder brand)'
+    'PrepPilot',
+    'build.mac.extendInfo.CFBundleDisplayName must be "PrepPilot" (Dock/Finder brand)'
   );
   assert.ok(
     !('CFBundleName' in extendInfo),

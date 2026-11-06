@@ -24,7 +24,17 @@ import { useResolvedTheme } from '../hooks/useResolvedTheme';
 import { useT } from '../i18n';
 import { bareVersion as stripVersionPrefix, digestReleaseNotes } from '../lib/releaseNotesDigest.mjs';
 
-export const LATEST_RELEASE_URL = 'https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/releases/latest';
+// PrepPilot's release host (scripts/lib/releases-url.cjs). The update card
+// normally links to the download URL the main process put in the notes (this
+// computer's exact installer, electron/update/releasesUrl.ts); this is the
+// fallback when notes could not be fetched. The renderer cannot tell an Intel
+// Mac from Apple silicon, so a Mac gets the Apple-silicon installer, the only
+// Mac build published today. '' when the build has no host.
+const RELEASES_URL = import.meta.env.VITE_RELEASES_URL || '';
+const isWindowsRenderer = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
+export const LATEST_RELEASE_URL = RELEASES_URL
+    ? `${RELEASES_URL}/${isWindowsRenderer ? 'PrepPilot-Setup-win-x64.exe' : 'PrepPilot-mac-arm64.dmg'}`
+    : '';
 
 interface ReleaseNoteSection {
     title: string;

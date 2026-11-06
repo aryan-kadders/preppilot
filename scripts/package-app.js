@@ -176,6 +176,22 @@ function recoverFromKilledRun() {
   try { fs.unlinkSync(DISGUISE_MARKER); } catch { /* already cleared */ }
 }
 
+// The update feed (package.json "publish": ${env.PREPPILOT_RELEASES_URL}).
+// electron-builder bakes it into app-update.yml; without a host the build gets
+// a URL that never answers (.invalid is reserved), so the app finds no updates
+// instead of someone else's.
+{
+  const { ENV_NAME, resolveReleasesUrl } = require('./lib/releases-url.cjs');
+  const url = resolveReleasesUrl(path.join(__dirname, '..'));
+  if (url) {
+    process.env[ENV_NAME] = url;
+    console.log(`[package-app] Update feed: ${url}`);
+  } else {
+    process.env[ENV_NAME] = 'https://updates.invalid/preppilot';
+    console.warn(`[package-app] WARNING: ${ENV_NAME} is not set (env or .env): this build will not find updates.`);
+  }
+}
+
 // An installer built without the calendar client secret ships a calendar that
 // can never connect (scripts/lib/calendar-client-secret.cjs). Stop before
 // electron-builder runs, so the native addons are never touched. Unpacked `dir`
@@ -183,7 +199,9 @@ function recoverFromKilledRun() {
 {
   const { calendarSecretProblem, isUnpackedDirBuild } = require('./lib/calendar-client-secret.cjs');
   const problem = calendarSecretProblem(path.join(__dirname, '..'));
-  if (problem && isUnpackedDirBuild(builderArgs)) {
+  // PREPPILOT_ALLOW_NO_CALENDAR=1: a deliberate installer without Google
+  // Calendar sync (PrepPilot has no Google client of its own yet).
+  if (problem && (isUnpackedDirBuild(builderArgs) || process.env.PREPPILOT_ALLOW_NO_CALENDAR === '1')) {
     console.warn(`[package-app] WARNING: calendar sync will not work in this build. ${problem}`);
   } else if (problem) {
     console.error(`[package-app] Refusing to package: ${problem}`);

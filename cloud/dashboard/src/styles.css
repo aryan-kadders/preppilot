@@ -237,6 +237,9 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0; font-si
 .skeleton { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--bg-tile) 0%, var(--bg-button-hover) 50%, var(--bg-tile) 100%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+.download-links { display: flex; flex-direction: column; gap: 6px; }
+.download-links a { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary); text-decoration: none; padding: 10px 12px; background: var(--bg-input); border-radius: 10px; }
+.download-links a:hover { background: var(--bg-hover, var(--bg-input)); text-decoration: underline; }
 .code-box { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; letter-spacing: 3px; text-align: center; padding: 18px; background: var(--bg-input); border-radius: 12px; }
 
 /* ── Dialog: the Settings modal ──────────────────────────────── */

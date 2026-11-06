@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Archive, CalendarClock, CalendarPlus, ClipboardList, Copy, DollarSign, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
+import { Archive, CalendarClock, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import type { CandidateRow, Me, Route } from '../lib/types';
 import { dateTime, minutesLabel, money, relative, repeatedSlots, slotLabel } from '../lib/format';
 import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, Kpi, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
 import { StatusBadge } from './Candidates';
+import { RELEASES_URL } from '../config';
+import { downloadLinks, inviteMessage } from '../lib/downloads';
 
 interface Ledger { id: string; seconds: number; reason: string; note: string | null; created_at: string }
 interface Invite { id: string; created_at: string; expires_at: string; redeemed_at: string | null }
@@ -355,25 +357,31 @@ const MinutesDialog: React.FC<{ open: boolean; onClose: () => void; id: string; 
 
 const InviteDialog: React.FC<{ open: boolean; onClose: () => void; id: string; name: string; onDone: () => void }> = ({ open, onClose, id, name, onDone }) => {
   const [code, setCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'code' | 'message' | null>(null);
+  const links = downloadLinks(RELEASES_URL);
   const action = useAction();
   const create = () => void action.run(async () => {
     const { data, error } = await supabase.rpc('pp_create_invite', { p_candidate: id, p_ttl_days: 7 });
     if (error) throw error;
     setCode(data as string);
-    setCopied(false);
+    setCopied(null);
     onDone();
   });
   const close = () => { setCode(null); onClose(); };
   return (
     <Dialog open={open} onClose={close} onSubmit={code ? close : create} title="Invite code" description={`${name} enters it in PrepPilot under Settings › Account. It works once, within 7 days.`}
       footer={code
-        ? <><button type="button" className="btn" onClick={() => void copyText(code).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy code'}</button><button type="submit" className="btn btn-cta">Done</button></>
+        ? <><button type="button" className="btn" onClick={() => void copyText(code).then(() => setCopied('code'))}><Copy size={14} /> {copied === 'code' ? 'Copied' : 'Copy code'}</button><button type="button" className="btn" onClick={() => void copyText(inviteMessage(name, code, RELEASES_URL)).then(() => setCopied('message'))}><Copy size={14} /> {copied === 'message' ? 'Copied' : 'Copy message'}</button><button type="submit" className="btn btn-cta">Done</button></>
         : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy}><KeyRound size={14} /> Create code</button></>}>
       {code ? (
         <>
           <div className="code-box">{code}</div>
-          <Alert kind="info">This code is shown only now. Send it to {name} privately.</Alert>
+          <Alert kind="info">This code is shown only now. <b>Copy message</b> gives {name} the download links and the code together; send it privately.</Alert>
+          {links.length > 0 ? (
+            <div className="download-links">
+              {links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noreferrer"><Download size={14} /> {l.label}</a>)}
+            </div>
+          ) : <p className="muted" style={{ margin: 0, fontSize: 12 }}>Download links appear here once the app is published (VITE_RELEASES_URL).</p>}
         </>
       ) : <p className="muted" style={{ margin: 0 }}>A new code does not cancel earlier ones; unused codes simply expire.</p>}
       {action.error && <Alert kind="error">{action.error}</Alert>}

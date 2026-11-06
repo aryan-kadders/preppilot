@@ -19,7 +19,7 @@ const path = require('node:path');
 const MINIMUM_SDK_MAJOR = 26;
 const MINIMUM_MACOS_VERSION = '26.0';
 // Helper binary name — the per-platform app identity (disguise-name.cjs) plus
-// "-asr". Stealth is reverted, so this carries the brand ("Natively-asr") like
+// "-asr". Stealth is reverted, so this carries the brand ("PrepPilot-asr") like
 // the rest of the app. MUST stay in sync with electron/audio/AppleSpeechSTT.ts
 // and scripts/verify-packaged-local-assets.mjs — guarded by
 // scripts/__tests__/apple-speech-build.test.mjs.

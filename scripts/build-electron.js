@@ -84,9 +84,17 @@ if (!microsoftCalendar.clientId) {
   console.warn('[build-electron] MICROSOFT_CALENDAR_CLIENT_ID is not set (env or .env): the Outlook calendar row will be disabled in this build.');
 }
 
+// Where installers and updates are published (scripts/lib/releases-url.cjs).
+const { RELEASES_URL_EXPRESSION, ENV_NAME: RELEASES_URL_ENV, resolveReleasesUrl } = require('./lib/releases-url.cjs');
+const releasesUrl = resolveReleasesUrl(rootDir);
+if (!releasesUrl) {
+  console.warn(`[build-electron] ${RELEASES_URL_ENV} is not set (env or .env): this build will not check for updates.`);
+}
+
 const buildOptions = {
   entryPoints,
   define: {
+    [RELEASES_URL_EXPRESSION]: JSON.stringify(releasesUrl),
     [CALENDAR_SECRET_EXPRESSION]: JSON.stringify(calendarClientSecret),
     [MICROSOFT_ID_EXPRESSION]: JSON.stringify(microsoftCalendar.clientId),
     [MICROSOFT_TENANT_EXPRESSION]: JSON.stringify(microsoftCalendar.tenant),
