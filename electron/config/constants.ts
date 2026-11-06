@@ -14,6 +14,13 @@
  */
 export const TRIAL_SENTINEL_KEY = '__trial__' as const;
 
+/**
+ * PrepPilot Cloud: the in-memory Natively key while a candidate is signed in
+ * (services/cloud). It is never stored; LLMHelper sends such requests to the
+ * cloud's /v1/chat with the device's access token and session id instead.
+ */
+export const CLOUD_SENTINEL_KEY = '__preppilot_cloud__' as const;
+
 // Single source of truth for DOM capture character budget.
 // If changing, also update the sibling constant in src/constants/domCapture.ts to prevent drift.
 export const DOM_CONTEXT_MAX_CHARS = 25000;

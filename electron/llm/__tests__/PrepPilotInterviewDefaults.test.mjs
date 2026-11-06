@@ -71,7 +71,7 @@ describe('a long build is answered on Gemini Flash', () => {
   });
   test('LLMHelper skips the fast pick and starts the Gemini cascade at Flash, with a 15 s first-token budget', () => {
     const src = read('electron/LLMHelper.ts');
-    assert.match(src, /const largeBuild = routeOptions\?\.largeBuild === true && Boolean\(this\.client\) && !isMultimodal;/);
+    assert.match(src, /const largeBuild = routeOptions\?\.largeBuild === true && \(Boolean\(this\.client\) \|\| this\.nativelyKey === CLOUD_SENTINEL_KEY\) && !isMultimodal;/);
     assert.match(src, /const fastPick = !isMultimodal && !this\.useOllama && !largeBuild/);
     assert.match(src, /this\.streamGeminiTextCascade\(userContent, imagePaths, finalSystemPrompt, abortSignal, thinkingBudget, largeBuild \? 1 : 0\)/);
     assert.match(src, /const startIndex = Math\.max\(minStartIndex,/);

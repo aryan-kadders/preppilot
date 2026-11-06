@@ -84,10 +84,20 @@ export class DeepgramStreamingSTT extends EventEmitter {
      *  this same v1 live endpoint with the options below. */
     private readonly model: string;
 
-    constructor(apiKey: string, model?: string) {
+    /**
+     * PrepPilot Cloud: fetches a Deepgram key valid for 60 seconds (the
+     * server's /v1/stt/token). It only has to be valid when a connection
+     * opens, so every connect and reconnect asks for a fresh one; the real key
+     * never reaches this computer. Absent: `apiKey` is the account's own key.
+     */
+    private readonly tokenProvider: (() => Promise<string>) | null;
+    private pendingToken: string | null = null;
+
+    constructor(apiKey: string, model?: string, tokenProvider?: () => Promise<string>) {
         super();
         this.apiKey = apiKey;
         this.model = resolveSttModel('deepgram', model);
+        this.tokenProvider = tokenProvider ?? null;
     }
 
     /** What the connect options carry: an English-only model (Nova-3 Medical,
@@ -227,6 +237,22 @@ export class DeepgramStreamingSTT extends EventEmitter {
 
     private connect(): void {
         if (this.isConnecting) return;
+        if (this.tokenProvider && this.pendingToken === null) {
+            // Fetch the short-lived key first; connecting stays "in progress"
+            // meanwhile so a second connect() does not ask twice.
+            this.isConnecting = true;
+            this.tokenProvider().then((token) => {
+                this.isConnecting = false;
+                if (!this.shouldReconnect) return;
+                this.pendingToken = token;
+                this.connect();
+            }).catch((err) => {
+                this.isConnecting = false;
+                console.warn('[DeepgramStreaming] could not get a transcription key from PrepPilot Cloud:', err?.message ?? err);
+                if (this.shouldReconnect) this.scheduleReconnect();
+            });
+            return;
+        }
         this.isConnecting = true;
         // Deepgram numbers voices afresh on every connection: this one's lines
         // carry its own window number (sttDiarization.nextVoiceEpoch).
@@ -237,7 +263,14 @@ export class DeepgramStreamingSTT extends EventEmitter {
         try {
             const { createClient, LiveTranscriptionEvents } = require('@deepgram/sdk');
 
-            const deepgram = createClient(this.apiKey);
+            const token = this.pendingToken;
+            this.pendingToken = null;
+            // A short-lived key goes as `Authorization: Bearer`, which only the
+            // `ws` transport sends (the SDK's built-in WebSocket path always
+            // says `token <key>`), and that transport needs its events wired by hand.
+            const deepgram = token
+                ? createClient({ key: 'preppilot-cloud', global: { websocket: { client: require('ws'), options: { _nodeOnlyHeaders: { Authorization: `Bearer ${token}` } } } } })
+                : createClient(this.apiKey);
 
             this.live = deepgram.listen.live({
                 model: this.model,
@@ -276,6 +309,8 @@ export class DeepgramStreamingSTT extends EventEmitter {
             // idle-closes it. Mirrors NativelyProSTT's documented pattern.
             const live = this.live;
             let opened = false;
+            // The `ws` transport (short-lived key) is not wired by the SDK itself.
+            if (token) (this.live as any).setupConnection?.();
 
             this.live.on(LiveTranscriptionEvents.Open, () => {
                 if (live !== this.live) return; // F-203 stale-connection guard
@@ -431,6 +466,8 @@ export class DeepgramStreamingSTT extends EventEmitter {
     }
 
     private async diagnoseRefusedHandshake(): Promise<void> {
+        // The probe checks the account's own key; a cloud key is the server's to diagnose.
+        if (this.tokenProvider) return;
         const verdict = deepgramHandshakeVerdict(await probeDeepgramHandshake(this.apiKey, this.model));
         // Stopped, restarted or already given up meanwhile: nothing to report.
         if (!verdict || !this.isActive || !this.shouldReconnect) return;

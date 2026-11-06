@@ -4057,14 +4057,21 @@ export class AppState {
 
     // 'none' means the user has explicitly disabled STT (no provider selected).
     // Return null so the pipeline skips STT without falling back to Google.
-    if (sttProvider === 'none') {
+    if (sttProvider === 'none' && !require('./services/cloud/cloudAccount').cloudModeActive()) {
       console.log(`[Main] STT provider is 'none' — audio capture will proceed but transcription is disabled.`);
       return null;
     }
 
     let stt: STTProvider;
 
-    if (sttProvider === 'natively') {
+    // PrepPilot Cloud: a signed-in candidate transcribes on the organization's
+    // Deepgram account, with a 60-second key fetched from the server for each
+    // connection (whatever provider this computer has chosen).
+    const { cloudModeActive, getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    if (cloudModeActive()) {
+      console.log(`[Main] Using DeepgramStreamingSTT via PrepPilot Cloud for ${speaker}`);
+      stt = new DeepgramStreamingSTT('preppilot-cloud', CredentialsManager.getInstance().getSttModel('deepgram'), () => getCloudClient().sttToken());
+    } else if (sttProvider === 'natively') {
       const nativelyKey = CredentialsManager.getInstance().getNativelyApiKey();
       if (!nativelyKey) {
         // Natively is Coming Soon — no key means degrade gracefully like every other provider
@@ -7530,7 +7537,17 @@ export class AppState {
    * MeetingLifecycleQueue for why this wrapper is the only thing added.
    */
   public startMeeting(metadata?: any): Promise<void> {
-    return this._meetingLifecycle.start(() => this.startMeetingTransition(metadata));
+    return this._meetingLifecycle.start(async () => {
+      try {
+        await this.startMeetingTransition(metadata);
+      } catch (e) {
+        // A start that failed after the cloud session opened must not keep charging.
+        if (!this.isMeetingActive) {
+          try { await require('./services/cloud/cloudAccount').getCloudClient().endSession(); } catch { /* not signed in */ }
+        }
+        throw e;
+      }
+    });
   }
 
   /**
@@ -7551,6 +7568,71 @@ export class AppState {
       `[MeetingLifecycle] state=${state} generation=${this._meetingGeneration} ` +
       `dbAvailable=${dbAvailable} platform=${process.platform}`,
     );
+  }
+
+  private cloudEventsWired = false;
+
+  /** Opens the PrepPilot Cloud session for a signed-in candidate; nothing otherwise. */
+  private async openCloudSessionOrThrow(metadata?: any): Promise<void> {
+    const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    const cloud = getCloudClient();
+    this.wireCloudEvents(cloud);
+    if (!cloud.signedIn) return;
+    try {
+      await cloud.startSession(typeof metadata?.cloudAssignmentId === 'string' ? metadata.cloudAssignmentId : undefined);
+    } catch (e: any) {
+      const { timeReasonMessage } = require('./services/cloud/cloudClient') as typeof import('./services/cloud/cloudClient');
+      const err = new Error(timeReasonMessage(e?.reason ?? e?.code)) as Error & { code?: string };
+      err.code = e?.status === 429 ? 'cloud-time' : e?.code === 'device_revoked' ? 'cloud-revoked' : 'cloud-unavailable';
+      console.warn(`[Cloud] meeting not started: ${e?.code ?? e}${e?.reason ? ` (${e.reason})` : ''}`);
+      throw err;
+    }
+  }
+
+  /**
+   * PrepPilot Cloud at launch: a computer still signed in answers and
+   * transcribes on the organization's account from the first meeting.
+   */
+  public initCloud(): void {
+    try {
+      const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+      const cloud = getCloudClient();
+      this.wireCloudEvents(cloud);
+      this.applyCloudMode(cloud.signedIn);
+      if (cloud.signedIn) console.log('[Cloud] signed in: answers and transcription use PrepPilot Cloud');
+    } catch (e) {
+      console.warn('[Cloud] not available:', (e as Error)?.message);
+    }
+  }
+
+  /** Signed in: the AI layer's only provider is the cloud. Signed out: the user's own setup again. */
+  private applyCloudMode(on: boolean): void {
+    const { CLOUD_SENTINEL_KEY } = require('./config/constants') as typeof import('./config/constants');
+    const llm = this.processingHelper.getLLMHelper() as any;
+    if (on) {
+      llm.setNativelyKey(CLOUD_SENTINEL_KEY);
+    } else if (llm.nativelyKey === CLOUD_SENTINEL_KEY) {
+      const { CredentialsManager } = require('./services/CredentialsManager');
+      llm.setNativelyKey(CredentialsManager.getInstance().getNativelyApiKey() || null);
+    }
+  }
+
+  /** Cloud events go to every window; the server ending the session stops the meeting. */
+  private wireCloudEvents(cloud: import('./services/cloud/cloudClient').CloudClient): void {
+    if (this.cloudEventsWired) return;
+    this.cloudEventsWired = true;
+    cloud.on((e) => {
+      this.broadcast('cloud-update', e);
+      if (e.type === 'state') {
+        this.applyCloudMode(e.state === 'signed_in');
+        // Transcription switches between the cloud's Deepgram and the user's own provider.
+        this.reconfigureSttProvider().catch((err) => console.warn('[Cloud] transcription not switched:', err?.message ?? err));
+      }
+      if (e.type === 'ended' && this.isMeetingActive) {
+        console.log(`[Cloud] session ended by the server (${e.reason}); stopping the meeting`);
+        this.endMeeting().catch((err) => console.error('[Cloud] stopping the meeting failed:', err));
+      }
+    });
   }
 
   private async startMeetingTransition(metadata?: any): Promise<void> {
@@ -7657,6 +7739,12 @@ export class AppState {
         // dialog itself when it first attempts to access screen content.
       }
     }
+
+    // PrepPilot Cloud: a signed-in candidate's meeting is a paid session, and
+    // it opens only inside a booked slot with minutes left. A refusal reaches
+    // the launcher the way a mic denial does (an error with a code), before
+    // any window changes.
+    await this.openCloudSessionOrThrow(metadata);
 
     // Reset overlay position BEFORE the switch so the new meeting starts in
     // a predictable centered position regardless of where the previous
@@ -8159,6 +8247,8 @@ export class AppState {
         properties: { modeTemplateType: am?.templateType },
       });
     } catch { /* non-fatal */ }
+    // PrepPilot Cloud: stop charging (never throws; the server also closes a silent session).
+    try { void require('./services/cloud/cloudAccount').getCloudClient().endSession(); } catch { /* not signed in */ }
     // The "Last time" recap goes with the meeting (services/assist).
     try { getAssistService()?.noteMeetingEnded(); } catch { /* nothing showing */ }
     // A paused meeting ends unpaused (the notepad's Pause, transcriptionPause.ts).
@@ -11067,6 +11157,7 @@ if (process.env.THINKING_MATRIX === '1') {
   // credentials are loaded (so the provider can read its API key) and is
   // non-blocking — failures are logged and retried at meeting start.
   try {
+    appState.initCloud();
     appState.prewarmSttProviders();
   } catch (err) {
     console.warn('[Init] STT pre-warm threw (non-fatal):', err);
@@ -12172,6 +12263,8 @@ if (process.env.THINKING_MATRIX === '1') {
     // and sent at the next launch. Does nothing when no meeting is running.
     // (Its transcript is written for recovery by registerQuitFlush, above.)
     try { require('./services/FunnelTelemetry').funnelTelemetry.meetingEnded(appState.getIntelligenceManager().getAnswerCount()); } catch { /* analytics never blocks a quit */ }
+    // PrepPilot Cloud: the session stops charging now (best effort; the server closes it after 90 s otherwise).
+    try { void require('./services/cloud/cloudAccount').getCloudClient().endSession(); } catch { /* not signed in */ }
 
     // 2026-07-08: TRUNCATE the SQLite WAL file early in shutdown.
     // On a force-quit (e.g. user ⌘Q during a meeting, macOS sending

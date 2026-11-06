@@ -369,6 +369,16 @@ export interface StoredCredentials {
          */
         lastRefreshAt?: number;
     };
+    /**
+     * PrepPilot Cloud sign-in (services/cloud/cloudClient.ts): the rotating
+     * refresh token, this computer's device id, and the server it belongs to.
+     * The 15-minute access token is never stored.
+     */
+    cloudCredentials?: {
+        refreshToken: string;
+        deviceId: string;
+        baseUrl: string;
+    };
     /** Google Antigravity OAuth bundle, persisted through the same encrypted store. */
     antigravityOAuthTokens?: {
         accessToken: string;
@@ -996,6 +1006,35 @@ export class CredentialsManager {
             return true;
         }
         this.credentials.antigravityOAuthTokens = previous;
+        return false;
+    }
+
+    /** PrepPilot Cloud sign-in, or null when this computer is not signed in. */
+    public getCloudCredentials(): { refreshToken: string; deviceId: string; baseUrl: string } | null {
+        const c = this.credentials.cloudCredentials;
+        if (!c || typeof c.refreshToken !== 'string' || !c.refreshToken || typeof c.deviceId !== 'string' || !c.deviceId
+            || typeof c.baseUrl !== 'string' || !c.baseUrl) return null;
+        return { ...c };
+    }
+
+    /** Checked write: the server has already spent the previous refresh token. */
+    public setCloudCredentials(c: { refreshToken: string; deviceId: string; baseUrl: string }): boolean {
+        if (this.refuseWriteWhileDegraded('set PrepPilot Cloud credentials')) return false;
+        if (!c.refreshToken || !c.deviceId || !c.baseUrl) return false;
+        const previous = this.credentials.cloudCredentials;
+        this.credentials.cloudCredentials = { refreshToken: c.refreshToken, deviceId: c.deviceId, baseUrl: c.baseUrl };
+        if (this.saveCredentials()) return true;
+        this.credentials.cloudCredentials = previous;
+        return false;
+    }
+
+    public clearCloudCredentials(): boolean {
+        if (this.refuseWriteWhileDegraded('clear PrepPilot Cloud credentials')) return false;
+        const previous = this.credentials.cloudCredentials;
+        if (!previous) return true;
+        this.credentials.cloudCredentials = undefined;
+        if (this.saveCredentials()) return true;
+        this.credentials.cloudCredentials = previous;
         return false;
     }
 

@@ -74,7 +74,7 @@ import { getImageOptimizer } from './services/screen/ImageOptimizer';
 import { isPhoneImagePath, visionImageEdge } from './utils/phoneImage';
 import curl2Json from "@bany/curl-to-json";
 import { CustomProvider, CurlProvider } from './services/CredentialsManager';
-import { TRIAL_SENTINEL_KEY } from './config/constants';
+import { TRIAL_SENTINEL_KEY, CLOUD_SENTINEL_KEY } from './config/constants';
 import { emitNativelyPlanLimit, nativelyLimitErrorMessage } from './llm/nativelyPlanLimitEvents';
 import axios from 'axios';
 import { createProviderRateLimiters, RateLimiter } from './services/RateLimiter';
@@ -755,7 +755,39 @@ export class LLMHelper {
   }
 
   private isProviderDisabled(family: string): boolean {
+    // PrepPilot Cloud: a signed-in candidate answers only on the organization's
+    // account, so every provider but the hosted one is off for the session.
+    if (this.nativelyKey === CLOUD_SENTINEL_KEY) return family !== 'natively';
     return isProviderFamilyDisabled(family, this.getDisabledProviderFamilies());
+  }
+
+  /**
+   * A refusal from PrepPilot Cloud's /v1/chat, said plainly. Never a Natively
+   * plan limit: that would name the wrong product and block the hosted route
+   * for minutes, though the next session may start at once.
+   */
+  private cloudHttpError(status: number, errData: any): Error {
+    const { timeReasonMessage } = require('./services/cloud/cloudClient');
+    const code = typeof errData?.error === 'string' ? errData.error : '';
+    if (status === 429) return new Error(timeReasonMessage(typeof errData?.reason === 'string' ? errData.reason : 'session_ended'));
+    if (code === 'device_revoked') return new Error(timeReasonMessage('device_revoked'));
+    if (status === 401) return new Error('Your PrepPilot sign-in has expired. Sign in again in Settings › Account.');
+    if (code === 'app_update_required') return new Error('Please update PrepPilot to keep getting answers.');
+    if (status === 409) return new Error('This PrepPilot session was interrupted. Stop and start PrepPilot again.');
+    return new Error('PrepPilot Cloud could not get an answer right now. Try again in a moment.');
+  }
+
+  /** The cloud's chat URL and headers, or a plain sentence when no session is open. */
+  private async cloudChatTarget(): Promise<{ url: string; headers: Record<string, string> }> {
+    const { getCloudClient } = require('./services/cloud/cloudAccount');
+    const cloud = getCloudClient();
+    try {
+      return { url: cloud.chatUrl, headers: await cloud.chatHeaders() };
+    } catch (e: any) {
+      if (e?.status === 429) throw new Error('Start PrepPilot to ask questions: your organization counts the time only while a session runs.');
+      if (e?.code === 'device_revoked') throw new Error('This computer was signed out by your manager.');
+      throw new Error('Could not reach PrepPilot Cloud. Check your internet connection.');
+    }
   }
 
   /**
@@ -6870,7 +6902,7 @@ let isMultimodal = !!(imagePaths?.length);
     }
     if (!nativelyKey && !e2eLocalToken) throw new Error('Natively API key not set');
 
-    const endpointUrl = `${NATIVELY_API_URL}/v1/chat`;
+    let endpointUrl = `${NATIVELY_API_URL}/v1/chat`;
     const requestId = makeRequestId('nat_json');
     this.assertNativelyNotBlocked(requestId);
     const requestStartedAt = nowMs();
@@ -6879,6 +6911,10 @@ let isMultimodal = !!(imagePaths?.length);
     const headers: any = { 'Content-Type': 'application/json', 'X-Request-Id': requestId };
     if (e2eLocalToken) {
       headers['x-natively-local-test'] = e2eLocalToken;
+    } else if (nativelyKey === CLOUD_SENTINEL_KEY) {
+      const target = await this.cloudChatTarget();
+      endpointUrl = target.url;
+      Object.assign(headers, target.headers);
     } else if (nativelyKey === TRIAL_SENTINEL_KEY) {
       const { CredentialsManager } = require('./services/CredentialsManager');
       const trialToken = CredentialsManager.getInstance().getTrialToken();
@@ -7020,6 +7056,7 @@ let isMultimodal = !!(imagePaths?.length);
         const errText = await response.text().catch(() => '');
         let errData: any = {};
         try { errData = errText ? JSON.parse(errText) : {}; } catch { errData = {}; }
+        if (nativelyKey === CLOUD_SENTINEL_KEY) throw this.cloudHttpError(response.status, errData);
         this.noteNativelyPlanLimit(response.status, response.headers, errData, nativelyKey === TRIAL_SENTINEL_KEY);
         console.error('[NativelyAPI] JSON HTTP failure', {
           requestId,
@@ -8731,6 +8768,11 @@ let isMultimodal = !!(imagePaths?.length);
       ...tier2Providers,
       ...tier3Providers, // Same as tier2 — pure retry
     ];
+    // The hosted provider reads images too; it is the only route while a
+    // candidate is signed in to PrepPilot Cloud, so it must be on this chain.
+    if (this.hasNatively()) {
+      allProviders.push({ name: 'Natively API', execute: () => this.generateWithNatively(userPrompt, systemPrompt, isMultimodal ? imagePaths : undefined) });
+    }
 
     if (allProviders.length === 0 && localProviders.length === 0) {
       throw new Error("All AI providers failed: no vision-capable providers configured.");
@@ -11432,7 +11474,7 @@ let isMultimodal = !!(imagePaths?.length);
     if (fastTurn) fastTurn.textOnly = !isMultimodal;
     const fastCtl = new AbortController();
     // PrepPilot: a long build goes to Gemini Flash (see StreamRouteOptions.largeBuild).
-    const largeBuild = routeOptions?.largeBuild === true && Boolean(this.client) && !isMultimodal;
+    const largeBuild = routeOptions?.largeBuild === true && (Boolean(this.client) || this.nativelyKey === CLOUD_SENTINEL_KEY) && !isMultimodal;
     if (largeBuild) console.log('[LLMHelper] Long build request: answering on Gemini Flash');
     const fastPick = !isMultimodal && !this.useOllama && !largeBuild
       ? this.openFastModelStream(userContent, systemPromptOverride, finalSystemPrompt,
@@ -12102,7 +12144,7 @@ let isMultimodal = !!(imagePaths?.length);
     // to a different one rather than failing the answer.
     if (this.hasNatively()) {
       try {
-        yield* this.trackCommit(this.streamWithNatively(userContent, finalSystemPrompt, imagePaths, abortSignal), commit);
+        yield* this.trackCommit(this.streamWithNatively(userContent, finalSystemPrompt, imagePaths, abortSignal, INTERACTIVE_CONNECT_TIMEOUT_MS, false, largeBuild ? 'long' : undefined), commit);
         return;
       } catch (e: any) {
         if (commit.emitted) {
@@ -12171,7 +12213,7 @@ let isMultimodal = !!(imagePaths?.length);
    * Yields the full response in small word-batches so the UI typing effect still plays.
    * Throws on empty response so the fallback chain tries the next provider.
    */
-  private async * streamWithNatively(userContent: string, systemPrompt?: string, imagePaths?: string[], abortSignal?: AbortSignal, connectTimeoutMs: number = INTERACTIVE_CONNECT_TIMEOUT_MS, directMode = false): AsyncGenerator<string, void, unknown> {
+  private async * streamWithNatively(userContent: string, systemPrompt?: string, imagePaths?: string[], abortSignal?: AbortSignal, connectTimeoutMs: number = INTERACTIVE_CONNECT_TIMEOUT_MS, directMode = false, modelTier?: 'long'): AsyncGenerator<string, void, unknown> {
     // Local-only + outbound-scope guards, matching streamWithGeminiModel and
     // streamWithGroq. This method was the ONE cloud stream sibling carrying
     // neither, which went unnoticed while natively was only ever reached from
@@ -12209,6 +12251,8 @@ let isMultimodal = !!(imagePaths?.length);
     // is an implicit server-side model substitution, so it is never sent for a
     // direct request.
     if (!directMode && this.groqFastTextMode) body.fast_mode = true;
+    // PrepPilot Cloud: a long build runs on the server's stronger model.
+    if (modelTier === 'long') body.model_tier = 'long';
     if (systemPrompt) body.system = systemPrompt;
     if (!directMode && this.aiResponseLanguage) {
       // 'auto' AND 'English' are both forwarded — the server injects for each.
@@ -12279,7 +12323,7 @@ let isMultimodal = !!(imagePaths?.length);
       } catch { /* harness capture only */ }
     }
 
-    const endpointUrl = `${NATIVELY_API_URL}/v1/chat`;
+    let endpointUrl = `${NATIVELY_API_URL}/v1/chat`;
     const requestId = makeRequestId('nat_stream');
     this.assertNativelyNotBlocked(requestId);
     const streamStartedAt = nowMs();
@@ -12299,6 +12343,10 @@ let isMultimodal = !!(imagePaths?.length);
     };
     if (e2eLocalToken) {
       streamHeaders['x-natively-local-test'] = e2eLocalToken;
+    } else if (nativelyKey === CLOUD_SENTINEL_KEY) {
+      const target = await this.cloudChatTarget();
+      endpointUrl = target.url;
+      Object.assign(streamHeaders, target.headers);
     } else if (nativelyKey === TRIAL_SENTINEL_KEY) {
       const { CredentialsManager } = require('./services/CredentialsManager');
       const trialToken = CredentialsManager.getInstance().getTrialToken();
@@ -12461,6 +12509,7 @@ let isMultimodal = !!(imagePaths?.length);
       const errText = await response.text().catch(() => '');
       let errData: any = {};
       try { errData = errText ? JSON.parse(errText) : {}; } catch { errData = {}; }
+      if (nativelyKey === CLOUD_SENTINEL_KEY) throw this.cloudHttpError(response.status, errData);
       const planLimit = this.noteNativelyPlanLimit(response.status, response.headers, errData, nativelyKey === TRIAL_SENTINEL_KEY);
       console.error('[NativelyAPI] stream HTTP failure', {
         requestId,

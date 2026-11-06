@@ -2092,6 +2092,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   userBioSet: (bio: string) => ipcRenderer.invoke('user-bio-set', bio),
   liveNotesShortenLine: (line: string) => ipcRenderer.invoke('live-notes:shorten-line', line),
   liveNotesAttachImage: () => ipcRenderer.invoke('live-notes:attach-image'),
+  // PrepPilot Cloud (Settings › Account)
+  cloudStatus: () => ipcRenderer.invoke('cloud-status'),
+  cloudRedeem: (code: string) => ipcRenderer.invoke('cloud-redeem', code),
+  cloudSignOut: () => ipcRenderer.invoke('cloud-sign-out'),
+  onCloudUpdate: (callback: (event: any) => void) => {
+    const subscription = (_: any, event: any) => callback(event);
+    ipcRenderer.on('cloud-update', subscription);
+    return () => {
+      ipcRenderer.removeListener('cloud-update', subscription);
+    };
+  },
   followMicDeviceGet: () => ipcRenderer.invoke('follow-mic-device-get'),
   followMicDeviceSet: (enabled: boolean) => ipcRenderer.invoke('follow-mic-device-set', enabled),
   roomSpeakersGet: () => ipcRenderer.invoke('room-speakers-get'),

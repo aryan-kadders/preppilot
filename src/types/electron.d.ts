@@ -119,6 +119,27 @@ export interface VisionModelState {
   inconclusive?: boolean
 }
 
+/** PrepPilot Cloud sign-in state for Settings › Account (main: ipcHandlers 'cloud-status'). */
+export interface CloudAccountStatus {
+  state: 'signed_out' | 'signed_in' | 'revoked'
+  sessionId?: string | null
+  error?: string
+  status?: {
+    candidate: { id: string; name: string } | null
+    balance_seconds: number
+    current_slot: { starts_at: string; ends_at: string } | null
+    next_slot: { starts_at: string; ends_at: string } | null
+    assignments: Array<{ id: string; title: string; due_at?: string | null }>
+  }
+}
+
+/** Pushed on 'cloud-update' (services/cloud/cloudClient.ts CloudEvent). */
+export type CloudUpdateEvent =
+  | { type: 'state'; state: 'signed_out' | 'signed_in' | 'revoked' }
+  | { type: 'session'; session: { session_id: string; status: 'open' | 'ended'; seconds_left: number; balance_seconds: number; allowed_until: string; end_reason: string | null } }
+  | { type: 'warning'; secondsLeft: number }
+  | { type: 'ended'; reason: string }
+
 export interface ElectronAPI {
   updateContentDimensions: (dimensions: {
     width: number
@@ -175,6 +196,11 @@ export interface ElectronAPI {
   /** The notes window's "Attach image": picks a picture, keeps it with the meeting, describes it for the notes. */
   liveNotesAttachImage?: () => Promise<{ count: number; message?: string }>
   /** Follow the meeting app's microphone (capture from the device Zoom/Teams/the browser uses). */
+  // PrepPilot Cloud (Settings › Account)
+  cloudStatus?: () => Promise<CloudAccountStatus>
+  cloudRedeem?: (code: string) => Promise<{ success: boolean; error?: string }>
+  cloudSignOut?: () => Promise<{ success: boolean; error?: string }>
+  onCloudUpdate?: (callback: (event: CloudUpdateEvent) => void) => () => void
   followMicDeviceGet?: () => Promise<{ enabled: boolean }>
   followMicDeviceSet?: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   roomSpeakersGet?: () => Promise<{ enabled: boolean }>

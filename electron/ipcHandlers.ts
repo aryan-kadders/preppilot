@@ -14513,6 +14513,41 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
   // Follow the meeting app's microphone (Settings › Audio). Takes effect at the next meeting.
+  // PrepPilot Cloud (services/cloud): Settings › Account.
+  safeHandle('cloud-status', async () => {
+    const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    const cloud = getCloudClient();
+    if (!cloud.signedIn) return { state: cloud.state };
+    try {
+      return { state: cloud.state, status: await cloud.status(), sessionId: cloud.sessionId };
+    } catch (e: any) {
+      const { timeReasonMessage } = require('./services/cloud/cloudClient') as typeof import('./services/cloud/cloudClient');
+      return { state: cloud.state, error: e?.code === 'device_revoked' ? timeReasonMessage('device_revoked') : 'Could not reach PrepPilot Cloud. Check your internet connection.' };
+    }
+  });
+  safeHandle('cloud-redeem', async (_event, code: unknown) => {
+    if (appState.getIsMeetingActive()) return { success: false, error: 'Stop the meeting before signing in.' };
+    const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    try {
+      await getCloudClient().redeem(String(code ?? '').slice(0, 64));
+      return { success: true };
+    } catch (e: any) {
+      const messages: Record<string, string> = {
+        invalid_code: 'That code is not valid. Check it with your manager.',
+        code_used: 'That code was already used. Ask your manager for a new one.',
+        code_expired: 'That code has expired. Ask your manager for a new one.',
+        app_update_required: 'Please update PrepPilot to sign in.',
+      };
+      return { success: false, error: messages[e?.code] ?? 'Could not reach PrepPilot Cloud. Check your internet connection.' };
+    }
+  });
+  safeHandle('cloud-sign-out', async () => {
+    if (appState.getIsMeetingActive()) return { success: false, error: 'Stop the meeting before signing out.' };
+    const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    await getCloudClient().signOut();
+    return { success: true };
+  });
+
   safeHandle('follow-mic-device-get', async () => ({ enabled: SettingsManager.getInstance().get('followMeetingAppMicDevice') === true }));
   safeHandle('follow-mic-device-set', async (_, enabled: unknown) => {
     if (typeof enabled !== 'boolean') return { success: false, error: 'invalid' };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
 import { LANG_NATIVE_NAMES, useLanguage, useT } from '../i18n';
 import { CalendarSettings } from './settings/CalendarSettings';
+import { AccountSettings } from './settings/AccountSettings';
 import { ConnectionsSettings } from './settings/ConnectionsSettings';
 import packageJson from '../../package.json';
 import {
@@ -455,6 +456,7 @@ function withoutRemovedTab<T extends string>(tab: T): T | 'general' {
 
 const SETTINGS_NAV_ORDER = [
     'general',
+    'account',
     'ai-providers',
     'retrieval',
     'audio',
@@ -2344,6 +2346,13 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                     >
                                         {activeTab === 'general' && navActivePill}
                                         <Monitor size={16} /> {t('General')}
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('account')}
+                                        className={navItemClass(activeTab === 'account')}
+                                    >
+                                        {activeTab === 'account' && navActivePill}
+                                        <Building2 size={16} /> {t('Account')}
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('ai-providers')}
@@ -4462,6 +4471,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                             )}
 
                             {activeTab === 'calendar' && <CalendarSettings />}
+                            {activeTab === 'account' && <AccountSettings />}
 
                             {activeTab === 'connections' && <ConnectionsSettings />}
 

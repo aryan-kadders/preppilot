@@ -449,6 +449,7 @@ import SwapText from './ui/SwapText';
 import ScreenshotTray from './overlay/ScreenshotTray';
 import ChromeFold from './overlay/ChromeFold';
 import { AutoStopNoticeBanner, useMeetingAutoStopNotice } from './overlay/AutoStopNotice';
+import { CloudTimeNoticeBanner, useCloudTimeWarning } from './overlay/CloudTimeNotice';
 import { useAmbientChatMeeting } from './overlay/AmbientChatNotice';
 import { LastTimeRecapBanner, useLastTimeRecap } from './overlay/LastTimeRecapNotice';
 import type { LiveHelperAction } from '../types/assist';
@@ -1456,6 +1457,8 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
   // The automatic stop's "stops in 1 minute" notice, and typing reported to main.
   const autoStop = useMeetingAutoStopNotice();
+  // PrepPilot Cloud: "5 minutes left in this session" (overlay/CloudTimeNotice.tsx).
+  const cloudSecondsLeft = useCloudTimeWarning();
   // Ambient AI Chat: this meeting captures no audio (overlay/AmbientChatNotice.tsx).
   const ambientChat = useAmbientChatMeeting();
   // Such a meeting says so from its start ("Mic is off"). ✕ hides it until the
@@ -11940,6 +11943,9 @@ Provide only the answer, nothing else.`;
                   (overlay/AutoStopNotice.tsx; main: MeetingEndDetector). */}
               <ChromeFold show={autoStop.stopsAt !== null} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} innerClassName="pt-3 pb-1" testId="fold-auto-stop">
               {autoStop.stopsAt !== null && <AutoStopNoticeBanner notice={autoStop} />}
+              </ChromeFold>
+              <ChromeFold show={cloudSecondsLeft !== null} overlayVisible={isExpanded} requestHeightMotion={requestChromeHeightMotion} innerClassName="pt-3 pb-1" testId="fold-cloud-time">
+              {cloudSecondsLeft !== null && <CloudTimeNoticeBanner secondsLeft={cloudSecondsLeft} />}
               </ChromeFold>
 
               {/* An Ambient AI Chat meeting, from its start: users turn the
