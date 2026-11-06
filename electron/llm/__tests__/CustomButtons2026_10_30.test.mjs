@@ -259,7 +259,7 @@ describe('the engine runs a button on the press, like Define', () => {
   test('main shows it in Recap\'s card and the manager forwards both events', () => {
     const main = read('electron/main.ts');
     assert.match(main, /on\('custom_button_token', \(token: string\) => \{\s*queueBatch\('recap', \{ token \}\);/);
-    assert.match(main, /on\('custom_button', \(text: string\) => \{\s*flushBatchesBeforeFinal\(\);\s*this\.sendToWindow\(mainWindow\(\), 'intelligence-recap', \{ summary: text \}\)/);
+    assert.match(main, /on\('custom_button', \(text: string\) => \{\s*flushBatchesBeforeFinal\(\);\s*this\.sendToWindow\(answerWindow\(\), 'intelligence-recap', \{ summary: text \}\)/);
     assert.match(read('electron/IntelligenceManager.ts'), /'custom_button', 'custom_button_token',/);
   });
 

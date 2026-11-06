@@ -95,9 +95,8 @@ describe('the destructive failure path is gated on the save not having happened'
     assert.ok(!guardsMarker(withoutGuard),
       'the !meetingSaved pin still passes with the guard removed — it is vacuous');
 
-    // Mutate the broadcast AFTER the save. A whole-file replace hit the first
-    // such block in the file (the resumed-meeting path, far above the save),
-    // so the probe was removing a try this pin never looks at.
+    // The broadcast AFTER the save: the file has other guarded broadcasts
+    // above it, and mutating the first one in the file proved nothing.
     const saveAt = source.indexOf('DatabaseManager.getInstance().saveMeeting(meetingData');
     const withoutTry = source.slice(0, saveAt) + source.slice(saveAt).replace(
       /try\s*\{\s*\n(\s*)const wins = require\('electron'\)\.BrowserWindow\.getAllWindows\(\);/,
