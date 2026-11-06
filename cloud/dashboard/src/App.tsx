@@ -63,11 +63,11 @@ export const App: React.FC = () => {
   if (me === undefined) return null;
   if (me === null) {
     return (
-      <div className="auth"><div className="card auth-card"><div className="card-body stack">
-        <h1 className="page-title">Not set up yet</h1>
+      <div className="auth"><div className="auth-card stack" style={{ gap: 16 }}>
+        <div className="auth-word">PrepPilot</div>
         <Alert kind="info">{session.user.email} is signed in but is not part of an organization. Ask your PrepPilot admin to invite you.</Alert>
-        <button className="btn" onClick={() => void supabase.auth.signOut()}><LogOut size={14} /> Sign out</button>
-      </div></div></div>
+        <button className="btn btn-lg" onClick={() => void supabase.auth.signOut()}><LogOut size={14} /> Sign out</button>
+      </div></div>
     );
   }
 
@@ -78,41 +78,37 @@ export const App: React.FC = () => {
     <ToastProvider>
       <div className="shell">
         <aside className="sidebar" aria-label="Main">
-          <div className="org">
-            <div className="org-mark">{me.orgName.slice(0, 1).toUpperCase()}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="org-name">{me.orgName}</div>
-              <div className="org-sub">PrepPilot Manager</div>
+          <div className="wordmark">PrepPilot</div>
+          <div className="org-line">{me.orgName} · Manager</div>
+          <nav className="nav">
+            {NAV.filter((n) => !n.adminOnly || me.role === 'admin').map(({ page, label, icon: Icon }) => (
+              <a key={page} href={routeHash({ page } as Route)} className={`nav-item ${active === page ? 'active' : ''}`} aria-current={active === page ? 'page' : undefined}>
+                <Icon size={16} strokeWidth={1.75} />{label}
+              </a>
+            ))}
+          </nav>
+          <div className="sidebar-foot">
+            <div className="me">
+              <Avatar name={who} />
+              <div className="who"><div className="name" title={me.email ?? ''}>{who}</div><div className="role">{me.role}</div></div>
             </div>
-          </div>
-          <div className="nav-label">Workspace</div>
-          {NAV.filter((n) => !n.adminOnly || me.role === 'admin').map(({ page, label, icon: Icon }) => (
-            <a key={page} href={routeHash({ page } as Route)} className={`nav-item ${active === page ? 'active' : ''}`} aria-current={active === page ? 'page' : undefined}>
-              <Icon size={16} strokeWidth={2} />{label}
-            </a>
-          ))}
-          <div className="user-chip">
-            <Avatar name={who} />
-            <div className="who"><div className="name" title={me.email ?? ''}>{who}</div><div className="role">{me.role}</div></div>
-            <button className="btn btn-ghost btn-icon" onClick={() => void supabase.auth.signOut()} aria-label="Sign out" title="Sign out"><LogOut size={16} /></button>
+            <button className="signout" onClick={() => void supabase.auth.signOut()}><LogOut size={16} strokeWidth={1.75} /> Sign out</button>
           </div>
         </aside>
-        <div className="main">
-          {route.page === 'candidate' && (
-            <header className="topbar">
-              <nav className="crumbs" aria-label="Breadcrumb">
-                <a href="#/candidates">Candidates</a><ChevronRight size={14} /><span className="current">{crumb ?? 'Candidate'}</span>
-              </nav>
-            </header>
-          )}
+        <main className="main">
           <div className="page">
+            {route.page === 'candidate' && (
+              <nav className="crumbs" aria-label="Breadcrumb">
+                <a href="#/candidates">Candidates</a><ChevronRight size={13} /><span>{crumb ?? 'Candidate'}</span>
+              </nav>
+            )}
             {route.page === 'candidates' && <Candidates me={me} go={go} />}
             {route.page === 'candidate' && <CandidateDetail me={me} id={route.id} go={go} onName={setCrumb} />}
             {route.page === 'usage' && <Usage />}
             {route.page === 'team' && <TeamPage me={me} />}
             {route.page === 'audit' && me.role === 'admin' && <Audit />}
           </div>
-        </div>
+        </main>
       </div>
     </ToastProvider>
   );

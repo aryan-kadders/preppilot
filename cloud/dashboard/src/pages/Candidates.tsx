@@ -47,10 +47,10 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
           <h1 className="page-title">Candidates</h1>
           <p className="page-desc">Give practice time, book slots and follow progress.</p>
         </div>
-        {canManage && teams.length > 0 && <button className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={15} /> Add candidate</button>}
+        {canManage && teams.length > 0 && <button className="btn btn-cta" onClick={() => setAdding(true)}><Plus size={15} /> Add candidate</button>}
       </div>
 
-      <div className="kpis">
+      <div className="stats">
         <Kpi icon={<Users size={14} />} label="Active candidates" value={active.length} hint={rows && rows.length > active.length ? `${rows.length - active.length} archived` : undefined} />
         <Kpi icon={<Activity size={14} />} label="In a session now" value={live} hint={live ? 'Live right now' : active.length ? 'Nobody practising' : undefined} />
         <Kpi icon={<Timer size={14} />} label="Minutes available" value={minutesLabel(minutesLeft)} hint={outOfTime ? `${outOfTime} with no minutes left` : active.length ? 'Everyone has time' : undefined} />
@@ -59,7 +59,7 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
 
       <section className="card">
         <div className="toolbar">
-          <div className="input-icon" style={{ width: 260 }}>
+          <div className="search" style={{ width: 260 }}>
             <Search size={15} />
             <input className="input" placeholder="Search candidates" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search candidates" />
           </div>
@@ -72,15 +72,15 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
           <button className="btn btn-ghost btn-icon" onClick={() => void refresh()} disabled={load.busy} aria-label="Refresh" title="Refresh"><RefreshCw size={15} /></button>
         </div>
         {load.error && <div style={{ padding: 12 }}><Alert kind="error">{load.error}</Alert></div>}
-        {rows === null ? <SkeletonRows cols={6} /> : visible.length === 0 ? (
+        {rows === null ? <SkeletonRows /> : visible.length === 0 ? (
           teams.length === 0 ? (
             <EmptyState icon={<UsersRound size={20} />} title="Create your first team"
               description="Candidates belong to a team, and managers see the teams they are in."
-              action={me.role === 'admin' ? <a className="btn btn-primary" href="#/team"><Plus size={15} /> Create a team</a> : undefined} />
+              action={me.role === 'admin' ? <a className="btn btn-cta" href="#/team"><Plus size={15} /> Create a team</a> : undefined} />
           ) : rows.length === 0 ? (
             <EmptyState icon={<UserPlus size={20} />} title="No candidates yet"
               description="Add a candidate, then send them an invite code to sign in to PrepPilot."
-              action={canManage ? <button className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={15} /> Add candidate</button> : undefined} />
+              action={canManage ? <button className="btn btn-cta" onClick={() => setAdding(true)}><Plus size={15} /> Add candidate</button> : undefined} />
           ) : <EmptyState icon={<Search size={20} />} title="No matches" description="Try another name or team." />
         ) : (
           <div className="table-wrap">
@@ -89,7 +89,7 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
               <tbody>
                 {visible.map((r) => (
                   <tr key={r.id} className="clickable" onClick={() => go({ page: 'candidate', id: r.id })}>
-                    <td><div className="cell-main"><Avatar name={r.name} /><div style={{ minWidth: 0 }}><div className="cell-title">{r.name}</div>{r.email && <div className="cell-sub">{r.email}</div>}</div></div></td>
+                    <td><div className="person"><Avatar name={r.name} /><div style={{ minWidth: 0 }}><div className="person-name">{r.name}</div>{r.email && <div className="person-sub">{r.email}</div>}</div></div></td>
                     <td className="muted">{r.team_name}</td>
                     <td><StatusBadge row={r} /></td>
                     <td className="num">{r.balance_seconds <= 0 ? <Badge tone="warn">None left</Badge> : minutesLabel(r.balance_seconds)}</td>
@@ -144,7 +144,7 @@ const AddCandidate: React.FC<{ open: boolean; onClose: () => void; me: Me; teams
 
   return (
     <Dialog open={open} onClose={onClose} onSubmit={save} title="Add candidate" description="Next you can create their invite code and book a slot."
-      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !name.trim()}>Add candidate</button></>}>
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !name.trim()}>Add candidate</button></>}>
       <div className="form-grid">
         <Field label="Full name" full><input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoFocus /></Field>
         <Field label="Email" hint="Optional, for your records."><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>

@@ -61,7 +61,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
   useEffect(() => { onName(data?.c.name ?? null); }, [data, onName]);
 
   if (!data) {
-    return load.error ? <Alert kind="error">{load.error}</Alert> : <section className="card"><SkeletonRows rows={6} cols={4} /></section>;
+    return load.error ? <Alert kind="error">{load.error}</Alert> : <section className="card"><SkeletonRows /></section>;
   }
   const { c } = data;
   const archived = c.status === 'archived';
@@ -92,13 +92,13 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
         {manage && (
           <div className="row">
             <button className="btn" onClick={() => setDialog('invite')}><KeyRound size={15} /> Invite code</button>
-            <button className="btn btn-primary" onClick={() => setDialog('minutes')}><Plus size={15} /> Give minutes</button>
+            <button className="btn btn-cta" onClick={() => setDialog('minutes')}><Plus size={15} /> Give minutes</button>
           </div>
         )}
       </div>
       {load.error && <div style={{ marginBottom: 16 }}><Alert kind="error">{load.error}</Alert></div>}
 
-      <div className="kpis">
+      <div className="stats">
         <Kpi icon={<Timer size={14} />} label="Minutes left" value={minutesLabel(c.balance_seconds)} hint={c.balance_seconds <= 0 ? 'Give minutes to let them practise' : undefined} />
         <Kpi icon={<TrendingUp size={14} />} label="Practised, last 7 days" value={minutesLabel(c.used_seconds_7d)} hint={`Last session ${relative(c.last_session_at)}`} />
         <Kpi icon={<CalendarClock size={14} />} label={c.current_slot ? 'Slot open until' : 'Next slot'}
@@ -116,10 +116,10 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
 
       {tab === 'overview' && (
         <div className="grid-2">
-          <Card title="Minutes" description="Given and taken back" actions={manage && <button className="btn btn-sm" onClick={() => setDialog('minutes')}><Plus size={14} /> Give</button>} flush>
+          <Card title="Minutes" description="Given and taken back" actions={manage && <button className="btn" onClick={() => setDialog('minutes')}><Plus size={14} /> Give</button>} flush>
             {data.ledger.length === 0 ? <EmptyState icon={<Timer size={18} />} title="No minutes given yet" /> : (
-              <div className="list">{data.ledger.map((l) => (
-                <div key={l.id} className="list-row">
+              <div className="rows">{data.ledger.map((l) => (
+                <div key={l.id} className="srow">
                   <span className={`badge ${l.seconds > 0 ? 'good' : 'danger'}`}>{l.seconds > 0 ? '+' : '−'}{minutesLabel(Math.abs(l.seconds))}</span>
                   <span className="muted" style={{ flex: 1 }}>{l.note ?? (l.seconds > 0 ? 'Given' : 'Taken back')}</span>
                   <span className="faint">{dateTime(l.created_at)}</span>
@@ -127,10 +127,10 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
               ))}</div>
             )}
           </Card>
-          <Card title="Invite codes" description="Each code signs in one computer, once, within 7 days" actions={manage && <button className="btn btn-sm" onClick={() => setDialog('invite')}><Plus size={14} /> New code</button>} flush>
+          <Card title="Invite codes" description="Each code signs in one computer, once, within 7 days" actions={manage && <button className="btn" onClick={() => setDialog('invite')}><Plus size={14} /> New code</button>} flush>
             {data.invites.length === 0 ? <EmptyState icon={<KeyRound size={18} />} title="No invite codes yet" description="Create one and send it to the candidate." /> : (
-              <div className="list">{data.invites.map((i) => (
-                <div key={i.id} className="list-row">
+              <div className="rows">{data.invites.map((i) => (
+                <div key={i.id} className="srow">
                   <span style={{ flex: 1 }} className="muted">Created {dateTime(i.created_at)}</span>
                   {i.redeemed_at ? <Badge tone="good">Used {relative(i.redeemed_at)}</Badge> : new Date(i.expires_at).getTime() < now ? <Badge>Expired</Badge> : <Badge tone="accent">Waiting · expires {dateTime(i.expires_at)}</Badge>}
                 </div>
@@ -173,21 +173,21 @@ const ScheduleTab: React.FC<{ slots: SlotRow[]; manage: boolean; onAdd: () => vo
   const now = Date.now();
   return (
     <Card title="Upcoming slots" description="PrepPilot works for the candidate only inside a slot, while they have minutes left."
-      actions={manage && <button className="btn btn-sm btn-primary" onClick={onAdd}><CalendarPlus size={14} /> Book slots</button>} flush>
+      actions={manage && <button className="btn btn-cta sm" onClick={onAdd}><CalendarPlus size={14} /> Book slots</button>} flush>
       {action.error && <div style={{ padding: 12 }}><Alert kind="error">{action.error}</Alert></div>}
       {slots.length === 0 ? (
         <EmptyState icon={<CalendarClock size={18} />} title="No upcoming slots" description="Book the times when this candidate may use PrepPilot."
-          action={manage ? <button className="btn btn-primary" onClick={onAdd}><CalendarPlus size={15} /> Book slots</button> : undefined} />
+          action={manage ? <button className="btn btn-cta" onClick={onAdd}><CalendarPlus size={15} /> Book slots</button> : undefined} />
       ) : (
-        <div className="list">{slots.map((s) => {
+        <div className="rows">{slots.map((s) => {
           const open = new Date(s.starts_at).getTime() <= now;
           const mins = Math.round((Date.parse(s.ends_at) - Date.parse(s.starts_at)) / 60000);
           return (
-            <div key={s.id} className="list-row">
+            <div key={s.id} className="srow">
               <CalendarClock size={16} className="muted" />
               <span style={{ flex: 1 }}>{slotLabel(s)} <span className="faint">· {minutesLabel(mins * 60)}</span></span>
               {open && <Badge tone="good" dot pulse>Open now</Badge>}
-              {manage && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(s.id)} disabled={action.busy} aria-label="Remove slot" title="Remove slot"><Trash2 size={14} /></button>}
+              {manage && <button className="btn btn-ghost btn-icon" onClick={() => remove(s.id)} disabled={action.busy} aria-label="Remove slot" title="Remove slot"><Trash2 size={14} /></button>}
             </div>
           );
         })}</div>
@@ -209,11 +209,11 @@ const AssignmentsTab: React.FC<{ assignments: Assignment[]; sessions: SessionRow
     });
   };
   return (
-    <Card title="Assignments" description="Mock interviews the candidate should complete" actions={manage && <button className="btn btn-sm btn-primary" onClick={onAdd}><Plus size={14} /> New assignment</button>} flush>
+    <Card title="Assignments" description="Mock interviews the candidate should complete" actions={manage && <button className="btn btn-cta sm" onClick={onAdd}><Plus size={14} /> New assignment</button>} flush>
       {action.error && <div style={{ padding: 12 }}><Alert kind="error">{action.error}</Alert></div>}
       {assignments.length === 0 ? (
         <EmptyState icon={<ClipboardList size={18} />} title="No assignments" description="Set a mock interview with a role, topics, a due date and limits."
-          action={manage ? <button className="btn btn-primary" onClick={onAdd}><Plus size={15} /> New assignment</button> : undefined} />
+          action={manage ? <button className="btn btn-cta" onClick={onAdd}><Plus size={15} /> New assignment</button> : undefined} />
       ) : (
         <div className="table-wrap"><table className="table">
           <thead><tr><th>Assignment</th><th>Topics</th><th>Due</th><th className="num">Attempts</th><th /></tr></thead>
@@ -222,11 +222,11 @@ const AssignmentsTab: React.FC<{ assignments: Assignment[]; sessions: SessionRow
             const overdue = a.due_at && new Date(a.due_at).getTime() < Date.now() && used === 0;
             return (
               <tr key={a.id}>
-                <td><div className="cell-title">{a.title}</div><div className="cell-sub">{[a.role_title, a.company, a.time_limit_minutes ? `${a.time_limit_minutes} min limit` : null].filter(Boolean).join(' · ') || 'Mock interview'}</div></td>
+                <td><div className="person-name">{a.title}</div><div className="person-sub">{[a.role_title, a.company, a.time_limit_minutes ? `${a.time_limit_minutes} min limit` : null].filter(Boolean).join(' · ') || 'Mock interview'}</div></td>
                 <td className="muted">{a.topics.length ? a.topics.join(', ') : '—'}</td>
                 <td>{a.due_at ? (overdue ? <Badge tone="danger">Overdue</Badge> : <span className="muted">{dateTime(a.due_at)}</span>) : <span className="faint">No due date</span>}</td>
                 <td className="num">{used}{a.max_attempts ? <span className="faint"> / {a.max_attempts}</span> : ''}</td>
-                <td className="num">{manage && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(a)} disabled={action.busy} aria-label="Delete assignment"><Trash2 size={14} /></button>}</td>
+                <td className="num">{manage && <button className="btn btn-ghost btn-icon" onClick={() => remove(a)} disabled={action.busy} aria-label="Delete assignment"><Trash2 size={14} /></button>}</td>
               </tr>
             );
           })}</tbody>
@@ -268,7 +268,7 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
                 <td>{s.ended_at ? <span className="muted">{END_REASON[s.end_reason ?? ''] ?? 'Ended'}</span> : <Badge tone="good" dot pulse>Live</Badge>}</td>
                 <td style={{ minWidth: 220 }}>
                   {notes.map((n) => <div key={n.id} className="muted" style={{ fontSize: 13 }}>“{n.body}” <span className="faint">{relative(n.created_at)}</span></div>)}
-                  <button className="btn btn-ghost btn-sm" style={{ paddingLeft: 0 }} onClick={() => { setNoteFor(s.id); setDraft(''); }}><MessageSquare size={13} /> Add note</button>
+                  <button className="btn btn-ghost" style={{ paddingLeft: 0 }} onClick={() => { setNoteFor(s.id); setDraft(''); }}><MessageSquare size={13} /> Add note</button>
                 </td>
               </tr>
             );
@@ -276,7 +276,7 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
         </table></div>
       )}
       <Dialog open={noteFor !== null} onClose={() => setNoteFor(null)} onSubmit={save} title="Coach note" description="Visible to everyone who can see this candidate."
-        footer={<><button type="button" className="btn" onClick={() => setNoteFor(null)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !draft.trim()}>Save note</button></>}>
+        footer={<><button type="button" className="btn" onClick={() => setNoteFor(null)}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !draft.trim()}>Save note</button></>}>
         <textarea className="input" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={4000} placeholder="Strong STAR structure; tighten the system design answer." autoFocus />
         {action.error && <Alert kind="error">{action.error}</Alert>}
       </Dialog>
@@ -301,17 +301,17 @@ const ComputersTab: React.FC<{ devices: Device[]; manage: boolean; onInvite: () 
       {action.error && <div style={{ padding: 12 }}><Alert kind="error">{action.error}</Alert></div>}
       {devices.length === 0 ? (
         <EmptyState icon={<Laptop size={18} />} title="Not signed in anywhere" description="The candidate signs in by entering an invite code in PrepPilot › Settings › Account."
-          action={manage ? <button className="btn btn-primary" onClick={onInvite}><KeyRound size={15} /> Create invite code</button> : undefined} />
+          action={manage ? <button className="btn btn-cta" onClick={onInvite}><KeyRound size={15} /> Create invite code</button> : undefined} />
       ) : (
-        <div className="list">{devices.map((d) => (
-          <div key={d.id} className="list-row">
+        <div className="rows">{devices.map((d) => (
+          <div key={d.id} className="srow">
             <Laptop size={18} className="muted" />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="cell-title">{d.name ?? 'Computer'}</div>
+              <div className="person-name">{d.name ?? 'Computer'}</div>
               <div className="faint">{PLATFORM[d.platform ?? ''] ?? d.platform ?? 'Unknown'}{d.app_version && ` · PrepPilot ${d.app_version}`} · signed in {dateTime(d.created_at)}</div>
             </div>
             {d.revoked_at ? <Badge>Signed out</Badge> : <span className="faint">Seen {relative(d.last_seen_at)}</span>}
-            {manage && !d.revoked_at && <button className="btn btn-sm btn-danger" onClick={() => revoke(d)} disabled={action.busy}>Sign out</button>}
+            {manage && !d.revoked_at && <button className="btn btn-danger" onClick={() => revoke(d)} disabled={action.busy}>Sign out</button>}
           </div>
         ))}</div>
       )}
@@ -339,9 +339,9 @@ const MinutesDialog: React.FC<{ open: boolean; onClose: () => void; id: string; 
   });
   return (
     <Dialog open={open} onClose={onClose} onSubmit={save} title={mode === 'give' ? 'Give minutes' : 'Take back minutes'} description={`Practice time for ${name}. It is counted only while a session runs.`}
-      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy}>{mode === 'give' ? 'Give minutes' : 'Take back'}</button></>}>
-      <div className="row">
-        {[15, 30, 60, 120].map((v) => <button key={v} type="button" className={`btn btn-sm ${minutes === String(v) ? 'btn-primary' : ''}`} onClick={() => setMinutes(String(v))}>{v} min</button>)}
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy}>{mode === 'give' ? 'Give minutes' : 'Take back'}</button></>}>
+      <div className="chips">
+        {[15, 30, 60, 120].map((v) => <button key={v} type="button" className={`chip ${minutes === String(v) ? 'on' : ''}`} onClick={() => setMinutes(String(v))}>{v} min</button>)}
       </div>
       <div className="form-grid">
         <Field label="Minutes"><input className="input" type="number" min={1} max={100000} value={minutes} onChange={(e) => setMinutes(e.target.value)} autoFocus /></Field>
@@ -368,8 +368,8 @@ const InviteDialog: React.FC<{ open: boolean; onClose: () => void; id: string; n
   return (
     <Dialog open={open} onClose={close} onSubmit={code ? close : create} title="Invite code" description={`${name} enters it in PrepPilot under Settings › Account. It works once, within 7 days.`}
       footer={code
-        ? <><button type="button" className="btn" onClick={() => void copyText(code).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy code'}</button><button type="submit" className="btn btn-primary">Done</button></>
-        : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy}><KeyRound size={14} /> Create code</button></>}>
+        ? <><button type="button" className="btn" onClick={() => void copyText(code).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy code'}</button><button type="submit" className="btn btn-cta">Done</button></>
+        : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy}><KeyRound size={14} /> Create code</button></>}>
       {code ? (
         <>
           <div className="code-box">{code}</div>
@@ -408,7 +408,7 @@ const SlotsDialog: React.FC<{ open: boolean; onClose: () => void; id: string; on
   });
   return (
     <Dialog open={open} onClose={onClose} onSubmit={save} title="Book slots" description="The times when this candidate may use PrepPilot."
-      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy}>{count === 1 ? 'Book slot' : `Book ${count} slots`}</button></>}>
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy}>{count === 1 ? 'Book slot' : `Book ${count} slots`}</button></>}>
       <div className="form-grid">
         <Field label="First slot starts" full><input className="input" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
         <Field label="Length"><select className="input" value={duration} onChange={(e) => setDuration(e.target.value)}>
@@ -449,7 +449,7 @@ const AssignmentDialog: React.FC<{ open: boolean; onClose: () => void; id: strin
   });
   return (
     <Dialog open={open} onClose={onClose} onSubmit={save} wide title="New assignment" description="A mock interview for the candidate to complete in PrepPilot."
-      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !form.title.trim()}>Create assignment</button></>}>
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !form.title.trim()}>Create assignment</button></>}>
       <div className="form-grid">
         <Field label="Title" full><input className="input" value={form.title} onChange={set('title')} placeholder="Mock interview: backend round" maxLength={300} autoFocus /></Field>
         <Field label="Role"><input className="input" value={form.role_title} onChange={set('role_title')} placeholder="Backend developer" /></Field>
@@ -479,7 +479,7 @@ const ArchiveButton: React.FC<{ id: string; name: string; onDone: () => void }> 
   };
   return (
     <div className="row">
-      <div style={{ flex: 1 }}><div className="cell-title">Archive candidate</div><div className="faint">Signs out their computers and stops access. History is kept.</div></div>
+      <div style={{ flex: 1 }}><div className="person-name">Archive candidate</div><div className="faint">Signs out their computers and stops access. History is kept.</div></div>
       <button className="btn btn-danger" onClick={archive} disabled={action.busy}><Archive size={14} /> Archive</button>
       {action.error && <Alert kind="error">{action.error}</Alert>}
     </div>

@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { Alert, Field, useAction } from '../components/ui';
 
-const Brand: React.FC = () => (
-  <div className="auth-brand"><div className="org-mark">P</div>PrepPilot Manager</div>
+const Brand: React.FC<{ line: string }> = ({ line }) => (
+  <div style={{ marginBottom: 22 }}>
+    <div className="auth-word">PrepPilot</div>
+    <p className="page-desc" style={{ textAlign: 'center' }}>{line}</p>
+  </div>
 );
 
 export const Login: React.FC = () => {
@@ -30,19 +33,15 @@ export const Login: React.FC = () => {
   return (
     <div className="auth">
       <div className="auth-card">
-        <Brand />
-        <form className="card" onSubmit={signIn}>
-          <div className="card-body stack" style={{ gap: 14 }}>
-            <div>
-              <h1 className="page-title" style={{ fontSize: 18 }}>Sign in</h1>
-              <p className="page-desc">Manage candidates, practice time and assignments.</p>
-            </div>
+        <Brand line="Sign in to manage candidates, practice time and assignments." />
+        <form onSubmit={signIn}>
+          <div className="stack" style={{ gap: 16 }}>
             <Field label="Email"><input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
             <Field label="Password"><input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
             {action.error && <Alert kind="error">{action.error}</Alert>}
             {sent && <Alert kind="ok">If that email has an account, a reset link is on its way.</Alert>}
-            <button className="btn btn-primary" type="submit" disabled={action.busy} style={{ height: 36 }}>{action.busy ? 'Signing in…' : 'Sign in'}</button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={reset} disabled={action.busy} style={{ alignSelf: 'center' }}>Forgot password?</button>
+            <button className="btn btn-cta" type="submit" disabled={action.busy} style={{ height: 40, marginTop: 4 }}>{action.busy ? 'Signing in…' : 'Sign in'}</button>
+            <button className="btn btn-ghost" type="button" onClick={reset} disabled={action.busy} style={{ alignSelf: 'center' }}>Forgot password?</button>
           </div>
         </form>
       </div>
@@ -68,17 +67,13 @@ export const SetPassword: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   return (
     <div className="auth">
       <div className="auth-card">
-        <Brand />
-        <form className="card" onSubmit={save}>
-          <div className="card-body stack" style={{ gap: 14 }}>
-            <div>
-              <h1 className="page-title" style={{ fontSize: 18 }}>Choose your password</h1>
-              <p className="page-desc">You will sign in with your email and this password.</p>
-            </div>
+        <Brand line="Choose a password. You will sign in with your email and this password." />
+        <form onSubmit={save}>
+          <div className="stack" style={{ gap: 16 }}>
             <Field label="New password" hint="At least 10 characters."><input className="input" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></Field>
             <Field label="Confirm password"><input className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required /></Field>
             {action.error && <Alert kind="error">{action.error}</Alert>}
-            <button className="btn btn-primary" type="submit" disabled={action.busy} style={{ height: 36 }}>Save and continue</button>
+            <button className="btn btn-cta" type="submit" disabled={action.busy} style={{ height: 40, marginTop: 4 }}>Save and continue</button>
           </div>
         </form>
       </div>

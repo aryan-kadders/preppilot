@@ -72,7 +72,7 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
         {isAdmin && (
           <div className="row">
             <button className="btn" onClick={() => setDialog('team')}><Plus size={15} /> New team</button>
-            <button className="btn btn-primary" onClick={() => setDialog('invite')} disabled={!teams}><UserPlus size={15} /> Invite staff</button>
+            <button className="btn btn-cta" onClick={() => setDialog('invite')} disabled={!teams}><UserPlus size={15} /> Invite staff</button>
           </div>
         )}
       </div>
@@ -81,16 +81,16 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
 
       <div className="stack" style={{ gap: 16 }}>
         <Card title="Teams" description="Candidates belong to one team" flush>
-          {teams === null ? <SkeletonRows rows={2} cols={2} /> : teams.length === 0 ? (
+          {teams === null ? <SkeletonRows /> : teams.length === 0 ? (
             <EmptyState icon={<UsersRound size={20} />} title="No teams yet" description="Create a team, then add candidates to it and give managers access."
-              action={isAdmin ? <button className="btn btn-primary" onClick={() => setDialog('team')}><Plus size={15} /> New team</button> : undefined} />
+              action={isAdmin ? <button className="btn btn-cta" onClick={() => setDialog('team')}><Plus size={15} /> New team</button> : undefined} />
           ) : (
-            <div className="list">{teams.map((t) => {
+            <div className="rows">{teams.map((t) => {
               const people = staff.filter((s) => s.role !== 'admin' && members.some((m) => m.team_id === t.id && m.user_id === s.user_id));
               return (
-                <div key={t.id} className="list-row">
+                <div key={t.id} className="srow">
                   <div className="avatar" style={{ borderRadius: 7 }}>{t.name.slice(0, 1).toUpperCase()}</div>
-                  <span className="cell-title" style={{ flex: 1 }}>{t.name}</span>
+                  <span className="person-name" style={{ flex: 1 }}>{t.name}</span>
                   <span className="faint">{people.length ? people.map(label).join(', ') : 'Admins only'}</span>
                 </div>
               );
@@ -105,7 +105,7 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
               const self = s.user_id === me.userId;
               return (
                 <tr key={s.user_id}>
-                  <td><div className="cell-main"><Avatar name={label(s)} /><div><div className="cell-title">{label(s)}{self && <span className="faint"> (you)</span>}</div><div className="cell-sub">Joined {new Date(s.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div></div></div></td>
+                  <td><div className="person"><Avatar name={label(s)} /><div><div className="person-name">{label(s)}{self && <span className="faint"> (you)</span>}</div><div className="person-sub">Joined {new Date(s.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div></div></div></td>
                   <td>{isAdmin && !self ? (
                     <select className="input" style={{ width: 130, height: 30 }} value={s.role} onChange={(e) => setRole(s.user_id, e.target.value as Role)} aria-label={`Role of ${label(s)}`}>
                       <option value="admin">Admin</option><option value="manager">Manager</option><option value="coach">Coach</option>
@@ -119,7 +119,7 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
                         : on ? <Badge key={t.id}>{t.name}</Badge> : null;
                     })}</div>
                   )}</td>
-                  {isAdmin && <td className="num">{!self && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => remove(s)} disabled={edit.busy} aria-label={`Remove ${label(s)}`}><Trash2 size={14} /></button>}</td>}
+                  {isAdmin && <td className="num">{!self && <button className="btn btn-ghost btn-icon" onClick={() => remove(s)} disabled={edit.busy} aria-label={`Remove ${label(s)}`}><Trash2 size={14} /></button>}</td>}
                 </tr>
               );
             })}</tbody>
@@ -151,7 +151,7 @@ const NewTeamDialog: React.FC<{ open: boolean; onClose: () => void; me: Me; onDo
   });
   return (
     <Dialog open={open} onClose={onClose} onSubmit={save} title="New team" description="For example a batch, a role or a client."
-      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !name.trim()}>Create team</button></>}>
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !name.trim()}>Create team</button></>}>
       <Field label="Team name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="Backend, November batch" autoFocus /></Field>
       {action.error && <Alert kind="error">{action.error}</Alert>}
     </Dialog>
@@ -193,8 +193,8 @@ const InviteStaffDialog: React.FC<{ open: boolean; onClose: () => void; teams: T
   return (
     <Dialog open={open} onClose={close} onSubmit={link ? close : invite} title="Invite staff" description="They get a one-time link to choose a password and sign in."
       footer={link
-        ? <><button type="button" className="btn" onClick={() => void copyText(link).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy link'}</button><button type="submit" className="btn btn-primary">Done</button></>
-        : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-primary" disabled={action.busy || !email.trim()}><UserPlus size={14} /> Create invitation</button></>}>
+        ? <><button type="button" className="btn" onClick={() => void copyText(link).then(setCopied)}><Copy size={14} /> {copied ? 'Copied' : 'Copy link'}</button><button type="submit" className="btn btn-cta">Done</button></>
+        : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !email.trim()}><UserPlus size={14} /> Create invitation</button></>}>
       {link ? (
         <>
           <Alert kind="ok">Invitation ready for {email}. Send them this link privately; it works once.</Alert>

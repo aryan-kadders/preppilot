@@ -41,12 +41,12 @@ export const Audit: React.FC = () => {
       <div className="page-head"><div><h1 className="page-title">Audit log</h1><p className="page-desc">Every change to candidates, minutes, computers and staff, newest first.</p></div></div>
       <section className="card">
         {load.error && <div style={{ padding: 12 }}><Alert kind="error">{load.error}</Alert></div>}
-        {rows === null ? <SkeletonRows cols={3} /> : rows.length === 0 ? <EmptyState icon={<ScrollText size={20} />} title="Nothing recorded yet" /> : (
-          <div className="list">{rows.map((r) => {
+        {rows === null ? <SkeletonRows /> : rows.length === 0 ? <EmptyState icon={<ScrollText size={20} />} title="Nothing recorded yet" /> : (
+          <div className="rows">{rows.map((r) => {
             const a = ACTIONS[r.action] ?? { label: r.action, icon: <ScrollText size={15} /> };
             return (
-              <div key={r.id} className="list-row">
-                <span className="muted">{a.icon}</span>
+              <div key={r.id} className="srow">
+                <span className="tile sm">{a.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div>{a.label}{r.target_type === 'candidate' && r.target_id && <> · <a href={`#/candidates/${r.target_id}`} style={{ color: 'var(--accent)' }}>view candidate</a></>}</div>
                   {describe(r) && <div className="faint">{describe(r)}</div>}

@@ -10,19 +10,19 @@ export const Alert: React.FC<{ kind: 'error' | 'ok' | 'info'; children: React.Re
 
 export const EmptyState: React.FC<{ icon: React.ReactNode; title: string; description?: React.ReactNode; action?: React.ReactNode }> = ({ icon, title, description, action }) => (
   <div className="empty">
-    <div className="empty-icon">{icon}</div>
+    <div className="tile">{icon}</div>
     <div className="empty-title">{title}</div>
     {description && <div className="empty-desc">{description}</div>}
     {action}
   </div>
 );
 
-export const SkeletonRows: React.FC<{ rows?: number; cols?: number }> = ({ rows = 5, cols = 5 }) => (
-  <table className="table"><tbody>
+export const SkeletonRows: React.FC<{ rows?: number }> = ({ rows = 4 }) => (
+  <div className="rows">
     {Array.from({ length: rows }, (_, r) => (
-      <tr key={r}>{Array.from({ length: cols }, (_, c) => <td key={c}><div className="skeleton" style={{ width: c === 0 ? '70%' : '50%' }} /></td>)}</tr>
+      <div key={r} className="srow"><div className="tile" /><div className="srow-text stack" style={{ gap: 8 }}><div className="skeleton" style={{ width: '40%' }} /><div className="skeleton" style={{ width: '65%', height: 10 }} /></div></div>
     ))}
-  </tbody></table>
+  </div>
 );
 
 export const Badge: React.FC<{ tone?: 'good' | 'warn' | 'danger' | 'accent'; dot?: boolean; pulse?: boolean; children: React.ReactNode }> = ({ tone, dot, pulse, children }) =>
@@ -38,10 +38,34 @@ export const Avatar: React.FC<{ name: string | null | undefined; large?: boolean
   <span className={`avatar ${large ? 'lg' : ''}`} aria-hidden="true">{initials(name)}</span>;
 
 export const Kpi: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: React.ReactNode }> = ({ icon, label, value, hint }) => (
-  <div className="kpi">
-    <div className="kpi-label">{icon}{label}</div>
-    <div className="kpi-value">{value}</div>
-    {hint && <div className="kpi-hint">{hint}</div>}
+  <div className="stat">
+    <div className="stat-top"><span className="tile">{icon}</span>{label}</div>
+    <div className="stat-value">{value}</div>
+    {hint && <div className="stat-hint">{hint}</div>}
+  </div>
+);
+
+/** A titled section, like Settings' "Speech Provider": heading and grey line above, card below. */
+export const Section: React.FC<{ title: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }> = ({ title, description, actions, children }) => (
+  <section className="section">
+    <div className="row" style={{ alignItems: 'flex-end', marginBottom: 12, flexWrap: 'nowrap' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h2 className="section-title">{title}</h2>
+        {description && <p className="section-desc" style={{ margin: 0 }}>{description}</p>}
+      </div>
+      {actions}
+    </div>
+    <div className="card">{children}</div>
+  </section>
+);
+
+/** A Settings row: icon tile, bold title over a grey line, something on the right. */
+export const SRow: React.FC<{ icon: React.ReactNode; title: React.ReactNode; description?: React.ReactNode; aside?: React.ReactNode; onClick?: () => void }> = ({ icon, title, description, aside, onClick }) => (
+  <div className={`srow ${onClick ? 'clickable' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}>
+    <span className="tile">{icon}</span>
+    <div className="srow-text"><div className="srow-title">{title}</div>{description && <div className="srow-desc">{description}</div>}</div>
+    {aside && <div className="srow-aside">{aside}</div>}
   </div>
 );
 
@@ -57,7 +81,7 @@ export const Card: React.FC<{ title?: string; description?: string; actions?: Re
         {actions}
       </div>
     )}
-    {flush ? children : <div className="card-body">{children}</div>}
+    {flush ? children : <div className="card-pad">{children}</div>}
   </section>
 );
 

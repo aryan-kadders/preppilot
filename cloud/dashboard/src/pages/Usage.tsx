@@ -65,7 +65,7 @@ export const Usage: React.FC = () => {
         </div>
       </div>
 
-      <div className="kpis">
+      <div className="stats">
         <Kpi icon={<Activity size={14} />} label="Sessions" value={total.sessions} hint={`${active.length} candidates practised`} />
         <Kpi icon={<Clock size={14} />} label="Minutes practised" value={minutesLabel(total.used)} />
         <Kpi icon={<Sparkles size={14} />} label="AI answers" value={total.calls} />
@@ -74,7 +74,7 @@ export const Usage: React.FC = () => {
 
       <section className="card">
         {load.error && <div style={{ padding: 12 }}><Alert kind="error">{load.error}</Alert></div>}
-        {rows === null ? <SkeletonRows cols={6} /> : rows.length === 0 ? (
+        {rows === null ? <SkeletonRows /> : rows.length === 0 ? (
           <EmptyState icon={<BarChart3 size={20} />} title="No candidates yet" description="Usage appears here once candidates start practising." />
         ) : (
           <div className="table-wrap"><table className="table">
@@ -82,7 +82,7 @@ export const Usage: React.FC = () => {
             <tbody>
               {[...active, ...idle].map((r) => (
                 <tr key={r.candidate_id} className="clickable" onClick={() => { window.location.hash = `#/candidates/${r.candidate_id}`; }}>
-                  <td><div className="cell-main"><Avatar name={r.candidate_name} /><span className="cell-title">{r.candidate_name}</span></div></td>
+                  <td><div className="person"><Avatar name={r.candidate_name} /><span className="person-name">{r.candidate_name}</span></div></td>
                   <td className="muted">{r.team_name}</td>
                   <td className="num">{r.sessions}</td>
                   <td>
