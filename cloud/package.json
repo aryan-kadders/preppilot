@@ -1,0 +1,14 @@
+{
+  "name": "preppilot-cloud",
+  "private": true,
+  "type": "module",
+  "description": "PrepPilot Cloud: Supabase schema, access rules and the api Edge Function",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs tests/*.test.ts",
+    "test:db": "node --test tests/db.test.mjs",
+    "test:api": "node --test tests/api.test.ts"
+  },
+  "devDependencies": {
+    "pg": "8.13.1"
+  }
+}

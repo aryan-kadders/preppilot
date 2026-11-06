@@ -1,0 +1,7 @@
+# Supabase CLI project settings for PrepPilot Cloud.
+project_id = "preppilot-cloud"
+
+# The desktop app does not hold a Supabase user JWT: `api` checks its own
+# device tokens (see functions/_shared/core.ts), so the gateway's JWT check is off.
+[functions.api]
+verify_jwt = false
