@@ -1479,22 +1479,52 @@ export function practiceStoryTurn(d: Readonly<TurnDecision>): boolean {
  * chose a model answer that says what it is over both an unlabelled story and
  * no story: a sample a candidate practises from and replaces with their own.
  * A real story from the evidence is never labelled.
+ * Same day, owner's review of the live run: the full sentence label repeated
+ * on every answer and the stories ran five to seven sentences. Now one bold
+ * word ("**Sample:**", the overlay's emphasis, dropped from spoken text) and
+ * three to four short sentences.
  */
-export const SAMPLE_STORY_LABEL = 'Sample story (replace with your own):';
-export const SAMPLE_EXAMPLE_LABEL = 'Sample example (replace with your own):';
+export const SAMPLE_LABEL = '**Sample:**';
+
+/**
+ * "Can you elaborate on that?" after a story (2026-11-13, measured live): the
+ * follow-up resolves to the story question, so it got the same three-to-four
+ * sentence rule and came back as a re-telling of the same length, labelled
+ * again. A request for more detail now continues the SAME story at more depth.
+ */
+export const ELABORATE_RE = /\b(?:elaborate|expand(?: on)?|go deeper|dig deeper|in (?:more )?detail|more detail(?:s|ed)?|tell (?:me|us) more|say more|explain (?:it|that|this|that part) (?:more|further|in detail|again)|walk (?:me|us) through (?:it|that|this))\b/i;
+
+// conversation-state resolves a follow-up as `<ask> (follow-up to: "<previous>")`;
+// only the ask itself says whether this is a new story or more of the last one.
+const FOLLOW_UP_SUFFIX_RE = /\s*\(follow-up to: "[\s\S]*"\)\s*$/;
+
+export function storyElaborationTurn(d: Readonly<TurnDecision>): boolean {
+  if (!practiceStoryTurn(d)) return false;
+  const ask = (d.rawQuestion || d.resolvedQuestion || '').replace(FOLLOW_UP_SUFFIX_RE, '');
+  return ELABORATE_RE.test(ask) && !BEHAVIORAL_ASK_RE.test(ask);
+}
 
 export function practiceStoryNotice(d: Readonly<TurnDecision>, hasEvidence = false): string {
   if (!practiceStoryTurn(d)) return '';
+  if (storyElaborationTurn(d)) {
+    return '# More detail on the same story\nThe interviewer asked for more detail on the example in your LAST reply above. '
+      + 'Continue that SAME story, first person, in six to eight natural sentences: the context and what was at stake, what '
+      + 'exactly the user did and why, what was hard, how it turned out, and what they learned. Do not start a new story and '
+      + 'do not repeat the earlier sentences. Keep the same rules for details: no company, client or person names, no dates '
+      + `and no precise figures unless the evidence above states them. If that story was marked ${SAMPLE_LABEL}, it already `
+      + 'was, so do not mark it again. Add no disclaimer and never promise to follow up.';
+  }
   const invented = 'a realistic, ordinary example from a software developer\'s work (a tight deadline, a production bug, '
     + 'a disagreement in code review, a blocked teammate, unclear requirements) in general terms: no company, client or '
     + 'person names, no dates and no precise figures, and a modest, believable result';
-  const labelRule = `An example that does not come from the evidence is NOT the user's own experience, so it must be marked: `
-    + `for a story question, the answer's first line is exactly "${SAMPLE_STORY_LABEL}" and the story follows; for "how would `
-    + `you…" or "what would you do if…", give the concrete steps they would take, then one short example introduced on its `
-    + `own line by exactly "${SAMPLE_EXAMPLE_LABEL}". Never present an invented example as something that happened to the user.`;
+  const labelRule = `An example that does not come from the evidence is NOT the user's own experience, so it is marked with `
+    + `the single word ${SAMPLE_LABEL} written once, right before the example on the same line, and nowhere else; no other `
+    + `label, note or explanation of it. For a story question the answer starts with it; for "how would you…" or "what `
+    + `would you do if…", give the steps they would take in one or two sentences, then one short example starting with it. `
+    + `Never present an invented example as something that happened to the user.`;
   return '# Behavioral or scenario question\nThis asks for an example, or for how the user acts in a situation. Answer in '
     + 'first person as one complete STAR answer the user can say aloud: the situation, their task, the actions they took, '
-    + 'and the result, in four to seven natural sentences, without the words Situation, Task, Action or Result. '
+    + 'and the result, in three or four short sentences, without the words Situation, Task, Action or Result. '
     + (hasEvidence
       ? 'If the evidence above holds a real story of this kind, tell that one with only its real details and no label. '
         + `If it does not, tell ${invented}. `

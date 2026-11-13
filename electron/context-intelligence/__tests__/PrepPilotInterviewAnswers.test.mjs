@@ -104,8 +104,9 @@ describe('behavioral and scenario questions', () => {
   // the candidate's own history; a real story from the evidence is unlabelled.
   test('with nothing on file, the invented example is labelled as a sample', () => {
     const p = compose(STORIES[0]);
-    assert.match(p.user, /first line is exactly "Sample story \(replace with your own\):"/);
-    assert.match(p.user, /"Sample example \(replace with your own\):"/);
+    assert.match(p.user, /the single word \*\*Sample:\*\* written once/);
+    assert.match(p.user, /three or four short sentences/);
+    assert.doesNotMatch(p.user, /four to seven/);
     assert.match(p.user, /Nothing about the user's own past is on file/);
     assert.match(p.user, /Never present an invented example as something that happened to the user/);
     assert.doesNotMatch(p.user, /never say the example is hypothetical/);
@@ -115,6 +116,23 @@ describe('behavioral and scenario questions', () => {
     assert.match(n, /tell that one with only its real details and no label/);
     assert.match(n, /does not come from the evidence is NOT the user's own experience/);
     assert.doesNotMatch(n, /Nothing about the user's own past is on file/);
+  });
+  test('"elaborate" after a story continues the same story at more depth, unlabelled', () => {
+    const d = { ...heard(STORIES[0]), rawQuestion: 'Can you elaborate on that a bit more?' };
+    assert.ok(composer.storyElaborationTurn(d));
+    const n = composer.practiceStoryNotice(d, false);
+    assert.match(n, /Continue that SAME story/);
+    assert.match(n, /six to eight natural sentences/);
+    assert.match(n, /do not mark it again/);
+    assert.doesNotMatch(n, /three or four short sentences/);
+  });
+  test('a new story question is not an elaboration', () => {
+    for (const q of STORIES) assert.ok(!composer.storyElaborationTurn(heard(q)), q);
+    assert.ok(!composer.storyElaborationTurn({ ...heard(STORIES[0]), rawQuestion: 'Tell me about a time you failed, in detail.' }));
+  });
+  test('the resolved follow-up shape (with the previous question appended) still counts as an elaboration', () => {
+    const d = { ...heard(STORIES[0]), rawQuestion: `Can you elaborate on that a bit more? (follow-up to: "${STORIES[0]}")` };
+    assert.ok(composer.storyElaborationTurn(d));
   });
   test('a fact about the user is still never invented', () => {
     for (const q of ['How big was your team at your last company?', 'What is your CGPA?', 'Tell me about yourself.']) {
