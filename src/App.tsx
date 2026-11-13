@@ -47,6 +47,8 @@ import { ProfileIntelligenceSettings } from "./components/ProfileIntelligenceSet
 import { useResolvedTheme } from "./hooks/useResolvedTheme"
 import { useDiagramRenderHost } from "./lib/diagram/diagramRuntime"
 import { WelcomeFlow } from "./components/onboarding/WelcomeFlow"
+import { readTeamSetup } from "./components/TeamSetupCard"
+import { startBlockMessage, FOCUS_INVITE_EVENT } from "./lib/teamSetup.mjs"
 import { shouldShowWelcome, hasOnboardingHistory, WELCOME_SEEN_KEY, LEGACY_PERMS_SHOWN_KEY, ONBOARDING_STATE_KEY } from "./lib/onboarding/welcomeGate.mjs"
 
 // How often the launcher may re-read the card inputs when it regains focus
@@ -991,6 +993,17 @@ const App: React.FC = () => {
   const handleStartMeeting = async (calendar?: { title: string; calendarEventId: string }) => {
     const linked = calendar && typeof calendar === 'object' && typeof calendar.calendarEventId === 'string' ? calendar : undefined;
     setStartError(null);
+    // PrepPilot: a candidate without the manager's invite code has no AI to
+    // answer with. Say so and point at the code box instead of starting.
+    try {
+      const setup = await readTeamSetup();
+      const blocked = startBlockMessage(setup.step, setup.cloudState);
+      if (blocked) {
+        // Shown in the Join card, next to the box it asks for.
+        window.dispatchEvent(new CustomEvent(FOCUS_INVITE_EVENT, { detail: blocked }));
+        return;
+      }
+    } catch { /* could not read setup: let main decide, as before */ }
     try {
       // The saved microphone and speaker, as Resume asks for them too
       // (lib/startMeetingRequest.ts: drops Natively's own tap aggregate saved

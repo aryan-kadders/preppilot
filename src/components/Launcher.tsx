@@ -5,7 +5,7 @@ import { ProfileIntelligenceIcon } from './ProfileIntelligenceIcon';
 import { NativelyWordmark } from './NativelyWordmark';
 import mainui from "../UI_comp/mainui.png";
 import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
-import { AiSetupCard } from './AiSetupCard';
+import { TeamSetupCard } from './TeamSetupCard';
 import { BRAND_MARK_D } from '../lib/brandMark';
 import AssistToday from './assist/AssistToday';
 import type { AssistEvent } from '../types/assist';
@@ -1214,10 +1214,11 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                         </button>
                                     </div>
 
-                                    {/* PrepPilot: while no AI is connected, the one setup step a
-                                        new user needs (paste a free key, or use local Ollama).
-                                        Renders nothing once an AI is connected. */}
-                                    <AiSetupCard className="mb-3" />
+                                    {/* PrepPilot: a candidate's setup, in order: join the team with
+                                        the manager's invite code, then upload the résumé. Someone with
+                                        their own AI (or "Use my own AI key") gets the solo setup card.
+                                        Renders nothing once set up. */}
+                                    <TeamSetupCard className="mb-3" onOpenProfile={() => onOpenProfile?.()} />
 
                                     {/* 2. Hero Section Cards */}
                                     <div className="grid grid-cols-1 gap-3 h-[198px]">
