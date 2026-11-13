@@ -1,20 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Copy, Plus, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react';
+import { CalendarClock, Copy, Plus, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import { supabase } from '../supabase';
 import { API_URL } from '../config';
-import type { Me, Role, Team } from '../lib/types';
-import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
+import { ROLE_LABEL, isAdmin as isAdminFor, type Me, type Role, type Team } from '../lib/types';
+import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, SRow, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
 
 interface StaffRow { user_id: string; role: Role; display_name: string | null; created_at: string }
 interface Membership { team_id: string; user_id: string }
 
 const ROLE_HELP: Record<Role, string> = {
-  admin: 'Everything in the organization, including staff and the audit log',
-  manager: 'Their teams: candidates, minutes, slots, invite codes and assignments',
-  coach: 'Read their teams and add notes to sessions',
+  admin: 'Everything in the organization, including staff, settings and the audit log',
+  manager: 'Their teams: candidates, minutes, slots, invite codes, assignments and interviews',
+  recruiter: 'Their teams: adds the client interviews candidates prepare for, and records the results. No minutes or invite codes',
+  coach: 'Their teams: reviews practice sessions, adds notes, and says whether a candidate is ready for an interview',
 };
+const ROLES: Role[] = ['admin', 'manager', 'recruiter', 'coach'];
 
-export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
+export const TeamPage: React.FC<{ me: Me; onSettingsChange: () => void }> = ({ me, onSettingsChange }) => {
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [members, setMembers] = useState<Membership[]>([]);
@@ -22,7 +24,7 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
   const load = useAction();
   const edit = useAction();
   const toast = useToast();
-  const isAdmin = me.role === 'admin';
+  const isAdmin = isAdminFor(me);
   const { run } = load;
 
   const refresh = useCallback(() => run(async () => {
@@ -60,6 +62,12 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
       await refresh();
     });
   };
+  const setRequireSlots = (on: boolean) => void edit.run(async () => {
+    const { error } = await supabase.rpc('pp_set_require_slots', { p_require: on });
+    if (error) throw error;
+    toast(on ? 'Candidates now practise only inside booked slots' : 'Candidates can now practise any time they have minutes');
+    onSettingsChange();
+  });
   const label = (s: StaffRow) => (s.user_id === me.userId ? (s.display_name ?? me.email ?? 'You') : s.display_name ?? `Staff member ${s.user_id.slice(0, 6)}`);
 
   return (
@@ -67,7 +75,7 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
       <div className="page-head">
         <div>
           <h1 className="page-title">Teams &amp; staff</h1>
-          <p className="page-desc">Managers and coaches see only the teams they belong to. Admins see everything.</p>
+          <p className="page-desc">Managers, recruiters and coaches see only the teams they belong to. Admins see everything.</p>
         </div>
         {isAdmin && (
           <div className="row">
@@ -108,9 +116,9 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
                   <td><div className="person"><Avatar name={label(s)} /><div><div className="person-name">{label(s)}{self && <span className="faint"> (you)</span>}</div><div className="person-sub">Joined {new Date(s.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div></div></div></td>
                   <td>{isAdmin && !self ? (
                     <select className="input" style={{ width: 130, height: 30 }} value={s.role} onChange={(e) => setRole(s.user_id, e.target.value as Role)} aria-label={`Role of ${label(s)}`}>
-                      <option value="admin">Admin</option><option value="manager">Manager</option><option value="coach">Coach</option>
+                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                     </select>
-                  ) : <Badge tone={s.role === 'admin' ? 'accent' : undefined}>{s.role === 'admin' && <ShieldCheck size={12} />}{s.role}</Badge>}</td>
+                  ) : <Badge tone={s.role === 'admin' ? 'accent' : undefined}>{s.role === 'admin' && <ShieldCheck size={12} />}{ROLE_LABEL[s.role]}</Badge>}</td>
                   <td>{s.role === 'admin' ? <span className="faint">All teams</span> : (
                     <div className="row">{(teams ?? []).map((t) => {
                       const on = members.some((m) => m.team_id === t.id && m.user_id === s.user_id);
@@ -125,8 +133,18 @@ export const TeamPage: React.FC<{ me: Me }> = ({ me }) => {
             })}</tbody>
           </table></div>
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }} className="stack">
-            {(Object.keys(ROLE_HELP) as Role[]).map((r) => <div key={r} className="faint"><strong style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{r}</strong> · {ROLE_HELP[r]}</div>)}
+            {ROLES.map((r) => <div key={r} className="faint"><strong style={{ color: 'var(--text-secondary)' }}>{ROLE_LABEL[r]}</strong> · {ROLE_HELP[r]}</div>)}
           </div>
+        </Card>
+
+        <Card title="Practice rules" flush>
+          <SRow icon={<CalendarClock size={16} />} title="Require booked slots"
+            description={me.requireSlots
+              ? 'On: candidates can use PrepPilot only inside a slot a manager booked, while they have minutes.'
+              : 'Off: candidates can practise any time they have minutes. Slots are optional, for planning.'}
+            aside={isAdmin
+              ? <button type="button" className="toggle" role="switch" aria-checked={me.requireSlots} aria-label="Require booked slots" disabled={edit.busy} onClick={() => setRequireSlots(!me.requireSlots)} />
+              : <Badge>{me.requireSlots ? 'On' : 'Off'}</Badge>} />
         </Card>
       </div>
 
@@ -207,7 +225,7 @@ const InviteStaffDialog: React.FC<{ open: boolean; onClose: () => void; teams: T
             <Field label="Name"><input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={120} placeholder="Shown to your team" /></Field>
             <Field label="Role" hint={ROLE_HELP[role]} full>
               <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-                <option value="manager">Manager</option><option value="coach">Coach</option><option value="admin">Admin</option>
+                {(['manager', 'recruiter', 'coach', 'admin'] as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
               </select>
             </Field>
           </div>

@@ -244,14 +244,16 @@ async function staffRoute(req: Request, route: string, deps: Deps): Promise<Resp
     if (!adminId) return json(401, { error: 'not_signed_in' }, CORS);
 
     if (route === '/v1/staff/invite') {
-      // Checked first, so nobody but an admin can make the server create a login.
-      if ((await deps.rpc('pp_staff_role', { p_user: adminId })) !== 'admin') return json(403, { error: 'admins_only' }, CORS);
+      // Checked first, so nobody but an admin (or an owner working in an
+      // organization) can make the server create a login.
+      const callerRole = await deps.rpc('pp_staff_role', { p_user: adminId });
+      if (callerRole !== 'admin' && callerRole !== 'owner') return json(403, { error: 'admins_only' }, CORS);
       const body = await readJson(req);
       const email = String(body?.email ?? '').trim().toLowerCase();
       const role = String(body?.role ?? '');
       const teamIds: unknown[] = Array.isArray(body?.team_ids) ? body!.team_ids : [];
       if (!EMAIL_RE.test(email) || email.length > 254) return json(400, { error: 'bad_email' }, CORS);
-      if (!['admin', 'manager', 'coach'].includes(role)) return json(400, { error: 'bad_role' }, CORS);
+      if (!['admin', 'manager', 'recruiter', 'coach'].includes(role)) return json(400, { error: 'bad_role' }, CORS);
       if (!teamIds.every(isUuid)) return json(400, { error: 'bad_team' }, CORS);
       const redirectTo = typeof body?.redirect_to === 'string' && /^https?:\/\//.test(body.redirect_to) ? body.redirect_to : undefined;
       const { userId, link } = await deps.staff.signInLink(email, redirectTo);

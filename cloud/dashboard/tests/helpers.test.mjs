@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { csvCell, toCsv } from '../src/lib/csv.ts';
 import { minutesLabel, money, relative, repeatedSlots } from '../src/lib/format.ts';
-import { parseRoute, routeHash } from '../src/lib/types.ts';
+import { canJudgeReadiness, canManage, canRecruit, isAdmin, parseRoute, routeHash } from '../src/lib/types.ts';
 
 test('CSV quotes what needs quoting and defuses formulas', () => {
   assert.equal(csvCell('plain'), 'plain');
@@ -51,6 +51,22 @@ test('routes round-trip, and anything unknown goes to Candidates', () => {
   assert.deepEqual(parseRoute('#/usage'), { page: 'usage' });
   assert.deepEqual(parseRoute('#access_token=abc&type=invite'), { page: 'candidates' });
   assert.deepEqual(parseRoute('#/candidates/not-an-id'), { page: 'candidates' });
+  for (const page of ['interviews', 'companies', 'team', 'audit']) {
+    assert.deepEqual(parseRoute(routeHash({ page })), { page });
+  }
+});
+
+test('what each role may do', () => {
+  const me = (role) => ({ role, isOwner: role === 'owner' });
+  const table = Object.fromEntries(['owner', 'admin', 'manager', 'recruiter', 'coach'].map((r) =>
+    [r, [isAdmin(me(r)), canManage(me(r)), canRecruit(me(r)), canJudgeReadiness(me(r))]]));
+  assert.deepEqual(table, {
+    owner: [true, true, true, true],
+    admin: [true, true, true, true],
+    manager: [false, true, true, true],
+    recruiter: [false, false, true, false],
+    coach: [false, false, false, true],
+  });
 });
 
 test('download links and the invite message', async () => {

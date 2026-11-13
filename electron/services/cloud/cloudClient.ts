@@ -55,6 +55,8 @@ export interface CloudSessionView {
 export interface CloudStatus {
   candidate: { id: string; name: string } | null;
   balance_seconds: number;
+  /** The organization lets candidates use PrepPilot only inside booked slots (absent from older servers: treat as true). */
+  require_slots?: boolean;
   current_slot: { starts_at: string; ends_at: string } | null;
   next_slot: { starts_at: string; ends_at: string } | null;
   assignments: Array<Record<string, unknown>>;

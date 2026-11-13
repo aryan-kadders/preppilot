@@ -129,6 +129,7 @@ export interface CloudAccountStatus {
     balance_seconds: number
     current_slot: { starts_at: string; ends_at: string } | null
     next_slot: { starts_at: string; ends_at: string } | null
+    require_slots?: boolean
     assignments: Array<{ id: string; title: string; due_at?: string | null }>
   }
 }

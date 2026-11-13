@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Archive, CalendarClock, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase';
-import type { CandidateRow, Me, Route } from '../lib/types';
+import { canManage as canManageFor, canRecruit, type CandidateRow, type InterviewRow, type Me, type Route } from '../lib/types';
 import { dateTime, minutesLabel, money, relative, repeatedSlots, slotLabel } from '../lib/format';
 import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, Kpi, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
 import { StatusBadge } from './Candidates';
 import { RELEASES_URL } from '../config';
 import { downloadLinks, inviteMessage } from '../lib/downloads';
+import { InterviewDialog, InterviewTable } from './Interviews';
 
 interface Ledger { id: string; seconds: number; reason: string; note: string | null; created_at: string }
 interface Invite { id: string; created_at: string; expires_at: string; redeemed_at: string | null }
@@ -19,10 +20,10 @@ interface Comment { id: string; session_id: string; body: string; created_at: st
 
 interface Data {
   c: CandidateRow; ledger: Ledger[]; invites: Invite[]; slots: SlotRow[]; assignments: Assignment[];
-  devices: Device[]; sessions: SessionRow[]; usage: Usage[]; comments: Comment[];
+  devices: Device[]; sessions: SessionRow[]; usage: Usage[]; comments: Comment[]; interviews: InterviewRow[];
 }
 
-type Tab = 'overview' | 'schedule' | 'assignments' | 'sessions' | 'computers';
+type Tab = 'overview' | 'interviews' | 'schedule' | 'assignments' | 'sessions' | 'computers';
 
 const PLATFORM: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 const END_REASON: Record<string, string> = { user: 'Stopped', time_up: 'Time up', stale: 'Connection lost', revoked: 'Signed out', replaced: 'Replaced' };
@@ -30,10 +31,10 @@ const END_REASON: Record<string, string> = { user: 'Stopped', time_up: 'Time up'
 export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => void; onName: (name: string | null) => void }> = ({ me, id, go, onName }) => {
   const [data, setData] = useState<Data | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
-  const [dialog, setDialog] = useState<null | 'minutes' | 'invite' | 'slots' | 'assignment'>(null);
+  const [dialog, setDialog] = useState<null | 'minutes' | 'invite' | 'slots' | 'assignment' | 'interview'>(null);
   const load = useAction();
   const { run } = load;
-  const canManage = me.role !== 'coach';
+  const canManage = canManageFor(me);
 
   const refresh = useCallback(() => run(async () => {
     const since = new Date(Date.now() - 7 * 86400_000).toISOString();
@@ -47,6 +48,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       supabase.from('sessions').select('id, started_at, ended_at, end_reason, charged_seconds, assignment_id').eq('candidate_id', id).order('started_at', { ascending: false }).limit(25),
       supabase.from('usage_events').select('session_id, cost_usd').eq('candidate_id', id).limit(5000),
       supabase.from('session_comments').select('id, session_id, body, created_at').order('created_at').limit(500),
+      supabase.from('interview_overview').select('*').eq('candidate_id', id).order('interview_at', { ascending: false }),
     ]);
     const failed = q.find((r) => r.error);
     if (failed?.error) throw failed.error;
@@ -56,6 +58,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       c: q[0].data as CandidateRow, ledger: q[1].data as Ledger[], invites: q[2].data as Invite[], slots: q[3].data as SlotRow[],
       assignments: q[4].data as Assignment[], devices: q[5].data as Device[], sessions: q[6].data as SessionRow[],
       usage: q[7].data as Usage[], comments: (q[8].data as Comment[]).filter((c) => sessionIds.has(c.session_id)),
+      interviews: q[9].data as InterviewRow[],
     });
   }), [id, run]);
 
@@ -75,6 +78,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
 
   const tabs: Array<{ id: Tab; label: string; count?: number }> = [
     { id: 'overview', label: 'Overview' },
+    { id: 'interviews', label: 'Interviews', count: data.interviews.filter((i) => !i.outcome && new Date(i.interview_at).getTime() > now).length },
     { id: 'schedule', label: 'Schedule', count: upcomingSlots.length },
     { id: 'assignments', label: 'Assignments', count: data.assignments.length },
     { id: 'sessions', label: 'Sessions', count: data.sessions.length },
@@ -104,7 +108,8 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
         <Kpi icon={<Timer size={14} />} label="Minutes left" value={minutesLabel(c.balance_seconds)} hint={c.balance_seconds <= 0 ? 'Give minutes to let them practise' : undefined} />
         <Kpi icon={<TrendingUp size={14} />} label="Practised, last 7 days" value={minutesLabel(c.used_seconds_7d)} hint={`Last session ${relative(c.last_session_at)}`} />
         <Kpi icon={<CalendarClock size={14} />} label={c.current_slot ? 'Slot open until' : 'Next slot'}
-          value={<span style={{ fontSize: 16 }}>{c.current_slot ? new Date(c.current_slot.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : c.next_slot ? slotLabel(c.next_slot) : 'None booked'}</span>} />
+          value={<span style={{ fontSize: 16 }}>{c.current_slot ? new Date(c.current_slot.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : c.next_slot ? slotLabel(c.next_slot) : me.requireSlots ? 'None booked' : 'Not needed'}</span>}
+          hint={!me.requireSlots && !c.current_slot ? 'Practice any time with minutes' : undefined} />
         <Kpi icon={<DollarSign size={14} />} label="AI cost, all time" value={money(totalCost)} hint="Estimate" />
       </div>
 
@@ -142,7 +147,16 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
         </div>
       )}
 
-      {tab === 'schedule' && <ScheduleTab slots={upcomingSlots} manage={manage} onAdd={() => setDialog('slots')} onChange={refresh} />}
+      {tab === 'interviews' && (
+        <Card title="Client interviews" description="What this candidate is preparing for. Each has a prep mock interview in Assignments."
+          actions={canRecruit(me) && !archived && <button className="btn btn-cta sm" onClick={() => setDialog('interview')}><CalendarPlus size={14} /> Add interview</button>} flush>
+          {data.interviews.length === 0
+            ? <EmptyState icon={<CalendarClock size={18} />} title="No interviews yet" description="Add a client interview: the candidate gets a mock interview built from its job description."
+                action={canRecruit(me) && !archived ? <button className="btn btn-cta" onClick={() => setDialog('interview')}><CalendarPlus size={15} /> Add interview</button> : undefined} />
+            : <InterviewTable me={me} rows={data.interviews} onChange={refresh} />}
+        </Card>
+      )}
+      {tab === 'schedule' && <ScheduleTab slots={upcomingSlots} manage={manage} requireSlots={me.requireSlots} onAdd={() => setDialog('slots')} onChange={refresh} />}
       {tab === 'assignments' && <AssignmentsTab assignments={data.assignments} sessions={data.sessions} manage={manage} onAdd={() => setDialog('assignment')} onChange={refresh} />}
       {tab === 'sessions' && <SessionsTab me={me} data={data} onChange={refresh} />}
       {tab === 'computers' && <ComputersTab devices={data.devices} manage={canManage} onInvite={() => setDialog('invite')} onChange={refresh} />}
@@ -157,13 +171,14 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       <InviteDialog open={dialog === 'invite'} onClose={() => setDialog(null)} id={c.id} name={c.name} onDone={refresh} />
       <SlotsDialog open={dialog === 'slots'} onClose={() => setDialog(null)} id={c.id} onDone={refresh} />
       <AssignmentDialog open={dialog === 'assignment'} onClose={() => setDialog(null)} id={c.id} onDone={refresh} />
+      <InterviewDialog open={dialog === 'interview'} onClose={() => setDialog(null)} candidateId={c.id} onDone={refresh} />
     </>
   );
 };
 
 // ── Tabs ────────────────────────────────────────────────────
 
-const ScheduleTab: React.FC<{ slots: SlotRow[]; manage: boolean; onAdd: () => void; onChange: () => void }> = ({ slots, manage, onAdd, onChange }) => {
+const ScheduleTab: React.FC<{ slots: SlotRow[]; manage: boolean; requireSlots: boolean; onAdd: () => void; onChange: () => void }> = ({ slots, manage, requireSlots, onAdd, onChange }) => {
   const action = useAction();
   const toast = useToast();
   const remove = (id: string) => void action.run(async () => {
@@ -174,11 +189,13 @@ const ScheduleTab: React.FC<{ slots: SlotRow[]; manage: boolean; onAdd: () => vo
   });
   const now = Date.now();
   return (
-    <Card title="Upcoming slots" description="PrepPilot works for the candidate only inside a slot, while they have minutes left."
+    <Card title="Upcoming slots" description={requireSlots
+      ? 'Your organization requires booked slots: PrepPilot works for the candidate only inside a slot, while they have minutes left.'
+      : 'Optional. The candidate can practise any time while they have minutes; slots just plan when. An admin can require slots in Teams & staff.'}
       actions={manage && <button className="btn btn-cta sm" onClick={onAdd}><CalendarPlus size={14} /> Book slots</button>} flush>
       {action.error && <div style={{ padding: 12 }}><Alert kind="error">{action.error}</Alert></div>}
       {slots.length === 0 ? (
-        <EmptyState icon={<CalendarClock size={18} />} title="No upcoming slots" description="Book the times when this candidate may use PrepPilot."
+        <EmptyState icon={<CalendarClock size={18} />} title="No upcoming slots" description={requireSlots ? 'Book the times when this candidate may use PrepPilot.' : 'Not needed to practise. Book slots to plan practice times.'}
           action={manage ? <button className="btn btn-cta" onClick={onAdd}><CalendarPlus size={15} /> Book slots</button> : undefined} />
       ) : (
         <div className="rows">{slots.map((s) => {
@@ -256,7 +273,7 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
   });
   return (
     <Card title="Sessions" description="Each meeting the candidate ran, with time charged and AI cost" flush>
-      {data.sessions.length === 0 ? <EmptyState icon={<TrendingUp size={18} />} title="No sessions yet" description="Sessions appear here when the candidate starts PrepPilot inside a slot." /> : (
+      {data.sessions.length === 0 ? <EmptyState icon={<TrendingUp size={18} />} title="No sessions yet" description="Sessions appear here when the candidate starts PrepPilot." /> : (
         <div className="table-wrap"><table className="table">
           <thead><tr><th>Started</th><th>Practice</th><th className="num">Time</th><th className="num">AI cost</th><th>Result</th><th>Coach notes</th></tr></thead>
           <tbody>{data.sessions.map((s) => {

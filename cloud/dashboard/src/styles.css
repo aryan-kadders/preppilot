@@ -279,3 +279,7 @@ dialog.dialog[open] { animation: dialog-in .22s cubic-bezier(0.22, 1, 0.36, 1); 
 
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
 .check input { accent-color: var(--toggle); width: 15px; height: 15px; margin: 0; }
+
+/* A text button that reads as a link (a candidate's name in a table). */
+.link { background: none; border: 0; padding: 0; color: var(--text-primary); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.link:hover { text-decoration: underline; }

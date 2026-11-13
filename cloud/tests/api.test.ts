@@ -286,6 +286,19 @@ describe('dashboard: inviting staff', () => {
     assert.equal((await db.admin.query('select count(*)::int as n from auth.users')).rows[0].n, before);
   });
 
+  test('an owner working in an organization invites a recruiter into it', async () => {
+    const ownerId = randomUUID();
+    await db.admin.query(`insert into auth.users (id, email) values ($1, 'owner@preppilot.dev')`, [ownerId]);
+    await db.admin.query(`select public.pp_bootstrap_owner('owner@preppilot.dev')`);
+    jwts.set('owner-jwt', ownerId);
+    assert.equal((await invite('owner-jwt', { email: 'r@example.com', role: 'recruiter', team_ids: [] })).status, 403, 'not until they pick an organization');
+    await db.asUser(ownerId, (q: any) => q('select public.pp_owner_use_org($1)', [ids.org]));
+    const r = await invite('owner-jwt', { email: 'Recruiter@Example.com', role: 'recruiter', team_ids: [ids.team], display_name: 'Neha' });
+    assert.equal(r.status, 200);
+    const staff = (await db.admin.query('select s.role, s.org_id from public.staff s join auth.users u on u.id = s.user_id where u.email = $1', ['recruiter@example.com'])).rows[0];
+    assert.deepEqual(staff, { role: 'recruiter', org_id: ids.org });
+  });
+
   test('bad input is refused before anything happens', async () => {
     jwts.set('admin-jwt', ids.admin);
     assert.equal((await (await invite('admin-jwt', { email: 'nope', role: 'manager' })).json()).error, 'bad_email');

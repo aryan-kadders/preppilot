@@ -14,18 +14,27 @@ Desktop app ──(device tokens)──► Edge Function `api` ──► Postgre
 
 | Part | Where |
 |---|---|
-| Tables, access rules, server functions | `supabase/migrations/20261106000001_core.sql` |
+| Tables, access rules, server functions | `supabase/migrations/*.sql` (core, dashboard, then owners, recruiters and interviews) |
 | The `api` function (routes, Gemini, Deepgram) | `supabase/functions/_shared/*.ts`, wrapped by `supabase/functions/api/index.ts` |
-| Tests | `tests/db.test.mjs` (database rules), `tests/api.test.ts` (API end to end) |
+| Tests | `tests/db.test.mjs` and `tests/roles.test.mjs` (database rules), `tests/api.test.ts` (API end to end) |
 
 ## Roles
 
 | Role | Can |
 |---|---|
-| admin | Everything in the organization: teams, staff, all candidates, the audit log |
-| manager | Their teams' candidates: add, invite, give minutes, book slots, assign, revoke devices |
-| coach | Read their teams' candidates and sessions; comment on sessions |
-| candidate | The desktop app only, during a slot, while minutes last |
+| owner | The people who build PrepPilot. Every organization: lists them all (Companies), creates them, and works in one at a time as its admin. Added only from the SQL editor |
+| admin | Everything in the organization: teams, staff, settings, all candidates, interviews, the audit log |
+| manager | Their teams' candidates: add, invite, give minutes, book slots, assign, revoke devices, add interviews |
+| recruiter | Their teams: add the client interviews candidates prepare for and record the results. No minutes, slots or invites |
+| coach | Their teams: read candidates and sessions, comment on sessions, mark a candidate ready (or not) for an interview |
+| candidate | The desktop app only, while minutes last (and inside a booked slot, if the organization requires slots) |
+
+**The flow.** A recruiter adds a client interview (company, role, date, job
+description); that creates a prep mock interview for the candidate, due on the
+interview date. The manager makes sure the candidate has minutes. The candidate
+practises in the app; a coach reviews the sessions and marks them ready or
+needing work. After the interview the recruiter records the result, and the
+Interviews page shows the selection rate.
 
 ## The rules, as the server applies them
 
@@ -33,9 +42,11 @@ Desktop app ──(device tokens)──► Edge Function `api` ──► Postgre
   days). The app trades it for an access token (15 minutes) and a refresh
   token (30 days, single use, rotated on every refresh). Only SHA-256 hashes
   are stored. A refresh token used twice locks the device out.
-- **Session.** It starts only inside a booked slot with minutes left. It runs
-  until the slot ends, the minutes run out, or the assignment's time limit is
-  reached, whichever comes first. Minutes given during a session extend it.
+- **Session.** It starts any time the candidate has minutes left, or only
+  inside a booked slot when the organization requires slots (Teams & staff ›
+  Practice rules; off by default). It runs until the minutes run out, the
+  slot ends, or the assignment's time limit is reached, whichever comes first.
+  Minutes given during a session extend it.
 - **Charging.** The app checks in every 30 seconds. Each check-in deducts the
   seconds since the last one, once per sequence number, so a retry is never
   charged twice. 90 seconds of silence ends the session as stale, and the
@@ -96,6 +107,13 @@ Errors: `401 invalid_token` (refresh), `403 device_revoked` (sign out),
    ```sql
    select public.pp_bootstrap_org('Your company', 'you@example.com');
    ```
+   To make yourself the owner (see every organization, create new ones), sign
+   up the same way and run:
+   ```sql
+   select public.pp_bootstrap_owner('you@example.com');
+   ```
+   Then open the dashboard's **Companies** page, open a company, and invite
+   its admin from **Teams & staff**.
 5. Keep the service-role key and the database password out of the desktop app
    and out of git. The app only ever needs the function URL.
 
@@ -123,8 +141,10 @@ only their teams.
 | Candidates | Search and filter, minutes left, slot, status; add a candidate with starting minutes |
 | Candidate | Give or take back minutes, create an invite code (shown once), book slots (repeat on weekdays), assignments, computers with Sign out, sessions with time, AI cost and coach notes, archive |
 | Usage & cost | Minutes, sessions, AI answers and estimated cost per candidate for 7/30/90 days; CSV export |
-| Teams & staff | Teams; staff roles and team membership; invite staff (admins), which returns a one-time link to send |
+| Teams & staff | Teams; staff roles (admin, manager, recruiter, coach) and team membership; invite staff (admins), which returns a one-time link to send; Practice rules (require booked slots) |
+| Interviews | Client interviews: add one (it creates the prep mock interview), practice done for it, ready or not, result; selection rate |
 | Audit log | Admins only |
+| Companies | Owners only: every organization with its staff, candidates, practice, cost and upcoming interviews; open one or create one |
 
 Run it locally (`npm install`, then `npm run dev`, at http://localhost:3000)
 or build it (`npm run build`) and host `dist/` on any static host (Vercel,

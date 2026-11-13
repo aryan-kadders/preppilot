@@ -120,12 +120,16 @@ export const AccountSettings: React.FC = () => {
             title={t('{n} minutes left').replace('{n}', String(minutes(s.balance_seconds)))}
             description={minutes(s.balance_seconds) === 0 ? t('Ask your manager for more time.') : t('Counted only while a meeting is running.')}
           />
-          <SettingsRow
-            icon={<CalendarClock size={20} />}
-            title={s.current_slot ? t('Your slot is open now') : s.next_slot ? t('Next slot') : t('No slot booked')}
-            description={s.current_slot ? t('Until {time}').replace('{time}', new Date(s.current_slot.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }))
-              : s.next_slot ? formatSlot(s.next_slot) : t('Your manager books the times when you can use PrepPilot.')}
-          />
+          {/* A slot row only matters when the organization requires slots
+              (older servers do not say: they always did), or one is booked. */}
+          {(s.require_slots !== false || s.current_slot || s.next_slot) && (
+            <SettingsRow
+              icon={<CalendarClock size={20} />}
+              title={s.current_slot ? t('Your slot is open now') : s.next_slot ? t('Next slot') : t('No slot booked')}
+              description={s.current_slot ? t('Until {time}').replace('{time}', new Date(s.current_slot.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }))
+                : s.next_slot ? formatSlot(s.next_slot) : t('Your manager books the times when you can use PrepPilot.')}
+            />
+          )}
           {s.assignments.length > 0 && (
             <SettingsRow
               icon={<ListChecks size={20} />}

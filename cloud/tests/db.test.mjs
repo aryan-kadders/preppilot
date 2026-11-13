@@ -176,10 +176,15 @@ describe('minutes, slots and sessions', () => {
   const authz = (c, s, sec) => svc('select public.pp_authorize_call($1, $2, $3) as r', [c.device, s, at(sec)]);
   const balance = async (c) => (await db.admin.query('select coalesce(sum(seconds),0)::int as b from public.time_ledger where candidate_id = $1', [c.id])).rows[0].b;
 
-  test('no slot right now, or no minutes: no session', async () => {
-    assert.equal((await start(await candidate(10, null), 10)).error, 'no_active_slot');
-    assert.equal((await start(await candidate(10, [3600, 7200]), 10)).error, 'no_active_slot');
-    assert.equal((await start(await candidate(0), 10)).error, 'no_minutes');
+  test('when the organization requires slots: no slot right now, or no minutes, no session', async () => {
+    await db.asUser(user('admin'), (q) => q('select public.pp_set_require_slots(true)'));
+    try {
+      assert.equal((await start(await candidate(10, null), 10)).error, 'no_active_slot');
+      assert.equal((await start(await candidate(10, [3600, 7200]), 10)).error, 'no_active_slot');
+      assert.equal((await start(await candidate(0), 10)).error, 'no_minutes');
+    } finally {
+      await db.asUser(user('admin'), (q) => q('select public.pp_set_require_slots(false)'));
+    }
   });
 
   test('a session runs to the end of the minutes, charged per heartbeat, once per seq', async () => {
@@ -331,7 +336,7 @@ describe('dashboard read models and staff actions', () => {
     assert.equal(s.status, 'open');
     await assert.rejects(db.asUser(user('coach1'), (q) => q('select public.pp_archive_candidate($1)', [c])), /forbidden/);
     await db.asUser(user('manager1'), (q) => q('select public.pp_archive_candidate($1)', [c]));
-    assert.equal((await svc('select public.pp_authenticate($1) as r', [sha(d.access)])).error, 'device_revoked');
+    assert.equal((await svc('select public.pp_authenticate($1, $2) as r', [sha(d.access), at(10)])).error, 'device_revoked');
     const ended = (await db.admin.query('select end_reason from public.sessions where id = $1', [s.session_id])).rows[0].end_reason;
     assert.equal(ended, 'revoked');
   });

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Clock, Plus, RefreshCw, Search, Timer, UserPlus, Users, UsersRound } from 'lucide-react';
 import { supabase } from '../supabase';
-import type { CandidateRow, Me, Route, Team } from '../lib/types';
+import { canManage as canManageFor, isAdmin, type CandidateRow, type Me, type Route, type Team } from '../lib/types';
 import { minutesLabel, relative, slotLabel } from '../lib/format';
 import { Alert, Avatar, Badge, Dialog, EmptyState, Field, Kpi, SkeletonRows, useAction, useToast } from '../components/ui';
 
@@ -38,14 +38,14 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
   const minutesLeft = active.reduce((s, r) => s + Math.max(0, r.balance_seconds), 0);
   const used7d = active.reduce((s, r) => s + r.used_seconds_7d, 0);
   const outOfTime = active.filter((r) => r.balance_seconds <= 0).length;
-  const canManage = me.role !== 'coach';
+  const canManage = canManageFor(me);
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="page-title">Candidates</h1>
-          <p className="page-desc">Give practice time, book slots and follow progress.</p>
+          <p className="page-desc">{canManage ? 'Give practice time, send invite codes and follow progress.' : 'Follow your teams\' practice and progress.'}</p>
         </div>
         {canManage && teams.length > 0 && <button className="btn btn-cta" onClick={() => setAdding(true)}><Plus size={15} /> Add candidate</button>}
       </div>
@@ -76,7 +76,7 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
           teams.length === 0 ? (
             <EmptyState icon={<UsersRound size={20} />} title="Create your first team"
               description="Candidates belong to a team, and managers see the teams they are in."
-              action={me.role === 'admin' ? <a className="btn btn-cta" href="#/team"><Plus size={15} /> Create a team</a> : undefined} />
+              action={isAdmin(me) ? <a className="btn btn-cta" href="#/team"><Plus size={15} /> Create a team</a> : undefined} />
           ) : rows.length === 0 ? (
             <EmptyState icon={<UserPlus size={20} />} title="No candidates yet"
               description="Add a candidate, then send them an invite code to sign in to PrepPilot."
@@ -94,7 +94,7 @@ export const Candidates: React.FC<{ me: Me; go: (r: Route) => void }> = ({ me, g
                     <td><StatusBadge row={r} /></td>
                     <td className="num">{r.balance_seconds <= 0 ? <Badge tone="warn">None left</Badge> : minutesLabel(r.balance_seconds)}</td>
                     <td>{r.current_slot ? <Badge tone="good" dot>Open until {new Date(r.current_slot.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</Badge>
-                      : r.next_slot ? <span className="muted">{slotLabel(r.next_slot)}</span> : <span className="faint">No slot booked</span>}</td>
+                      : r.next_slot ? <span className="muted">{slotLabel(r.next_slot)}</span> : <span className="faint">{me.requireSlots ? 'No slot booked' : 'Any time'}</span>}</td>
                     <td className="muted">{relative(r.last_session_at)}</td>
                   </tr>
                 ))}
@@ -143,7 +143,7 @@ const AddCandidate: React.FC<{ open: boolean; onClose: () => void; me: Me; teams
   });
 
   return (
-    <Dialog open={open} onClose={onClose} onSubmit={save} title="Add candidate" description="Next you can create their invite code and book a slot."
+    <Dialog open={open} onClose={onClose} onSubmit={save} title="Add candidate" description="Next, create their invite code so they can sign in to PrepPilot."
       footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy || !name.trim()}>Add candidate</button></>}>
       <div className="form-grid">
         <Field label="Full name" full><input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoFocus /></Field>
