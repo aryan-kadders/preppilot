@@ -630,7 +630,7 @@ const NotesWindow: React.FC<{ preview?: NotesWindowPreview }> = ({ preview }) =>
         void api.liveNotesSetTemplate(id).then((res) => {
             if (res?.success) { if (id) npTrack('template_set'); setLiveTemplateId(id); setTemplateNotice(null); return; }
             const name = noteTemplateById(id)?.name;
-            setTemplateNotice(res?.error === 'pro_required' && name ? `${name} notes need Natively Pro.` : 'Couldn’t set the template.');
+            setTemplateNotice(res?.error === 'pro_required' && name ? `${name} notes are not available in this build.` : 'Couldn’t set the template.');
         }).catch(() => {});
     }, [npTrack]);
     const openGallery = useCallback((initialId: string | null) => {

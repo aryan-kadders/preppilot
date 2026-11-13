@@ -370,7 +370,7 @@ export const NotesEnhanced = forwardRef<NotesEnhancedHandle, {
                 setNeedsPro((prev) => { if (!prev.has(key)) return prev; const next = new Set(prev); next.delete(key); return next; });
             } else if (res?.error === 'pro_required') {
                 if (key) setNeedsPro((prev) => new Set(prev).add(key));
-                setNotice(req.kind === 'rewrite' ? 'These notes need Natively Pro to rewrite.' : `${req.name} notes need Natively Pro.`);
+                setNotice(req.kind === 'rewrite' ? 'These notes cannot be rewritten in this build.' : `${req.name} notes are not available in this build.`);
             } else {
                 setNotice('Couldn’t rewrite the notes. Try again, or open the meeting.');
             }

@@ -3541,7 +3541,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                                                Soniox is a monogram because it publishes no licence-compatible mark;
                                                                Natively is our own logo component. Every option used to share one
                                                                generic <Mic>, which made the list unreadable at a glance. */
-                                                            ...(hasNativelyKey ? [{ id: 'natively', label: 'Natively API', badge: 'Saved' as const, desc: t('Managed transcription via Natively backend'), color: 'blue', icon: <BrandMark provider="natively" />, neutralTile: true }] : []),
+                                                            ...(hasNativelyKey ? [{ id: 'natively', label: 'PrepPilot Cloud', badge: 'Saved' as const, desc: t('Managed transcription via PrepPilot Cloud'), color: 'blue', icon: <BrandMark provider="natively" />, neutralTile: true }] : []),
                                                             /* Directly under Natively API: both are turnkey — no key to paste,
                                                                nothing to configure — so they belong together at the top, ahead
                                                                of the bring-your-own-key providers. macOS only; the mark is

@@ -32,7 +32,7 @@ const providerLabel = (provider?: string): string => {
         ibmwatson: 'IBM Watson',
         soniox: 'Soniox',
         qwen: 'Qwen ASR',
-        natively: 'Natively Pro',
+        natively: 'PrepPilot Cloud',
     };
     return labels[provider.toLowerCase()] || provider;
 };

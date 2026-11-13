@@ -161,7 +161,7 @@ export function categorizeSttError(rawError: string): SttErrorCategory {
     if (lower.includes('trial_expired')) {
         return {
             title: 'Trial Expired',
-            body: 'Your Natively Pro trial has ended. Upgrade your plan to continue using STT.',
+            body: 'Your practice minutes have run out. Ask your manager for more time.',
             category: 'auth',
         };
     }
@@ -172,7 +172,7 @@ export function categorizeSttError(rawError: string): SttErrorCategory {
     if (lower.includes('subscription_inactive')) {
         return {
             title: 'Subscription Inactive',
-            body: 'Your Natively Pro subscription is not active. Renew it, or choose another transcription provider in Settings.',
+            body: 'PrepPilot Cloud is not available for this computer. Ask your manager, or choose another transcription provider in Settings.',
             category: 'auth',
         };
     }

@@ -4,10 +4,9 @@ import { ToggleLeft, ToggleRight, Search, Calendar, Globe, Clock, ChevronRight, 
 import { ProfileIntelligenceIcon } from './ProfileIntelligenceIcon';
 import { NativelyWordmark } from './NativelyWordmark';
 import mainui from "../UI_comp/mainui.png";
-import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
 import { TeamSetupCard } from './TeamSetupCard';
+import { InterviewPrepCard } from './InterviewPrepCard';
 import { BRAND_MARK_D } from '../lib/brandMark';
-import AssistToday from './assist/AssistToday';
 import type { AssistEvent } from '../types/assist';
 import { useToggleInit } from './settings/useToggleInit';
 import { noteUpcomingEvents, warmCalendarSnapshot } from '../lib/calendarSnapshot.mjs';
@@ -21,7 +20,6 @@ import { analytics } from '../lib/analytics/analytics.service'; // Added analyti
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useResolvedTheme } from '../hooks/useResolvedTheme';
 import { isMac } from '../utils/platformUtils';
-import { APP_FEATURE_VERSION } from '../utils/appVersion';
 import WindowControls from './WindowControls';
 import { LiquidGlassBadge } from '../ui-components/LiquidGlassBadge';
 import { emitOrchestratorEvent, setUserState as setOrchestratorUserState } from './onboarding/OrchestratedToasterHost';
@@ -987,7 +985,7 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                             {/* Top Section is now effectively static due to parent flex col */}
 
                             {/* TOP SECTION: Grey Background (Scrolls with content) */}
-                            <section className={`${isLight ? 'bg-bg-secondary' : 'bg-bg-elevated'} px-8 pt-6 pb-8 border-b border-border-subtle shrink-0`}>
+                            <section className={`${isLight ? 'bg-bg-secondary' : 'bg-bg-elevated'} px-8 pt-6 pb-8 flex-1 overflow-y-auto custom-scrollbar`}>
                                 <div className="max-w-4xl mx-auto space-y-6">
                                     {/* 1.5. Hero Header (Title + Controls + CTA) */}
                                     <div className="flex items-center justify-between">
@@ -1049,20 +1047,6 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                                 </button>
                                              </div>
 
-                                             {/* What's New Pill */}
-                                             {launchCount < 10 && (
-                                                 <button
-                                                     onClick={() => onOpenSettings('about')}
-                                                     className={`flex items-center gap-1 border rounded-full px-3 py-1.5 transition-all duration-200 cursor-pointer active:scale-95 text-xs font-semibold shrink-0 select-none group ${
-                                                         isLight 
-                                                             ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 text-emerald-600' 
-                                                             : 'bg-emerald-400/10 hover:bg-emerald-400/20 border-emerald-500/20 text-emerald-400'
-                                                     }`}
-                                                 >
-                                                     <span>{`${t("What's New in")} v${APP_FEATURE_VERSION}`}</span>
-                                                     <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                                 </button>
-                                             )}
                                          </div>
                                          {/* Center: Ollama Pull Status Pill (flex-1 to center evenly) */}
                                         <div className="flex-1 flex justify-center mx-4">
@@ -1214,123 +1198,17 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                         </button>
                                     </div>
 
-                                    {/* PrepPilot: a candidate's setup, in order: join the team with
-                                        the manager's invite code, then upload the résumé. Someone with
-                                        their own AI (or "Use my own AI key") gets the solo setup card.
-                                        Renders nothing once set up. */}
-                                    <TeamSetupCard className="mb-3" onOpenProfile={() => onOpenProfile?.()} />
-
-                                    {/* 2. Hero Section Cards */}
-                                    <div className="grid grid-cols-1 gap-3 h-[198px]">
-                                        {/* PrepPilot: upstream's sponsor/promo carousel (FeatureSpotlight)
-                                            was removed; the calendar card takes the row. */}
-                                        <UpcomingCalendarCard
-                                            className="h-full"
-                                            isConnected={isCalendarConnected}
-                                            // Re-fetch: the events loaded at mount were fetched before the
-                                            // connection existed, so the card would stay empty until a Refresh.
-                                            onConnect={(info) => { setIsCalendarConnected(true); if (info.fresh) setEventsLoaded(false); fetchEvents(); void warmCalendarSnapshot(window.electronAPI); }}
-                                            meetings={visibleMeetings}
-                                            totalCount={upcomingMeetings.length}
-                                            loading={!eventsLoaded}
-                                            onOpenSettings={() => onOpenSettings('calendar')}
-                                        />
-                                    </div>
+                                    {/* PrepPilot home: a candidate without a code joins their team
+                                        first; then (and for anyone with their own AI) the résumé and
+                                        the job description for the next interview. Meeting history
+                                        and the calendar card were removed from the home page; past
+                                        sessions are found with Search. */}
+                                    <TeamSetupCard className="mb-3">
+                                        <InterviewPrepCard onOpenProfile={() => onOpenProfile?.()} />
+                                    </TeamSetupCard>
                                 </div>
                             </section>
 
-                            {/* BOTTOM SECTION: Black Background (Scrollable content) */}
-                            <main className="flex-1 overflow-y-auto custom-scrollbar bg-bg-primary">
-                                <section className="px-8 py-8 min-h-full">
-                                    <div className="max-w-4xl mx-auto space-y-8">
-
-                                        {/* The list holds meeting names only. The one thing above it is
-                                            the calendar reminder's "Running late" draft, shown only when
-                                            the reminder asks for it (assist/AssistToday). */}
-                                        <AssistToday
-                                            isLight={isLight}
-                                            draftRequest={reminderDraftRequest}
-                                        />
-
-                                        {/* Iterating Date Groups */}
-                                        {sortedGroups.map((label) => (
-                                            <section key={label}>
-                                                <h3 className="text-[13px] font-medium text-text-secondary mb-3 pl-1">{label}</h3>
-                                                <div className="space-y-1">
-                                                    {/* A deleted row fades and folds its height away (a close:
-                                                        --duration-fast on --ease-smooth-out) so the rows below
-                                                        slide up instead of jumping. Reduced motion just fades. */}
-                                                    <AnimatePresence initial={false}>
-                                                    {groupedMeetings[label].map((m) => (
-                                                        <motion.div
-                                                            key={m.id}
-                                                            layoutId={`meeting-${m.id}`}
-                                                            exit={prefersReducedMotion
-                                                                ? { opacity: 0, pointerEvents: 'none', transition: { duration: 0.15 } }
-                                                                : { opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, pointerEvents: 'none', transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
-                                                            className="group relative flex items-center justify-between px-3 py-2 rounded-lg bg-transparent hover:bg-bg-elevated transition-colors overflow-hidden"
-                                                            onClick={() => handleOpenMeeting(m)}
-                                                        >
-                                                            <div className={`font-medium text-[14px] max-w-[60%] truncate ${m.title === 'Processing...' ? 'text-blue-400 italic animate-pulse' : 'text-text-primary'}`}>
-                                                                {plainMeetingTitle(m.title)}
-                                                            </div>
-
-                                                            {/* Time & Duration Section */}
-                                                            <div className="flex items-center gap-4">
-                                                                {m.title === 'Processing...' ? (
-                                                                    <div className="flex items-center gap-2 transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
-                                                                        <RefreshCw size={12} className="animate-spin text-blue-500" />
-                                                                        <span className="text-xs text-blue-500 font-medium">{t('Finalizing...')}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="relative z-10 bg-bg-elevated text-text-secondary text-[9px] px-1.5 py-0.5 rounded-full font-medium min-w-[35px] text-center tracking-wide">
-                                                                            {formatDurationPill(m.duration)}
-                                                                        </span>
-
-                                                                        {/* Time Text (Should fade out on hover) */}
-                                                                        <span className="text-[13px] text-text-secondary font-medium min-w-[60px] text-right transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
-                                                                            {formatTime(m.date)}
-                                                                        </span>
-                                                                    </>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Delete (slides in on hover). Export lives inside the meeting
-                                                                note, so the row only carries delete, and one click deletes.
-                                                                Hover-in is a 250ms slide from 8px with a 2px blur while the
-                                                                time steps 4px aside in 150ms; hover-out is a quick 150ms
-                                                                with no blur so it gets out of the way. */}
-                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 translate-x-2 blur-[2px] transition-[opacity,transform,filter] duration-150 ease-sculpted group-hover:duration-[250ms] group-hover:opacity-100 group-hover:translate-x-0 group-hover:blur-0 motion-reduce:translate-x-0 motion-reduce:blur-0">
-                                                                <button
-                                                                    className={`h-[23px] px-3 rounded-full text-[12px] font-medium leading-none whitespace-nowrap text-text-secondary transition-[color,background-color,transform] duration-150 ease-sculpted active:scale-[0.96] motion-reduce:active:scale-100 ${isLight ? 'bg-black/[0.05] hover:bg-red-500/10 hover:text-red-500' : 'bg-white/[0.08] hover:bg-red-500/15 hover:text-red-400'}`}
-                                                                    onClick={async (e) => {
-                                                                        e.stopPropagation();
-                                                                        if (window.electronAPI && window.electronAPI.deleteMeeting) {
-                                                                            const success = await window.electronAPI.deleteMeeting(m.id);
-                                                                            if (success) {
-                                                                                setMeetings(prev => prev.filter(meeting => meeting.id !== m.id));
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {t('Delete')}
-                                                                </button>
-                                                            </div>
-                                                        </motion.div>
-                                                    ))}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </section>
-                                        ))}
-
-                                        {meetings.length === 0 && (
-                                            <div className="p-4 text-text-tertiary text-sm">{t('No recent meetings.')}</div>
-                                        )}
-
-                                    </div>
-                                </section>
-                            </main>
                         </motion.div>
                     )}
                 </AnimatePresence>

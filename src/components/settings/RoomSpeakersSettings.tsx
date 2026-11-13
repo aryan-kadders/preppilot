@@ -31,7 +31,7 @@ export const RoomSpeakersSettings: React.FC<{ sttProvider: string }> = ({ sttPro
     };
 
     const description = !supported
-        ? t('Works with Natively, Deepgram or Soniox transcription. Your current provider does not tell voices apart.')
+        ? t('Works with PrepPilot Cloud, Deepgram or Soniox transcription. Your current provider does not tell voices apart.')
         : enabled
             ? t('On from your next meeting. Voices on your microphone are told apart when the meeting is saved; the one that speaks most is you.')
             : t('Off. Everything heard on your microphone is written down as you.');

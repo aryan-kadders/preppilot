@@ -31,7 +31,7 @@ export interface ModelSelectorGroup {
 }
 
 const GROUP_LABELS: Record<string, string> = {
-    natively: 'Natively',
+    natively: 'PrepPilot Cloud',
     gemini: 'Google',
     openai: 'OpenAI',
     claude: 'Anthropic',

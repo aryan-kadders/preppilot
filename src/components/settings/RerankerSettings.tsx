@@ -693,7 +693,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
             // provider out of THIS list is what makes its card vanish when
             // discovery degrades, and the managed reranker is the one a customer
             // can use without going and getting a second account.
-            id: 'natively', name: 'Natively',
+            id: 'natively', name: 'PrepPilot Cloud',
             keyUrl: 'https://natively.software', keyPlaceholder: 'natively_sk_…',
             staticCatalogue: true, hasApiKey: false, models: [],
         }, {
@@ -925,7 +925,7 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
             // repeated here — the Natively provider card below already states
             // it, and on the combined Retrieval page this line sits directly
             // above that card.
-            parts.push(t('Hosted'), t('Document text is sent to Natively'));
+            parts.push(t('Hosted'), t('Document text is sent to PrepPilot Cloud'));
             if (status.lastTest?.ok) parts.push(`${Math.round(status.lastTest.latencyMs)} ms ${t('last test')}`);
         } else if (status.effective.kind === 'openrouter') {
             parts.push(t('Hosted'), t('Document text is sent to OpenRouter'));
@@ -1575,8 +1575,8 @@ export const RerankerSettings: React.FC<RerankerSettingsProps> = ({ renderParts 
                             <div className="aip-provider-row">
                                 <p className="text-[11px] text-white/45 leading-relaxed">
                                     {hasKey
-                                        ? t('Runs on your Natively API key. Reranking counts toward your plan\u2019s Knowledge allowance.')
-                                        : t('Requires a Natively API key. Add one in the Natively API section to use the managed reranker.')}
+                                        ? t('Runs on PrepPilot Cloud.')
+                                        : t('Requires PrepPilot Cloud. Join your team with an invite code to use the managed reranker.')}
                                 </p>
                             </div>
                         )}

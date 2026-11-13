@@ -436,7 +436,7 @@ const HelpPane: React.FC<{
                     )}
                     <HelpDefinitions
                         items={[
-                            { term: 'Natively API', detail: 'Nothing to paste. It appears once your Natively key is saved.' },
+                            { term: 'PrepPilot Cloud', detail: 'Nothing to paste. It appears once you join your team with an invite code.' },
                             { term: 'Local Models', detail: 'Runs on this computer after a one-time download. Parakeet v2 is English only; v3 is multilingual.' },
                             { term: 'Google Cloud', detail: 'A service-account JSON file, chosen with Select File.' },
                             { term: 'Azure Speech', detail: 'An API key and its Region, such as eastus.' },
@@ -448,7 +448,7 @@ const HelpPane: React.FC<{
                     <HelpDefinitions
                         items={[
                             { term: 'Dictionary', detail: <>In <HelpPath parts={['Audio']} />, add names and terms with Add a name or word, so they are spelled your way.</> },
-                            { term: 'People sharing your microphone', detail: 'Tells apart people talking into one microphone, on Natively, Deepgram and Soniox. The saved transcript and notes label each voice.' },
+                            { term: 'People sharing your microphone', detail: 'Tells apart people talking into one microphone, on PrepPilot Cloud, Deepgram and Soniox. The saved transcript and notes label each voice.' },
                             ...(facts.followMeetingMic
                                 ? [{ term: "Use the meeting app's microphone", detail: 'Records from the microphone your meeting app uses, so a headset switch mid-call follows along.' }]
                                 : []),
@@ -829,7 +829,7 @@ const HelpPane: React.FC<{
             group: 'meeting',
             icon: <Smartphone size={20} />,
             title: t('Phone and browser'),
-            description: t('The overlay on your phone, and web pages sent to Natively.'),
+            description: t('The overlay on your phone, and web pages sent to PrepPilot.'),
             keywords: 'phone mirror companion pair qr code lan wifi chrome extension page capture smart browser context coding problem',
             body: (
                 <>
@@ -1073,7 +1073,7 @@ const HelpPane: React.FC<{
                     </p>
                     <HelpDefinitions
                         items={[
-                            { term: 'Hosted', detail: 'Providers such as Natively API, Voyage AI, OpenAI or Jina AI. The text being searched is sent to that provider.' },
+                            { term: 'Hosted', detail: 'Providers such as PrepPilot Cloud, Voyage AI, OpenAI or Jina AI. The text being searched is sent to that provider.' },
                             { term: 'On this device', detail: 'Local Embeddings and Local Reranker come with PrepPilot; more models download from Hugging Face. Nothing leaves this computer.' },
                             { term: 'Fall back to the local reranker', detail: 'If a hosted reranker fails, reranking happens on this device instead.' },
                         ]}
@@ -1154,7 +1154,7 @@ const HelpPane: React.FC<{
                 <div className={ROW_GROUP}>
                     <SettingsRow
                         icon={<NativelyGlyph size={20} />}
-                        title={t('Natively API')}
+                        title={t('PrepPilot Cloud')}
                         badge={
                             <Presence kind="badge" id={status.natively.state === 'todo' ? 'quickest' : null}>
                                 <LiquidGlassBadge variant="neutral">{t('Quickest')}</LiquidGlassBadge>

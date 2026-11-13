@@ -529,7 +529,7 @@ export const SkillsSettings: React.FC = () => {
                 <div className="min-w-0">
                     <SettingsSectionHeading
                         title={t('Skills')}
-                        subtitle={t('Instructions Natively follows. Switch one on to use it in every answer, live ones included, or start a message with /name to use it once.')}
+                        subtitle={t('Instructions PrepPilot follows. Switch one on to use it in every answer, live ones included, or start a message with /name to use it once.')}
                     />
                 </div>
                 {/* Icon only (Evin, 2026-11-01: two labelled buttons beside the

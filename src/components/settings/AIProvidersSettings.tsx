@@ -4062,7 +4062,7 @@ export const AIProvidersSettings: React.FC<AIProvidersSettingsProps> = ({
         const opts: { id: string; name: string }[] = [];
 
         if (hasStoredKey.natively && isProviderEnabled('natively')) {
-            opts.push({ id: 'natively', name: 'Natively API' });
+            opts.push({ id: 'natively', name: 'PrepPilot Cloud' });
         }
 
         for (const [prov, cfg] of Object.entries(STANDARD_CLOUD_MODELS)) {

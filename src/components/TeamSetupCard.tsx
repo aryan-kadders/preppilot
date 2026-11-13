@@ -1,58 +1,46 @@
-// PrepPilot: the Launcher's setup card for a candidate on a team.
+// PrepPilot: the Launcher's join card for a candidate on a team.
 //
-//   join    – no invite code yet and no AI of their own: enter the code from the
-//             manager (the same sign-in as Settings › Account). "Use my own AI
-//             key" opens the solo setup (AiSetupCard) instead.
-//   profile – joined: upload the résumé (opens the Profile panel), or skip.
+// No invite code yet and no AI of their own: enter the code from the manager
+// (the same sign-in as Settings › Account). "Use my own AI key" opens the solo
+// setup (AiSetupCard) instead. Once joined, or for someone with their own AI,
+// it renders its children (the home page's interview prep card).
 //
 // The decision is src/lib/teamSetup.mjs. Start checks the same state in App.tsx
 // and, while the code is missing, asks this card to focus its code box.
 // No platform branches.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Building2, Check, FileText, KeyRound, Loader2 } from 'lucide-react';
+import { Building2, KeyRound, Loader2 } from 'lucide-react';
 import { useT } from '../i18n';
 import { SETTINGS_BTN } from './settings/SettingsRow';
 import { AiSetupCard } from './AiSetupCard';
-import { teamSetupStep, PROFILE_STEP_SKIPPED_KEY, FOCUS_INVITE_EVENT } from '../lib/teamSetup.mjs';
+import { teamSetupStep, FOCUS_INVITE_EVENT } from '../lib/teamSetup.mjs';
 import type { CloudSetupState, TeamSetupStep } from '../lib/teamSetup.mjs';
 
 export interface TeamSetupState {
   step: TeamSetupStep;
   cloudState: CloudSetupState;
-  candidateName: string | null;
 }
-
-const readSkipped = (): boolean => {
-  try { return localStorage.getItem(PROFILE_STEP_SKIPPED_KEY) === '1'; } catch { return false; }
-};
 
 /** Where this computer is in team setup, read fresh from main. Shared with App's Start check. */
 export async function readTeamSetup(): Promise<TeamSetupState> {
   const api = window.electronAPI;
-  const [account, creds, llm, profile] = await Promise.all([
+  const [account, creds, llm] = await Promise.all([
     api?.cloudStatus?.().catch(() => null),
     api?.getStoredCredentials?.().catch(() => undefined),
     api?.getCurrentLlmConfig?.().catch(() => undefined),
-    api?.profileGetStatus?.().catch(() => undefined),
   ]);
   const cloudState = account?.state ?? null;
   const hasOwnAi = !!creds?.hasOwnAiKey || !!(llm as { isOllama?: boolean } | undefined)?.isOllama;
-  const profileReady = !!(profile?.hasProfile || profile?.resume_profile_facts_ready || profile?.profileFactsReady);
-  return {
-    step: teamSetupStep({ cloudState, hasOwnAi, profileReady, profileSkipped: readSkipped() }),
-    cloudState,
-    candidateName: account?.status?.candidate?.name ?? null,
-  };
+  return { step: teamSetupStep({ cloudState, hasOwnAi }), cloudState };
 }
 
-export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => void }> = ({ className = '', onOpenProfile }) => {
+export const TeamSetupCard: React.FC<{ className?: string; children?: React.ReactNode }> = ({ className = '', children }) => {
   const t = useT();
   const [state, setState] = useState<TeamSetupState | null>(null);
   const [ownKey, setOwnKey] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [justJoined, setJustJoined] = useState(false);
   // Start was pressed without a code: why it waited, shown above the box.
   const [nudge, setNudge] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +55,7 @@ export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => 
     const api = window.electronAPI;
     const offCloud = api?.onCloudUpdate?.((e) => { if (e.type === 'state') void refresh(); });
     const offCreds = api?.onCredentialsChanged?.(() => { void refresh(); });
-    // The résumé is uploaded in the Profile panel; read again when the user comes back.
+    // A key added in Settings, or a sign-in elsewhere: read again on return.
     const onFocus = () => { void refresh(); };
     window.addEventListener('focus', onFocus);
     return () => {
@@ -76,10 +64,12 @@ export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => 
     };
   }, [refresh]);
 
-  // Profile step: the panel opens in this window, so poll gently while it waits.
+  // While the join card shows, a key saved through "Use my own AI key" (or a
+  // sign-in from Settings) must replace it promptly; not every save path
+  // broadcasts a credentials change.
   useEffect(() => {
-    if (state?.step !== 'profile') return;
-    const id = window.setInterval(() => { void refresh(); }, 4000);
+    if (state?.step !== 'join') return;
+    const id = window.setInterval(() => { void refresh(); }, 3000);
     return () => window.clearInterval(id);
   }, [state?.step, refresh]);
 
@@ -105,7 +95,6 @@ export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => 
         .catch(() => ({ success: false, error: t('Could not reach PrepPilot Cloud. Check your internet connection.') }));
       if (r?.success) {
         setCode('');
-        setJustJoined(true);
         setNudge(null);
         await refresh();
       } else {
@@ -116,12 +105,9 @@ export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => 
     }
   };
 
-  const skipProfile = () => {
-    try { localStorage.setItem(PROFILE_STEP_SKIPPED_KEY, '1'); } catch { /* shown again next launch */ }
-    void refresh();
-  };
-
-  if (!state?.step) return null;
+  // Not loaded yet: nothing, so the join card never flashes for someone set up.
+  if (!state) return null;
+  if (!state.step) return <>{children}</>;
 
   if (state.step === 'join' && ownKey) {
     return (
@@ -189,45 +175,5 @@ export const TeamSetupCard: React.FC<{ className?: string; onOpenProfile: () => 
     );
   }
 
-  // Profile step.
-  const name = state.candidateName?.split(/\s+/)[0];
-  return (
-    <section
-      className={`rounded-2xl border border-border-subtle bg-bg-elevated p-5 text-text-primary ${className}`}
-      aria-labelledby="team-profile-title"
-      data-testid="team-profile-card"
-    >
-      <div className="flex items-start gap-3">
-        <FileText size={20} className="mt-0.5 shrink-0 text-text-secondary" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <h2 id="team-profile-title" className="text-[15px] font-bold">
-            {justJoined && name ? t('Welcome, {name}! Set up your profile').replace('{name}', name) : t('Set up your profile')}
-          </h2>
-          <ol className="mt-3 space-y-2 text-xs">
-            <li className="flex items-center gap-2 text-text-secondary">
-              <Check size={14} className="shrink-0 text-emerald-400" aria-hidden />
-              {t('Joined your team')}
-            </li>
-            <li className="flex items-start gap-2 text-text-primary">
-              <span className="mt-[1px] inline-block h-[14px] w-[14px] shrink-0 rounded-full border border-text-tertiary" aria-hidden />
-              <span>
-                <span className="font-semibold">{t('Upload your résumé')}</span>
-                <span className="block text-text-secondary">
-                  {t('Answers about your projects and experience then use your real résumé. Without it, example stories are marked Sample.')}
-                </span>
-              </span>
-            </li>
-          </ol>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button type="button" className={SETTINGS_BTN} onClick={onOpenProfile}>
-              <FileText size={12} aria-hidden /> {t('Upload résumé')}
-            </button>
-            <button type="button" className="text-[11px] text-text-tertiary underline hover:text-text-secondary" onClick={skipProfile}>
-              {t('Skip for now')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return null;
 };

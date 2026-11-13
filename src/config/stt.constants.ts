@@ -115,8 +115,8 @@ export const STT_PROVIDERS: Record<SttProviderId, SttProviderConfig> = {
     },
     natively: {
         id: 'natively',
-        name: 'Natively Pro (Managed)',
-        description: 'All-in-one managed STT via Natively API',
+        name: 'PrepPilot Cloud (Managed)',
+        description: 'All-in-one managed transcription via PrepPilot Cloud',
         endpoint: '', 
         model: '',
         uploadType: 'websocket',

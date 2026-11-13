@@ -268,7 +268,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onNavigate, onOpenMo
                     <SettingsRow
                         icon={<Github size={20} />}
                         title="Natively"
-                        description={t('Built on Natively by Natively AI Private Limited, under its personal-use source license.')}
+                        description={t('This project is based on Natively, originally developed by Natively AI Private Limited.')}
                         control={
                             <button type="button" onClick={() => openLink(UPSTREAM_URL)} className={SETTINGS_BTN}>
                                 {t('View source')}

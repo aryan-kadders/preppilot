@@ -48,7 +48,7 @@ const DEMO_CHAT_HEIGHT = 216;
 const CHAT_TOP_FADE = 'linear-gradient(to bottom, transparent 0, #000 18px)';
 // The managed route, as the real overlay names it (NativelyInterface). A demo shows
 // the product's own name, not whatever model this install happens to have picked.
-const DEMO_MODEL_LABEL = 'Natively API';
+const DEMO_MODEL_LABEL = 'PrepPilot Cloud';
 
 const WHAT_TO_SAY = 'What should I say?';
 const WHAT_TO_SAY_SHOT = 'What should I say about this?';

@@ -174,7 +174,7 @@ const ModelSelectorWindow = () => {
                 const models: ModelOption[] = [];
 
                 if (creds?.hasNativelyKey) {
-                    models.push({ id: 'natively', name: 'Natively API', type: 'cloud', provider: 'natively' });
+                    models.push({ id: 'natively', name: 'PrepPilot Cloud', type: 'cloud', provider: 'natively' });
                 }
 
                 // Cloud Models — standard models + unique preferred models

@@ -7,13 +7,13 @@ const { groupModelOptions, modelSelectorRowLabel, modelSelectorGroupLabel } = aw
 
 test('consecutive models of one provider form one section, in list order', () => {
     const groups = groupModelOptions([
-        { id: 'natively', name: 'Natively API', type: 'cloud', provider: 'natively' },
+        { id: 'natively', name: 'PrepPilot Cloud', type: 'cloud', provider: 'natively' },
         { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', type: 'cloud', provider: 'gemini' },
         { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', type: 'cloud', provider: 'gemini' },
         { id: 'ollama-llama3.2:3b', name: 'llama3.2:3b (Local)', type: 'ollama' },
     ]);
     assert.deepEqual(groups.map(g => [g.label, g.rows.map(r => r.label)]), [
-        ['Natively', ['Natively API']],
+        ['PrepPilot Cloud', ['PrepPilot Cloud']],
         ['Google', ['Gemini 3.8 Flash', 'Gemini 3.1 Pro']],
         ['Ollama', ['llama3.2:3b']],
     ]);
@@ -59,13 +59,13 @@ test('an unmapped provider still gets a readable header', () => {
 
 test('a header that only repeats its single row is hidden', () => {
     const groups = groupModelOptions([
-        { id: 'natively', name: 'Natively API', type: 'cloud', provider: 'natively' },
+        { id: 'natively', name: 'PrepPilot Cloud', type: 'cloud', provider: 'natively' },
         { id: 'gpt-5.4', name: 'GPT 5.4', type: 'cloud', provider: 'openai' },
         { id: 'd1', name: 'DeepSeek V4.1 Flash', type: 'cloud', provider: 'deepseek' },
         { id: 'd2', name: 'DeepSeek V4 Pro', type: 'cloud', provider: 'deepseek' },
     ]);
     assert.deepEqual(groups.map(g => [g.label, g.showHeader]), [
-        ['Natively', false],
+        ['PrepPilot Cloud', false],
         ['OpenAI', true],
         ['DeepSeek', true],
     ]);

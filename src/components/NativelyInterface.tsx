@@ -13148,7 +13148,7 @@ Provide only the answer, nothing else.`;
                           // and rendered a lowercase "natively" — the one label a trial
                           // user sees for the whole trial. 'Natively API' is what the
                           // model picker and every settings row already call it.
-                          if (m === 'natively') return 'Natively API';
+                          if (m === 'natively') return 'PrepPilot Cloud';
                           // For everything else, prefer the authoritative
                           // displayName from `getCurrentLlmConfig` (handles
                           // custom-provider UUIDs and any future model aliases

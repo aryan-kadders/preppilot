@@ -129,7 +129,7 @@ export const NotesTemplatePicker: React.FC<{
                                 : 'hover:bg-white/[0.06] focus-visible:bg-white/[0.06]'}`}
                         >
                             <span className="flex-1 min-w-0 truncate">{opt.name}</span>
-                            {gated && <span className="shrink-0 text-[11px] text-text-tertiary">{t('Needs Natively Pro')}</span>}
+                            {gated && <span className="shrink-0 text-[11px] text-text-tertiary">{t('Not available')}</span>}
                             {opt.current && <Check className="w-3 h-3 shrink-0 opacity-70" strokeWidth={2.5} aria-hidden="true" />}
                         </button>
                     );
