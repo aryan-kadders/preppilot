@@ -137,16 +137,16 @@ test('each platform is shown its own settings, never the other one\'s', () => {
   // But never the macOS alert either: no buttons, none of its wording.
   assert.doesNotMatch(win, /System Settings|Privacy &amp; Security|macOS alert|MockGlassButton|Deny|record the screen/,
     'no macOS alert or wording in the Windows guide');
-  assert.ok(win.includes('Natively needs your microphone.'));
-  // No "Natively" switch: Windows allows desktop apps as a group.
-  assert.doesNotMatch(win, />\s*Natively\s*</);
+  assert.ok(win.includes('PrepPilot needs your microphone.'));
+  // No "PrepPilot" switch: Windows allows desktop apps as a group.
+  assert.doesNotMatch(win, />\s*PrepPilot\s*</);
   assert.ok(win.includes('Windows {page.path[0]}'), 'the caption names the app it opens');
   // No outline round a row: on this card that reads as a focus ring.
   assert.doesNotMatch(win, /inset 0 0 0 1px|outline/);
   // It is the microphone page; the monitor glyph means Screen Recording on this card.
   assert.doesNotMatch(win, /<Monitor/);
   // The Windows sentence says which of the two rows is the one to act on.
-  assert.ok(rendered.includes("? 'Screen recording is already allowed. Natively only needs your microphone.'"));
+  assert.ok(rendered.includes("? 'Screen recording is already allowed. PrepPilot only needs your microphone.'"));
 });
 
 test('on Windows the Screen Recording row is already allowed and is never the thing to do', async () => {

@@ -151,8 +151,8 @@ test('the notepad as a preview: talks to nothing, no drag handle, takes no click
 
 test('Settings › Overlay: the switcher at the top picks what meetings open, and the notepad side shows the real page', () => {
   const settings = read('src/components/settings/OverlaySettings.tsx');
-  assert.match(settings, /label: 'Natively overlay'/);
-  assert.match(settings, /label: 'Natively notepad'/);
+  assert.match(settings, /label: 'PrepPilot overlay'/);
+  assert.match(settings, /label: 'PrepPilot notepad'/);
   assert.match(settings, /role="radiogroup"/);
   assert.match(settings, /window\.electronAPI\?\.setMeetingSurface\?\.\(next\)/);
   assert.match(settings, /<NotesWindow preview=\{NOTEPAD_SAMPLE\} \/>/);

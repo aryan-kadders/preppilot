@@ -289,9 +289,6 @@ const POPUPS = {
   'components/SettingsOverlay.tsx': 'Settings',
   'components/UpdateModal.tsx': 'Update',
   'components/ReviewModal.tsx': 'Review',
-  'components/SupportToaster.tsx': 'Support',
-  'components/trial/FreeTrialModal.tsx': 'Trial ended',
-  'components/NativelyQuotaBanner.tsx': 'Quota notice',
   'components/HindsightStatusBanner.tsx': 'Long-term memory notice',
   // ProviderChangeNotice left the genie on 2026-09-25 by request: it slides in
   // from the window's right edge like a macOS notification banner instead
@@ -325,8 +322,8 @@ test('onboarding toasters resume once a closing Settings / manager card has gone
 });
 
 test('popups the host unmounts on dismiss report from onClosed, not before the genie', () => {
-  for (const file of ['components/SupportToaster.tsx',
-    'components/ReviewModal.tsx', 'components/trial/FreeTrialModal.tsx']) {
+  // PrepPilot: the support and trial cards were removed with the plans.
+  for (const file of ['components/ReviewModal.tsx']) {
     assert.ok(code(file).includes('onClosed='), file);
   }
 });
@@ -498,8 +495,7 @@ test('GenieModal: a notice has no dim, so the app stays usable around it', () =>
 });
 
 test('the corner notices go through GenieModal as notices, and stay mounted so the close can play', () => {
-  const quota = code('components/NativelyQuotaBanner.tsx');
-  assert.ok(!/if \(!visible\) return null;/.test(quota), 'no early return before the genie');
+  // PrepPilot: the quota notice was removed with the hosted plans.
   const hind = code('components/HindsightStatusBanner.tsx');
   const floating = hind.slice(hind.indexOf("if (variant === 'floating-card') {"));
   assert.ok(hind.indexOf("if (variant === 'floating-card') {") < hind.indexOf("if (!status || status.state === 'ready' || dismissed) return null;"),
@@ -508,7 +504,7 @@ test('the corner notices go through GenieModal as notices, and stay mounted so t
   const app = code('App.tsx');
   assert.ok(/<ProviderChangeNotice\s+open=\{isDefault && \(!!incompatibleWarning \|\| !!reindexShown \|\| !!embeddingNotice\)\}\s+warning=\{incompatibleWarning\}\s+progress=\{reindexShown\}\s+degraded=\{embeddingNotice\}/.test(app),
     'warning, re-index and degraded search are one card');
-  for (const [src, where] of [[quota, 'quota'], [floating, 'hindsight']]) {
+  for (const [src, where] of [[floating, 'hindsight']]) {
     assert.ok(src.includes('modal={false}') && src.includes('placement="bottom-right"'), `${where}: a notice in the corner`);
   }
   assert.ok(!/<AnimatePresence>\s*\{(incompatibleWarning|reindexProgress) && isDefault/.test(app), 'no framer entrance left for either');
@@ -523,12 +519,9 @@ test('pictures: a card whose content is new each time keeps none', () => {
   assert.ok(modal.includes('keepOnCloseRef.current = card && keepRef.current &&'), 'none kept at the close');
   assert.ok(modal.includes('if (!open || !shown || !keepPictures || pictureless) return;'), 'none taken while open (nor with no genie: Settings or reduced motion)');
   assert.ok(modal.includes('if (keepRef.current && last && !changedSinceShotRef.current'), 'the close never reuses a picture from before they were turned off');
-  assert.ok(code('components/NativelyQuotaBanner.tsx').includes('keepPictures={false}'), 'quota readings');
   // A see-through (Liquid Glass) card keeps none either: a picture bakes in the
   // backdrop from when it was taken, so the next open would pour out a stale one.
   assert.ok(code('components/HindsightStatusBanner.tsx').includes('keepPictures={false}'), 'long-term memory notice (glass)');
-  assert.ok(code('components/onboarding/PlansToaster.tsx').includes('keepPictures={false}'), 'Natively Plans card (glass)');
-  assert.ok(code('components/trial/FreeTrialModal.tsx').includes('keepPictures={false}'), 'trial usage');
 });
 
 test('pictures: a card showing one of several things is keyed by which', () => {
@@ -980,7 +973,7 @@ test('corner slide: a bottom-right card slides whatever the genie setting says; 
   // The travel is measured on the wrap, which is never transformed.
   assert.ok(/const slideTravel = \(\) => \{\s*const wrap = wrapRef\.current;\s*return wrap \? window\.innerWidth - wrap\.getBoundingClientRect\(\)\.left : 0;\s*\};/.test(hook));
   // Which cards: the three that sit in the corner through GenieModal.
-  for (const f of ['components/NativelyQuotaBanner.tsx', 'components/HindsightStatusBanner.tsx', 'components/UpdateModal.tsx']) {
+  for (const f of ['components/HindsightStatusBanner.tsx', 'components/UpdateModal.tsx']) {
     assert.ok(code(f).includes('placement="bottom-right"'), f);
   }
 });

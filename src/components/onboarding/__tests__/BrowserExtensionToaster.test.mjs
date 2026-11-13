@@ -469,7 +469,7 @@ test('exits are quicker than entrances', () => {
 });
 
 test('copy is present and dash-free', () => {
-  for (const s of ['Natively for Chrome', 'Skip the', 'Screenshot.', 'Add to Chrome', 'Not now',
+  for (const s of ['PrepPilot for Chrome', 'Skip the', 'Screenshot.', 'Add to Chrome', 'Not now',
     'Faster', 'Fewer Tokens', 'Screenshots']) {
     assert.ok(rendered.includes(s), `missing copy: ${s}`);
   }

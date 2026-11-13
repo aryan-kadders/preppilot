@@ -98,7 +98,7 @@ describe('Review modal — two-pane composition', () => {
         // Describing the outcome ("your name will run alongside it") is weaker
         // than showing it: the last thing the user sees should be the literal
         // string, so a wrong name is caught here rather than after publication.
-        assert.match(MODAL, /const byline\s*=\s*displayNamePublicly && name\.trim\(\)\s*\?\s*name\.trim\(\)\s*:\s*"Anonymous Natively user"/);
+        assert.match(MODAL, /const byline\s*=\s*displayNamePublicly && name\.trim\(\)\s*\?\s*name\.trim\(\)\s*:\s*"Anonymous PrepPilot user"/);
         assert.match(MODAL, /className="review-byline"/);
         assert.match(MODAL, /\{byline\}/);
     });
