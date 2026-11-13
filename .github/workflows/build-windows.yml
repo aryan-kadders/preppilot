@@ -35,6 +35,9 @@ jobs:
     env:
       PREPPILOT_RELEASES_URL: ${{ vars.PREPPILOT_RELEASES_URL }}
       VITE_RELEASES_URL: ${{ vars.VITE_RELEASES_URL }}
+      # No Google Calendar client secret in CI: package without calendar sync,
+      # as dist:mac does.
+      PREPPILOT_ALLOW_NO_CALENDAR: '1'
       # electron-builder must not try to publish or sign from CI.
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       GH_TOKEN: ''
