@@ -1,7 +1,7 @@
 import { MockInterviewPanel } from './components/practice/MockInterviewPanel'
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react" // forcing refresh
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { ToastProvider, ToastViewport } from "./components/ui/toast"
+import { ToastProvider, ToastViewport, Toast, ToastTitle, ToastDescription, ToastClose } from "./components/ui/toast"
 import HindsightStatusBanner from "./components/HindsightStatusBanner"
 import SettingsPopup from "./components/SettingsPopup" // Keeping for legacy/specific window support if needed
 import Launcher, { type LauncherRequest } from "./components/Launcher"
@@ -344,6 +344,11 @@ const App: React.FC = () => {
   // Settings › About's Search and Demo meeting: close Settings and ask the
   // Launcher to open its search bar / that meeting.
   const [launcherRequest, setLauncherRequest] = useState<LauncherRequest | null>(null);
+  // Why Start PrepPilot did not start, shown on the launcher. Main's reasons
+  // (PrepPilot Cloud: no booked session, no minutes left, signed out) are
+  // already plain sentences; they only reached the console, so the button
+  // looked dead.
+  const [startError, setStartError] = useState<string | null>(null);
   const openLauncherSearch = useCallback(() => {
     setIsSettingsOpen(false);
     setLauncherRequest({ kind: 'search', seq: Date.now() });
@@ -985,6 +990,7 @@ const App: React.FC = () => {
   // hand this an event object.
   const handleStartMeeting = async (calendar?: { title: string; calendarEventId: string }) => {
     const linked = calendar && typeof calendar === 'object' && typeof calendar.calendarEventId === 'string' ? calendar : undefined;
+    setStartError(null);
     try {
       // The saved microphone and speaker, as Resume asks for them too
       // (lib/startMeetingRequest.ts: drops Natively's own tap aggregate saved
@@ -1014,10 +1020,17 @@ const App: React.FC = () => {
           // Route through the orchestrator: mark permissions as needing
           // attention so the permissions stage becomes re-eligible.
           setOrchestratorUserState({ permissionsNeedAttention: true });
+        } else {
+          setStartError(typeof result.error === 'string' && result.error.trim()
+            ? result.error
+            : 'PrepPilot could not start. Try again in a moment.');
         }
       }
     } catch (err) {
       console.error("Failed to start meeting:", err);
+      if ((err as { code?: string })?.code !== 'mic-permission-denied') {
+        setStartError('PrepPilot could not start. Try again in a moment.');
+      }
       // Defense-in-depth: today the start-meeting IPC handler catches and
       // resolves {success:false, code}, so a mic denial lands in the else
       // branch above. If the call ever rejects instead, Electron preserves the
@@ -1362,6 +1375,17 @@ const App: React.FC = () => {
                     </AnimatePresence>
                   )}
                 </GenieModal>
+                <Toast
+                  variant="error"
+                  open={startError !== null}
+                  onOpenChange={(open) => { if (!open) setStartError(null); }}
+                  duration={10_000}
+                  className="pr-8"
+                >
+                  <ToastTitle>PrepPilot did not start</ToastTitle>
+                  <ToastDescription>{startError}</ToastDescription>
+                  <ToastClose aria-label="Dismiss" />
+                </Toast>
                 <ToastViewport />
               </ToastProvider>
             </QueryClientProvider>
