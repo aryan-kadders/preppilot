@@ -238,7 +238,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onNavigate, onOpenMo
                     subtitle={t('From the conversation to the answer.')}
                 />
                 <div className={ROW_GROUP}>
-                    {[...HOW_IT_WORKS, helpShowsRecording() ? SEE_IT_RECORDING : SEE_IT_GUIDES].map((item) => (
+                    {HOW_IT_WORKS.map((item) => (
                         <SettingsRow key={item.title} icon={rowIcon(item)} title={t(item.title)} description={t(item.body)} control={rowGo(item)} />
                     ))}
                 </div>
@@ -256,27 +256,11 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onNavigate, onOpenMo
                 </div>
             </section>
 
-            {/* Where a review is written. Its own section, above the closing one:
-                the rows below it all leave the app (GitHub, Telegram, mail), and
-                this one does not. */}
-            <section>
-                <SettingsSectionHeading
-                    title={t('Credits')}
-                    subtitle={t('PrepPilot is a personal, non-commercial build.')}
-                />
-                <div className={ROW_GROUP}>
-                    <SettingsRow
-                        icon={<Github size={20} />}
-                        title="Natively"
-                        description={t('This project is based on Natively, originally developed by Natively AI Private Limited.')}
-                        control={
-                            <button type="button" onClick={() => openLink(UPSTREAM_URL)} className={SETTINGS_BTN}>
-                                {t('View source')}
-                            </button>
-                        }
-                    />
-                </div>
-            </section>
+            {/* LICENSE section 6 requires this notice on the About screen, in
+                these words. Kept, small, at the very end. */}
+            <p className="px-1 pt-2 text-[11px] leading-relaxed text-text-tertiary" data-testid="about-attribution">
+                {t('This project is based on Natively, originally developed by Natively AI Private Limited.')}
+            </p>
         </div>
     );
 };

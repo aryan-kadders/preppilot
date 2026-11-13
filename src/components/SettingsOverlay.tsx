@@ -2425,13 +2425,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                         <Cpu size={16} /> {t('Intelligence')}
                                     </button>
                                     <button
-                                        onClick={() => setActiveTab('help')}
-                                        className={navItemClass(activeTab === 'help', 'text-[13px]')}
-                                    >
-                                        {activeTab === 'help' && navActivePill}
-                                        <HelpCircle size={16} /> {t('Setup & Help')}
-                                    </button>
-                                    <button
                                         onClick={() => setActiveTab('about')}
                                         className={navItemClass(activeTab === 'about')}
                                     >

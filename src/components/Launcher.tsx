@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useT } from '../i18n';
-import { ToggleLeft, ToggleRight, Search, Calendar, Globe, Clock, ChevronRight, LayoutGrid, RefreshCw, Eye, EyeOff, Ghost, Plus, Mail, Link as LinkIcon, ChevronDown, Bell, DownloadCloud, CheckCircle, AlertCircle, User, Sparkles, ArrowUpRight } from 'lucide-react';
+import { ToggleLeft, ToggleRight, Search, Calendar, Globe, Clock, ChevronRight, LayoutGrid, RefreshCw, Eye, EyeOff, Ghost, Plus, Mail, Link as LinkIcon, ChevronDown, Bell, DownloadCloud, CheckCircle, AlertCircle, User, Sparkles, ArrowUpRight, History, X } from 'lucide-react';
 import { ProfileIntelligenceIcon } from './ProfileIntelligenceIcon';
 import { NativelyWordmark } from './NativelyWordmark';
 import mainui from "../UI_comp/mainui.png";
+import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
 import { TeamSetupCard } from './TeamSetupCard';
 import { InterviewPrepCard } from './InterviewPrepCard';
 import { BRAND_MARK_D } from '../lib/brandMark';
@@ -104,6 +105,14 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
     const t = useT();
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [isDetectable, setIsDetectable] = useState(false);
+    // PrepPilot: the History panel (past sessions), opened from the header.
+    const [showHistory, setShowHistory] = useState(false);
+    useEffect(() => {
+        if (!showHistory) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowHistory(false); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [showHistory]);
     const [isMeetingActive, setIsMeetingActive] = useState(false);
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
     // The notes page's "ask about this meeting" chat is open. See the details
@@ -694,6 +703,16 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                 {/* Right: Actions */}
                 {/* ml-auto: sole in-flow child now that the nav arrows are gone (the pill is absolute). */}
                 <div className={`ml-auto flex items-center gap-1 no-drag shrink-0 ${isMac ? 'mr-1' : ''}`}>
+                    <button
+                        type="button"
+                        data-testid="open-history"
+                        onClick={() => setShowHistory(true)}
+                        title={t('History')}
+                        aria-label={t('History')}
+                        className={`p-2 text-text-secondary hover:text-text-primary transition-all duration-300 ${isLight ? 'hover:drop-shadow-[0_0_6px_rgba(0,0,0,0.25)]' : 'hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'}`}
+                    >
+                        <History size={18} />
+                    </button>
                     <div className="relative group/profile-btn select-none">
                         <button
                             data-testid="open-profile-intelligence"
@@ -1200,12 +1219,26 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
 
                                     {/* PrepPilot home: a candidate without a code joins their team
                                         first; then (and for anyone with their own AI) the résumé and
-                                        the job description for the next interview. Meeting history
-                                        and the calendar card were removed from the home page; past
-                                        sessions are found with Search. */}
+                                        the job description for the next interview, then the calendar.
+                                        Past sessions moved to the History button (top right). */}
                                     <TeamSetupCard className="mb-3">
                                         <InterviewPrepCard onOpenProfile={() => onOpenProfile?.()} />
                                     </TeamSetupCard>
+                                    {/* 2. Hero Section Cards */}
+                                    <div className="mt-3 grid grid-cols-1 gap-3 h-[198px]">
+                                        {/* The calendar card: upcoming interviews from the linked calendar. */}
+                                        <UpcomingCalendarCard
+                                            className="h-full"
+                                            isConnected={isCalendarConnected}
+                                            // Re-fetch: the events loaded at mount were fetched before the
+                                            // connection existed, so the card would stay empty until a Refresh.
+                                            onConnect={(info) => { setIsCalendarConnected(true); if (info.fresh) setEventsLoaded(false); fetchEvents(); void warmCalendarSnapshot(window.electronAPI); }}
+                                            meetings={visibleMeetings}
+                                            totalCount={upcomingMeetings.length}
+                                            loading={!eventsLoaded}
+                                            onOpenSettings={() => onOpenSettings('calendar')}
+                                        />
+                                    </div>
                                 </div>
                             </section>
 
@@ -1252,6 +1285,122 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
 
                         {/* Specular Highlight Overlay */}
                         <div className="absolute inset-0 rounded-[18px] bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+
+            {/* PrepPilot: past sessions live behind the History button, not on
+                the home page. A panel from the right; Escape or the backdrop closes. */}
+            <AnimatePresence>
+                {showHistory && (
+                    <motion.div
+                        key="history-backdrop"
+                        className="fixed inset-0 z-[1500] bg-black/40"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={() => setShowHistory(false)}
+                    >
+                        <motion.aside
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label={t('History')}
+                            data-testid="history-panel"
+                            className="absolute right-0 top-0 h-full w-[min(440px,92vw)] overflow-y-auto custom-scrollbar border-l border-border-subtle bg-bg-primary px-5 py-5 shadow-2xl"
+                            initial={prefersReducedMotion ? { opacity: 0 } : { x: 40, opacity: 0 }}
+                            animate={prefersReducedMotion ? { opacity: 1 } : { x: 0, opacity: 1 }}
+                            exit={prefersReducedMotion ? { opacity: 0 } : { x: 40, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="mb-4 flex items-center justify-between">
+                                <h2 className="text-[15px] font-bold text-text-primary">{t('History')}</h2>
+                                <button type="button" onClick={() => setShowHistory(false)} aria-label={t('Close')}
+                                    className="rounded-full p-1.5 text-text-secondary hover:bg-bg-elevated hover:text-text-primary">
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div className="space-y-6">
+                                        {/* Iterating Date Groups */}
+                                        {sortedGroups.map((label) => (
+                                            <section key={label}>
+                                                <h3 className="text-[13px] font-medium text-text-secondary mb-3 pl-1">{label}</h3>
+                                                <div className="space-y-1">
+                                                    {/* A deleted row fades and folds its height away (a close:
+                                                        --duration-fast on --ease-smooth-out) so the rows below
+                                                        slide up instead of jumping. Reduced motion just fades. */}
+                                                    <AnimatePresence initial={false}>
+                                                    {groupedMeetings[label].map((m) => (
+                                                        <motion.div
+                                                            key={m.id}
+                                                            layoutId={`meeting-${m.id}`}
+                                                            exit={prefersReducedMotion
+                                                                ? { opacity: 0, pointerEvents: 'none', transition: { duration: 0.15 } }
+                                                                : { opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, pointerEvents: 'none', transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
+                                                            className="group relative flex items-center justify-between px-3 py-2 rounded-lg bg-transparent hover:bg-bg-elevated transition-colors overflow-hidden"
+                                                            onClick={() => { setShowHistory(false); handleOpenMeeting(m); }}
+                                                        >
+                                                            <div className={`font-medium text-[14px] max-w-[60%] truncate ${m.title === 'Processing...' ? 'text-blue-400 italic animate-pulse' : 'text-text-primary'}`}>
+                                                                {plainMeetingTitle(m.title)}
+                                                            </div>
+
+                                                            {/* Time & Duration Section */}
+                                                            <div className="flex items-center gap-4">
+                                                                {m.title === 'Processing...' ? (
+                                                                    <div className="flex items-center gap-2 transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
+                                                                        <RefreshCw size={12} className="animate-spin text-blue-500" />
+                                                                        <span className="text-xs text-blue-500 font-medium">{t('Finalizing...')}</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="relative z-10 bg-bg-elevated text-text-secondary text-[9px] px-1.5 py-0.5 rounded-full font-medium min-w-[35px] text-center tracking-wide">
+                                                                            {formatDurationPill(m.duration)}
+                                                                        </span>
+
+                                                                        {/* Time Text (Should fade out on hover) */}
+                                                                        <span className="text-[13px] text-text-secondary font-medium min-w-[60px] text-right transition-[opacity,transform] duration-[250ms] ease-sculpted group-hover:duration-150 group-hover:opacity-0 group-hover:translate-x-1 motion-reduce:group-hover:translate-x-0">
+                                                                            {formatTime(m.date)}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Delete (slides in on hover). Export lives inside the meeting
+                                                                note, so the row only carries delete, and one click deletes.
+                                                                Hover-in is a 250ms slide from 8px with a 2px blur while the
+                                                                time steps 4px aside in 150ms; hover-out is a quick 150ms
+                                                                with no blur so it gets out of the way. */}
+                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 translate-x-2 blur-[2px] transition-[opacity,transform,filter] duration-150 ease-sculpted group-hover:duration-[250ms] group-hover:opacity-100 group-hover:translate-x-0 group-hover:blur-0 motion-reduce:translate-x-0 motion-reduce:blur-0">
+                                                                <button
+                                                                    className={`h-[23px] px-3 rounded-full text-[12px] font-medium leading-none whitespace-nowrap text-text-secondary transition-[color,background-color,transform] duration-150 ease-sculpted active:scale-[0.96] motion-reduce:active:scale-100 ${isLight ? 'bg-black/[0.05] hover:bg-red-500/10 hover:text-red-500' : 'bg-white/[0.08] hover:bg-red-500/15 hover:text-red-400'}`}
+                                                                    onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        if (window.electronAPI && window.electronAPI.deleteMeeting) {
+                                                                            const success = await window.electronAPI.deleteMeeting(m.id);
+                                                                            if (success) {
+                                                                                setMeetings(prev => prev.filter(meeting => meeting.id !== m.id));
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {t('Delete')}
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </section>
+                                        ))}
+
+                                        {meetings.length === 0 && (
+                                            <div className="p-4 text-text-tertiary text-sm">{t('No past sessions yet.')}</div>
+                                        )}
+
+                            </div>
+                        </motion.aside>
                     </motion.div>
                 )}
             </AnimatePresence>

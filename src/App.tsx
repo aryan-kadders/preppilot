@@ -780,7 +780,9 @@ const App: React.FC = () => {
           .then((p) => {
             setOrchestratorUserState({
               permissionsNeedAttention: permissionsNeedAttention(p),
-              extensionSupported: true, // updated by phoneMirrorGetInfo below
+              // PrepPilot: no browser-extension card; the stage's own skip
+              // (as on Linux) keeps it from ever showing.
+              extensionSupported: false,
             });
           })
           .catch(() => {});
@@ -795,7 +797,7 @@ const App: React.FC = () => {
       window.electronAPI?.phoneMirrorGetInfo?.()
         .then(info => setOrchestratorUserState({
           extensionConnected: info?.extensionConnected ?? false,
-          extensionSupported: true,
+          extensionSupported: false, // PrepPilot: never offer the extension card
           isV2_8_OrNewer: true, // min version handled inside the stage skipWhen
         }))
         .catch(() => {});
