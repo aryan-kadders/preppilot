@@ -100,6 +100,22 @@ describe('behavioral and scenario questions', () => {
       assert.ok(!compose(STORIES[0], mode).sections.includes('practice_story'), mode);
     }
   });
+  // 2026-11-13: an invented example must say it is a sample, never pass as
+  // the candidate's own history; a real story from the evidence is unlabelled.
+  test('with nothing on file, the invented example is labelled as a sample', () => {
+    const p = compose(STORIES[0]);
+    assert.match(p.user, /first line is exactly "Sample story \(replace with your own\):"/);
+    assert.match(p.user, /"Sample example \(replace with your own\):"/);
+    assert.match(p.user, /Nothing about the user's own past is on file/);
+    assert.match(p.user, /Never present an invented example as something that happened to the user/);
+    assert.doesNotMatch(p.user, /never say the example is hypothetical/);
+  });
+  test('with evidence, a real story is told unlabelled and only an invented one is labelled', () => {
+    const n = composer.practiceStoryNotice(heard(STORIES[0]), true);
+    assert.match(n, /tell that one with only its real details and no label/);
+    assert.match(n, /does not come from the evidence is NOT the user's own experience/);
+    assert.doesNotMatch(n, /Nothing about the user's own past is on file/);
+  });
   test('a fact about the user is still never invented', () => {
     for (const q of ['How big was your team at your last company?', 'What is your CGPA?', 'Tell me about yourself.']) {
       assert.ok(!BEHAVIORAL_ASK_RE.test(q), q);

@@ -1471,17 +1471,36 @@ export function practiceStoryTurn(d: Readonly<TurnDecision>): boolean {
   return PRACTICE_STORY_MODES.has(d.modeId) && BEHAVIORAL_ASK_RE.test(d.resolvedQuestion || '');
 }
 
-export function practiceStoryNotice(d: Readonly<TurnDecision>): string {
+/**
+ * PrepPilot (2026-11-13): an invented example is LABELLED. Measured live with
+ * no résumé ("tell me about a time you had a conflict with a teammate"): the
+ * unlabelled example read as the candidate's own history ("In one instance,
+ * this approach led to…"), which an interviewer can drill into. The owner
+ * chose a model answer that says what it is over both an unlabelled story and
+ * no story: a sample a candidate practises from and replaces with their own.
+ * A real story from the evidence is never labelled.
+ */
+export const SAMPLE_STORY_LABEL = 'Sample story (replace with your own):';
+export const SAMPLE_EXAMPLE_LABEL = 'Sample example (replace with your own):';
+
+export function practiceStoryNotice(d: Readonly<TurnDecision>, hasEvidence = false): string {
   if (!practiceStoryTurn(d)) return '';
+  const invented = 'a realistic, ordinary example from a software developer\'s work (a tight deadline, a production bug, '
+    + 'a disagreement in code review, a blocked teammate, unclear requirements) in general terms: no company, client or '
+    + 'person names, no dates and no precise figures, and a modest, believable result';
+  const labelRule = `An example that does not come from the evidence is NOT the user's own experience, so it must be marked: `
+    + `for a story question, the answer's first line is exactly "${SAMPLE_STORY_LABEL}" and the story follows; for "how would `
+    + `you…" or "what would you do if…", give the concrete steps they would take, then one short example introduced on its `
+    + `own line by exactly "${SAMPLE_EXAMPLE_LABEL}". Never present an invented example as something that happened to the user.`;
   return '# Behavioral or scenario question\nThis asks for an example, or for how the user acts in a situation. Answer in '
     + 'first person as one complete STAR answer the user can say aloud: the situation, their task, the actions they took, '
-    + 'and the result, in four to seven natural sentences, without the words Situation, Task, Action or Result. If the '
-    + 'evidence above holds a real story of this kind, tell that one with only its real details. If it does not, tell a '
-    + 'realistic, ordinary example from a software developer\'s work (a tight deadline, a production bug, a disagreement in '
-    + 'code review, a blocked teammate, unclear requirements) in general terms: no company, client or person names, no '
-    + 'dates and no precise figures, and a modest, believable result. For "how would you…" or "what would you do if…", '
-    + 'give the concrete steps they would take, then one short example. This overrides the earlier rules about stories '
-    + 'for this question only; never add a disclaimer, never say the example is hypothetical, and never promise to follow up.';
+    + 'and the result, in four to seven natural sentences, without the words Situation, Task, Action or Result. '
+    + (hasEvidence
+      ? 'If the evidence above holds a real story of this kind, tell that one with only its real details and no label. '
+        + `If it does not, tell ${invented}. `
+      : `Nothing about the user's own past is on file, so tell ${invented}. `)
+    + labelRule
+    + ' This overrides the earlier rules about stories for this question only; apart from that label, add no disclaimer and never promise to follow up.';
 }
 
 /**
@@ -1812,7 +1831,7 @@ export function composePrompt(input: ComposeInput): ComposedPrompt {
       : '',
     push('today', todayNotice(input.now ?? new Date(), d.resolvedQuestion, input.conversationSummary, packed.evidenceBlock)),
     push('evidence_story', evidenceStoryGuard(d, Boolean(packed.evidenceBlock), hasOwnWords)),
-    push('practice_story', practiceStoryNotice(d)),
+    push('practice_story', practiceStoryNotice(d, Boolean(packed.evidenceBlock))),
     push('build_scope', buildScopeNotice(d)),
     push('personal_commitment', practiceStoryTurn(d) ? '' : personalCommitmentNotice(d.resolvedQuestion, policy.id, Boolean(input.heardQuestion), hasOwnWords)),
     push('calculation', calculationNotice(d.resolvedQuestion, input.conversationSummary, packed.evidenceBlock)),
