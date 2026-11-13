@@ -1,0 +1,95 @@
+name: Build Windows installer
+
+# PrepPilot's Windows installer (PrepPilot-Setup-<version>.exe), built on a
+# Windows runner: the native module (Rust) and the native npm dependencies must
+# be compiled for Windows, which a Mac cannot do. Unsigned: Windows SmartScreen
+# warns on first run ("More info" -> "Run anyway") until a code-signing
+# certificate is added.
+#
+# Run it from GitHub: Actions -> Build Windows installer -> Run workflow, or push
+# a tag like v3.1.1. The .exe is attached to the run as an artifact.
+#
+# Optional repository variables (Settings -> Secrets and variables -> Actions ->
+# Variables): PREPPILOT_RELEASES_URL (where installers are published; the app
+# checks it for updates) and VITE_RELEASES_URL. Unset, the build still works and
+# simply does not check for updates.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-installer:
+    name: Windows installer (x64)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      PREPPILOT_RELEASES_URL: ${{ vars.PREPPILOT_RELEASES_URL }}
+      VITE_RELEASES_URL: ${{ vars.VITE_RELEASES_URL }}
+      # electron-builder must not try to publish or sign from CI.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      GH_TOKEN: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      # postinstall downloads the bundled local models and rebuilds the native
+      # npm dependencies for Electron on this (Windows) machine.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck Electron main process
+        run: npm run typecheck:electron
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build Electron main process
+        run: npm run build:electron
+
+      - name: Build native module (Windows)
+        run: npm run build:native
+
+      - name: Verify bundled models and local assets
+        run: |
+          node scripts/download-models.js --verify
+          npm run verify:packaged-local-assets
+
+      - name: Package installer (NSIS, x64)
+        run: node scripts/package-app.js --win nsis --x64 --publish never
+
+      - name: Verify packaged local assets (installed layout)
+        run: node scripts/verify-packaged-local-assets.mjs --app release/win-unpacked --platform win32
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrepPilot-Windows-x64
+          path: |
+            release/*.exe
+            release/latest*.yml
+          if-no-files-found: error
+          retention-days: 14

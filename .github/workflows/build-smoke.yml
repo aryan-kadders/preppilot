@@ -81,6 +81,11 @@ jobs:
           elif [ "$IS_FORK_PR" = "true" ]; then
             echo "mode=core" >> "$GITHUB_OUTPUT"
             echo "::notice::Private premium source is unavailable to fork PRs; running the fork-safe core smoke scope."
+          elif [ ! -f .gitmodules ] || ! grep -q 'path = premium' .gitmodules; then
+            # PrepPilot: this repository has no premium submodule at all, so
+            # the core scope is the complete build, not a downgrade.
+            echo "mode=core" >> "$GITHUB_OUTPUT"
+            echo "::notice::No premium submodule in this repository; running the core smoke scope."
           else
             echo "mode=invalid" >> "$GITHUB_OUTPUT"
           fi
