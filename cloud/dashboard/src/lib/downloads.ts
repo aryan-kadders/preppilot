@@ -36,7 +36,7 @@ export function inviteMessage(name: string, code: string, base: string): string 
     ...(links.length
       ? ['1. Download and install PrepPilot:', ...links.map((l) => `   ${l.label}: ${l.url}`)]
       : ['1. Install PrepPilot (your manager will send the download link).']),
-    '2. Open PrepPilot, go to Settings › Account, and enter this code:',
+    '2. Open PrepPilot and enter this code in "Join your team" on the home page:',
     `   ${code}`,
     '',
     'The code works once, on one computer, within 7 days. Please keep it private.',

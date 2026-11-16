@@ -2,21 +2,22 @@
 // the invite code from their manager (PrepPilot Cloud). The résumé and the job
 // description are then added on the home page (InterviewPrepCard).
 //
-// Someone with their own AI (the owner, or a solo user with a key or a local
-// model) is not on a team and never sees the join step. Pure, so the decision
-// is unit-tested; the card is src/components/TeamSetupCard.tsx and the Start
+// Every computer joins with an invite code: an AI key of its own does not get
+// around it (PrepPilot is the organization's tool, and managers decide who uses
+// it). The only exception is a development build started with
+// PREPPILOT_ALLOW_OWN_AI=1 (cloud-status reports it as devOwnAi). Pure, so the
+// decision is unit-tested; the card is src/components/TeamSetupCard.tsx and the Start
 // check is in src/App.tsx. No platform branches.
 
 /**
- * @param {{ cloudState: 'signed_in' | 'signed_out' | 'revoked' | null | undefined, hasOwnAi: boolean }} s
+ * @param {{ cloudState: 'signed_in' | 'signed_out' | 'revoked' | null | undefined, devOwnAi?: boolean }} s
  * @returns {'join' | null}  the join step, or null when there is nothing to do
  */
-export function teamSetupStep({ cloudState, hasOwnAi }) {
+export function teamSetupStep({ cloudState, devOwnAi = false }) {
   if (cloudState === 'signed_in') return null;
-  // A computer the manager signed out must join again, even with an AI of its own:
-  // it was a team computer.
+  // A computer the manager signed out must join again.
   if (cloudState === 'revoked') return 'join';
-  return hasOwnAi ? null : 'join';
+  return devOwnAi ? null : 'join';
 }
 
 /**

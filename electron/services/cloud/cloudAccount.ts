@@ -51,5 +51,43 @@ export function cloudModeActive(): boolean {
   try { return getCloudClient().signedIn; } catch { return false; }
 }
 
+/**
+ * True when this computer may skip the invite code: only a development build
+ * started with PREPPILOT_ALLOW_OWN_AI=1 (for testing with a personal AI key).
+ * A packaged build always needs the code.
+ */
+export function devOwnAiAllowed(env: NodeJS.ProcessEnv = process.env, isPackaged = true): boolean {
+  return !isPackaged && env.PREPPILOT_ALLOW_OWN_AI === '1';
+}
+
+/** Why a meeting may not start yet, or null: every computer joins with an invite code first. */
+export function teamSignInBlock(signedIn: boolean, devOwnAi: boolean): string | null {
+  if (signedIn || devOwnAi) return null;
+  return 'To start, enter the invite code from your manager first.';
+}
+
+/**
+ * The sentence shown when an invite code is refused. A failure the server
+ * explained gets its own sentence; a network failure says so; anything else
+ * names its code, so a screenshot is enough to find the cause.
+ */
+export function redeemErrorMessage(e: { code?: unknown; status?: unknown; message?: unknown; cause?: unknown } | null | undefined): string {
+  const code = typeof e?.code === 'string' ? e.code : '';
+  const known: Record<string, string> = {
+    invalid_code: 'That code is not valid. Check it with your manager.',
+    code_used: 'That code was already used. Ask your manager for a new one.',
+    code_expired: 'That code has expired. Ask your manager for a new one.',
+    app_update_required: 'Please update PrepPilot to sign in.',
+  };
+  if (known[code]) return known[code];
+  // CloudError always carries an HTTP status; fetch's own failures do not.
+  if (typeof e?.status !== 'number') {
+    const cause = (e?.cause as { code?: unknown } | undefined)?.code;
+    const detail = typeof cause === 'string' ? cause : String(e?.message ?? '').slice(0, 80);
+    return `Could not reach PrepPilot Cloud. Check your internet connection${detail ? ` (${detail})` : ''}.`;
+  }
+  return `Sign-in failed (${code || `HTTP ${e.status}`}). Try again, or send this message to your manager.`;
+}
+
 /** Test seam. */
 export function _setCloudClientForTest(c: CloudClient | null): void { anchor[SLOT] = c; }

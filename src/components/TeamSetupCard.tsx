@@ -1,9 +1,8 @@
 // PrepPilot: the Launcher's join card for a candidate on a team.
 //
-// No invite code yet and no AI of their own: enter the code from the manager
-// (the same sign-in as Settings › Account). "Use my own AI key" opens the solo
-// setup (AiSetupCard) instead. Once joined, or for someone with their own AI,
-// it renders its children (the home page's interview prep card).
+// Until this computer has joined with an invite code from a manager, the home
+// page shows only this card: an AI key of its own does not get around it. Once
+// joined it renders its children (the home page's interview prep card).
 //
 // The decision is src/lib/teamSetup.mjs. Start checks the same state in App.tsx
 // and, while the code is missing, asks this card to focus its code box.
@@ -12,7 +11,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, KeyRound, Loader2 } from 'lucide-react';
 import { useT } from '../i18n';
 import { SETTINGS_BTN } from './settings/SettingsRow';
-import { AiSetupCard } from './AiSetupCard';
 import { teamSetupStep, FOCUS_INVITE_EVENT } from '../lib/teamSetup.mjs';
 import type { CloudSetupState, TeamSetupStep } from '../lib/teamSetup.mjs';
 
@@ -24,20 +22,14 @@ export interface TeamSetupState {
 /** Where this computer is in team setup, read fresh from main. Shared with App's Start check. */
 export async function readTeamSetup(): Promise<TeamSetupState> {
   const api = window.electronAPI;
-  const [account, creds, llm] = await Promise.all([
-    api?.cloudStatus?.().catch(() => null),
-    api?.getStoredCredentials?.().catch(() => undefined),
-    api?.getCurrentLlmConfig?.().catch(() => undefined),
-  ]);
+  const account = await api?.cloudStatus?.().catch(() => null);
   const cloudState = account?.state ?? null;
-  const hasOwnAi = !!creds?.hasOwnAiKey || !!(llm as { isOllama?: boolean } | undefined)?.isOllama;
-  return { step: teamSetupStep({ cloudState, hasOwnAi }), cloudState };
+  return { step: teamSetupStep({ cloudState, devOwnAi: !!account?.devOwnAi }), cloudState };
 }
 
 export const TeamSetupCard: React.FC<{ className?: string; children?: React.ReactNode }> = ({ className = '', children }) => {
   const t = useT();
   const [state, setState] = useState<TeamSetupState | null>(null);
-  const [ownKey, setOwnKey] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +56,8 @@ export const TeamSetupCard: React.FC<{ className?: string; children?: React.Reac
     };
   }, [refresh]);
 
-  // While the join card shows, a key saved through "Use my own AI key" (or a
-  // sign-in from Settings) must replace it promptly; not every save path
-  // broadcasts a credentials change.
+  // While the join card shows, a sign-in from Settings › Account must replace
+  // it promptly.
   useEffect(() => {
     if (state?.step !== 'join') return;
     const id = window.setInterval(() => { void refresh(); }, 3000);
@@ -76,7 +67,6 @@ export const TeamSetupCard: React.FC<{ className?: string; children?: React.Reac
   // Start pressed without a code: bring the box into view and focus it.
   useEffect(() => {
     const onFocusInvite = (e: Event) => {
-      setOwnKey(false);
       const detail = (e as CustomEvent<unknown>).detail;
       setNudge(typeof detail === 'string' && detail ? detail : t('Enter the invite code from your manager first.'));
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -108,17 +98,6 @@ export const TeamSetupCard: React.FC<{ className?: string; children?: React.Reac
   // Not loaded yet: nothing, so the join card never flashes for someone set up.
   if (!state) return null;
   if (!state.step) return <>{children}</>;
-
-  if (state.step === 'join' && ownKey) {
-    return (
-      <div className={className}>
-        <AiSetupCard />
-        <button type="button" className="mt-2 text-[11px] text-text-tertiary underline hover:text-text-secondary" onClick={() => setOwnKey(false)}>
-          {t('I have an invite code from my manager')}
-        </button>
-      </div>
-    );
-  }
 
   if (state.step === 'join') {
     const revoked = state.cloudState === 'revoked';
@@ -161,14 +140,6 @@ export const TeamSetupCard: React.FC<{ className?: string; children?: React.Reac
             <div aria-live="polite" className="min-h-[18px] mt-2 text-xs">
               {error && <span role="alert" className="text-red-400">{error}</span>}
             </div>
-            {!revoked && (
-              <p className="mt-1 text-[11px] text-text-tertiary">
-                {t('Not on a team?')}{' '}
-                <button type="button" className="underline hover:text-text-secondary" onClick={() => setOwnKey(true)}>
-                  {t('Use my own AI key instead')}
-                </button>
-              </p>
-            )}
           </div>
         </div>
       </section>

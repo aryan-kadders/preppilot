@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Archive, CalendarClock, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
+import { Archive, CalendarClock, Eye, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { canManage as canManageFor, canRecruit, type CandidateRow, type InterviewRow, type Me, type Route } from '../lib/types';
 import { dateTime, minutesLabel, money, relative, repeatedSlots, slotLabel } from '../lib/format';
@@ -136,12 +136,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
           </Card>
           <Card title="Invite codes" description="Each code signs in one computer, once, within 7 days" actions={manage && <button className="btn" onClick={() => setDialog('invite')}><Plus size={14} /> New code</button>} flush>
             {data.invites.length === 0 ? <EmptyState icon={<KeyRound size={18} />} title="No invite codes yet" description="Create one and send it to the candidate." /> : (
-              <div className="rows">{data.invites.map((i) => (
-                <div key={i.id} className="srow">
-                  <span style={{ flex: 1 }} className="muted">Created {dateTime(i.created_at)}</span>
-                  {i.redeemed_at ? <Badge tone="good">Used {relative(i.redeemed_at)}</Badge> : new Date(i.expires_at).getTime() < now ? <Badge>Expired</Badge> : <Badge tone="accent">Waiting · expires {dateTime(i.expires_at)}</Badge>}
-                </div>
-              ))}</div>
+              <div className="rows">{data.invites.map((i) => <InviteRow key={i.id} invite={i} now={now} manage={manage} onChange={refresh} />)}</div>
             )}
           </Card>
         </div>
@@ -303,6 +298,45 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
   );
 };
 
+// One invite code: a waiting code can be shown again and copied; any code can be deleted.
+const InviteRow: React.FC<{ invite: Invite; now: number; manage: boolean; onChange: () => void }> = ({ invite: i, now, manage, onChange }) => {
+  const action = useAction();
+  const toast = useToast();
+  const [code, setCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const waiting = !i.redeemed_at && new Date(i.expires_at).getTime() >= now;
+  const show = () => void action.run(async () => {
+    const { data, error } = await supabase.rpc('pp_reveal_invite', { p_invite: i.id });
+    if (error) throw error;
+    if (!data) throw new Error('This code was made before codes were kept. Delete it and create a new one.');
+    setCode(data as string);
+  });
+  const remove = () => {
+    const what = waiting ? 'This code will stop working at once.' : 'It is only removed from this list.';
+    if (!window.confirm(`Delete this invite code? ${what}`)) return;
+    void action.run(async () => {
+      const { error } = await supabase.rpc('pp_delete_invite', { p_invite: i.id });
+      if (error) throw error;
+      toast('Invite code deleted');
+      onChange();
+    });
+  };
+  return (
+    <div className="srow" style={{ flexWrap: 'wrap' }}>
+      <span style={{ flex: 1, minWidth: 160 }} className="muted">Created {dateTime(i.created_at)}</span>
+      {i.redeemed_at ? <Badge tone="good">Used {relative(i.redeemed_at)}</Badge> : !waiting ? <Badge>Expired</Badge> : <Badge tone="accent">Waiting · expires {dateTime(i.expires_at)}</Badge>}
+      {manage && waiting && !code && <button className="btn sm" onClick={show} disabled={action.busy}><Eye size={14} /> Show code</button>}
+      {code && (
+        <button className="btn sm" onClick={() => void copyText(code).then(() => setCopied(true))} title="Copy code">
+          <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: 1 }}>{code}</span> <Copy size={14} /> {copied ? 'Copied' : 'Copy'}
+        </button>
+      )}
+      {manage && <button className="btn btn-ghost btn-icon" onClick={remove} disabled={action.busy} aria-label="Delete invite code" title="Delete invite code"><Trash2 size={14} /></button>}
+      {action.error && <div style={{ flexBasis: '100%' }}><Alert kind="error">{action.error}</Alert></div>}
+    </div>
+  );
+};
+
 const ComputersTab: React.FC<{ devices: Device[]; manage: boolean; onInvite: () => void; onChange: () => void }> = ({ devices, manage, onInvite, onChange }) => {
   const action = useAction();
   const toast = useToast();
@@ -319,7 +353,7 @@ const ComputersTab: React.FC<{ devices: Device[]; manage: boolean; onInvite: () 
     <Card title="Computers" description="Where this candidate is signed in to PrepPilot" flush>
       {action.error && <div style={{ padding: 12 }}><Alert kind="error">{action.error}</Alert></div>}
       {devices.length === 0 ? (
-        <EmptyState icon={<Laptop size={18} />} title="Not signed in anywhere" description="The candidate signs in by entering an invite code in PrepPilot › Settings › Account."
+        <EmptyState icon={<Laptop size={18} />} title="Not signed in anywhere" description="The candidate signs in by entering an invite code on PrepPilot's home page."
           action={manage ? <button className="btn btn-cta" onClick={onInvite}><KeyRound size={15} /> Create invite code</button> : undefined} />
       ) : (
         <div className="rows">{devices.map((d) => (
@@ -386,21 +420,21 @@ const InviteDialog: React.FC<{ open: boolean; onClose: () => void; id: string; n
   });
   const close = () => { setCode(null); onClose(); };
   return (
-    <Dialog open={open} onClose={close} onSubmit={code ? close : create} title="Invite code" description={`${name} enters it in PrepPilot under Settings › Account. It works once, within 7 days.`}
+    <Dialog open={open} onClose={close} onSubmit={code ? close : create} title="Invite code" description={`${name} enters it on PrepPilot's home page. It works once, within 7 days.`}
       footer={code
         ? <><button type="button" className="btn" onClick={() => void copyText(code).then(() => setCopied('code'))}><Copy size={14} /> {copied === 'code' ? 'Copied' : 'Copy code'}</button><button type="button" className="btn" onClick={() => void copyText(inviteMessage(name, code, RELEASES_URL)).then(() => setCopied('message'))}><Copy size={14} /> {copied === 'message' ? 'Copied' : 'Copy message'}</button><button type="submit" className="btn btn-cta">Done</button></>
         : <><button type="button" className="btn" onClick={close}>Cancel</button><button type="submit" className="btn btn-cta" disabled={action.busy}><KeyRound size={14} /> Create code</button></>}>
       {code ? (
         <>
           <div className="code-box">{code}</div>
-          <Alert kind="info">This code is shown only now. <b>Copy message</b> gives {name} the download links and the code together; send it privately.</Alert>
+          <Alert kind="info">You can show this code again under Invite codes until it is used. <b>Copy message</b> gives {name} the download links and the code together; send it privately.</Alert>
           {links.length > 0 ? (
             <div className="download-links">
               {links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noreferrer"><Download size={14} /> {l.label}</a>)}
             </div>
           ) : <p className="muted" style={{ margin: 0, fontSize: 12 }}>Download links appear here once the app is published (VITE_RELEASES_URL).</p>}
         </>
-      ) : <p className="muted" style={{ margin: 0 }}>A new code does not cancel earlier ones; unused codes simply expire.</p>}
+      ) : <p className="muted" style={{ margin: 0 }}>A new code does not cancel earlier ones. Delete a code under Invite codes to stop it working.</p>}
       {action.error && <Alert kind="error">{action.error}</Alert>}
     </Dialog>
   );

@@ -122,6 +122,8 @@ export interface VisionModelState {
 /** PrepPilot Cloud sign-in state for Settings › Account (main: ipcHandlers 'cloud-status'). */
 export interface CloudAccountStatus {
   state: 'signed_out' | 'signed_in' | 'revoked'
+  /** Development builds started with PREPPILOT_ALLOW_OWN_AI=1 only: no invite code needed. */
+  devOwnAi?: boolean
   sessionId?: string | null
   error?: string
   status?: {

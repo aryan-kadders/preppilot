@@ -14685,7 +14685,9 @@ export function initializeIpcHandlers(appState: AppState): void {
   safeHandle('cloud-status', async () => {
     const { getCloudClient } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
     const cloud = getCloudClient();
-    if (!cloud.signedIn) return { state: cloud.state };
+    const { devOwnAiAllowed } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    const devOwnAi = devOwnAiAllowed(process.env, app.isPackaged);
+    if (!cloud.signedIn) return { state: cloud.state, ...(devOwnAi ? { devOwnAi } : {}) };
     try {
       return { state: cloud.state, status: await cloud.status(), sessionId: cloud.sessionId };
     } catch (e: any) {
@@ -14700,13 +14702,9 @@ export function initializeIpcHandlers(appState: AppState): void {
       await getCloudClient().redeem(String(code ?? '').slice(0, 64));
       return { success: true };
     } catch (e: any) {
-      const messages: Record<string, string> = {
-        invalid_code: 'That code is not valid. Check it with your manager.',
-        code_used: 'That code was already used. Ask your manager for a new one.',
-        code_expired: 'That code has expired. Ask your manager for a new one.',
-        app_update_required: 'Please update PrepPilot to sign in.',
-      };
-      return { success: false, error: messages[e?.code] ?? 'Could not reach PrepPilot Cloud. Check your internet connection.' };
+      const { redeemErrorMessage } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+      console.warn('[Cloud] invite code refused:', e?.code ?? '', e?.status ?? '', String(e?.message ?? e).slice(0, 200), e?.cause?.code ?? '');
+      return { success: false, error: redeemErrorMessage(e) };
     }
   });
   safeHandle('cloud-sign-out', async () => {
@@ -15638,6 +15636,15 @@ export function initializeIpcHandlers(appState: AppState): void {
   // ==========================================
 
   safeHandle('start-meeting', async (event, metadata?: any) => {
+    // Every computer joins its team with an invite code before it can start;
+    // an AI key of its own does not get around this.
+    {
+      const { getCloudClient, devOwnAiAllowed, teamSignInBlock } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+      let signedIn = false;
+      try { signedIn = getCloudClient().signedIn; } catch { signedIn = false; }
+      const block = teamSignInBlock(signedIn, devOwnAiAllowed(process.env, app.isPackaged));
+      if (block) return { success: false, error: block, code: 'team-sign-in-required' };
+    }
     try {
       await appState.startMeeting(metadata);
       return { success: true };

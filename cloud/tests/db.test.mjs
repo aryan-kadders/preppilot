@@ -151,6 +151,27 @@ describe('invites and device tokens', () => {
     assert.equal((await svc('select public.pp_authenticate($1, $2) as r', [sha(a2), at(130)])).error, 'device_revoked');
   });
 
+  test('a waiting code can be shown again by its managers, and is wiped once used', async () => {
+    const code = await db.asUser(user('manager1'), async (q) => (await q('select public.pp_create_invite($1) as c', [ids.cand1])).rows[0].c);
+    const id = (await db.admin.query('select id from public.invites where code_hash = $1', [sha(code)])).rows[0].id;
+    const reveal = (who) => db.asUser(user(who), async (q) => (await q('select public.pp_reveal_invite($1) as c', [id])).rows[0].c);
+    assert.equal(await reveal('manager1'), code);
+    await rejects(reveal('manager2'), /forbidden/);
+    // The dashboard's plain select cannot read the code or its hash.
+    await rejects(db.asUser(user('manager1'), (q) => q('select code from public.invites')), /permission denied/);
+    await rejects(db.asUser(user('manager1'), (q) => q('select code_hash from public.invites')), /permission denied/);
+    await svc(`select public.pp_redeem_invite($1, 'x', 'win32', '3.1.0', $2, $3) as r`, [sha(code), sha('a-rev'), sha('r-rev')]);
+    assert.equal(await reveal('manager1'), null, 'a used code is no longer kept');
+  });
+
+  test('a manager can delete an invite code; a deleted code no longer works', async () => {
+    const code = await db.asUser(user('manager1'), async (q) => (await q('select public.pp_create_invite($1) as c', [ids.cand1])).rows[0].c);
+    const id = (await db.admin.query('select id from public.invites where code_hash = $1', [sha(code)])).rows[0].id;
+    await rejects(db.asUser(user('manager2'), (q) => q('select public.pp_delete_invite($1)', [id])), /forbidden/);
+    await db.asUser(user('manager1'), (q) => q('select public.pp_delete_invite($1)', [id]));
+    assert.equal((await svc(`select public.pp_redeem_invite($1, 'x', 'darwin', '1', $2, $3) as r`, [sha(code), sha('a-del'), sha('r-del')])).error, 'invalid_code');
+  });
+
   test('a manager can revoke a device', async () => {
     const d = await newDevice(ids.cand1);
     await rejects(db.asUser(user('manager2'), (q) => q('select public.pp_revoke_device($1)', [d.deviceId])), /forbidden/);

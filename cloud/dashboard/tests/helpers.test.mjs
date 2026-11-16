@@ -80,7 +80,7 @@ test('download links and the invite message', async () => {
   const msg = inviteMessage('Kishan Patel', 'A146-5560-9438-D08B', 'https://pub-x.r2.dev');
   assert.match(msg, /^Hi Kishan,/);
   assert.match(msg, /PrepPilot-mac-arm64\.dmg/);
-  assert.match(msg, /Settings › Account/);
+  assert.match(msg, /Join your team" on the home page/);
   assert.match(msg, /A146-5560-9438-D08B/);
   assert.doesNotMatch(inviteMessage('K', 'X', ''), /https:/);
 });
