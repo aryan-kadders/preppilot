@@ -328,7 +328,7 @@ const InviteRow: React.FC<{ invite: Invite; now: number; manage: boolean; onChan
       {manage && waiting && !code && <button className="btn sm" onClick={show} disabled={action.busy}><Eye size={14} /> Show code</button>}
       {code && (
         <button className="btn sm" onClick={() => void copyText(code).then(() => setCopied(true))} title="Copy code">
-          <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: 1 }}>{code}</span> <Copy size={14} /> {copied ? 'Copied' : 'Copy'}
+          <span className="mono" style={{ letterSpacing: 1 }}>{code}</span> <Copy size={14} /> {copied ? 'Copied' : 'Copy'}
         </button>
       )}
       {manage && <button className="btn btn-ghost btn-icon" onClick={remove} disabled={action.busy} aria-label="Delete invite code" title="Delete invite code"><Trash2 size={14} /></button>}
