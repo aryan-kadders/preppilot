@@ -41,6 +41,13 @@ jobs:
       # electron-builder must not try to publish or sign from CI.
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       GH_TOKEN: ''
+      # Optional repository secrets: with all four set, the build is uploaded
+      # to the R2 release bucket (scripts/upload-r2.mjs) and every installed
+      # copy can update itself, downloading only the parts that changed.
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
 
     steps:
       - name: Checkout
@@ -93,6 +100,13 @@ jobs:
           name: PrepPilot-Windows-x64
           path: |
             release/*.exe
+            release/*.exe.blockmap
             release/latest*.yml
           if-no-files-found: error
           retention-days: 14
+
+      # Installers before the feed (the script's own order), so an installed
+      # app never sees an update whose files are not there yet.
+      - name: Publish to the release bucket (small updates for installed apps)
+        if: env.R2_BUCKET != '' && env.PREPPILOT_RELEASES_URL != ''
+        run: npm run release:upload
