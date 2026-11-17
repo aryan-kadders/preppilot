@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { signS3Request, planUpload, filesInFeed, fixedNameFor, notesJson } from '../upload-r2.mjs';
+import { signS3Request, planUpload, filesInFeed, fixedNameFor, notesJson, planCleanup, versionedKey } from '../upload-r2.mjs';
 
 const require = createRequire(import.meta.url);
 const { normalizeReleasesUrl, resolveReleasesUrl } = require('../lib/releases-url.cjs');
@@ -86,4 +86,48 @@ test('S3 signature matches the aws4 package', () => {
   aws4.sign(theirs, creds);
   assert.equal(ours.authorization, theirs.headers.Authorization);
   assert.equal(ours['x-amz-date'], '20261107T102030Z');
+});
+
+test('S3 signature with a query string (bucket listing) matches the aws4 package', () => {
+  const aws4 = require('aws4');
+  const now = new Date('2026-11-17T08:00:00.000Z');
+  const creds = { accessKeyId: 'AKIDEXAMPLE', secretAccessKey: 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY' };
+  const host = 'acct.r2.cloudflarestorage.com';
+  const query = { 'list-type': 2, 'continuation-token': 'a b/c+d=' };
+  const ours = signS3Request({ method: 'GET', host, path: '/preppilot-releases', query, ...creds, now });
+  const qs = Object.keys(query).sort().map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(query[k])}`).join('&');
+  const theirs = { host, path: `/preppilot-releases?${qs}`, method: 'GET', service: 's3', region: 'auto', signQuery: false,
+    headers: { 'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD', 'X-Amz-Date': ours['x-amz-date'] } };
+  aws4.sign(theirs, creds);
+  assert.equal(ours.authorization, theirs.headers.Authorization);
+});
+
+test('cleanup knows versioned files and never touches fixed names, feeds or the latest notes', () => {
+  assert.deepEqual(versionedKey('PrepPilot-Setup-3.1.1.exe'), { platform: 'win', version: '3.1.1' });
+  assert.deepEqual(versionedKey('PrepPilot-Setup-3.1.1.exe.blockmap'), { platform: 'win', version: '3.1.1' });
+  assert.deepEqual(versionedKey('PrepPilot-3.2.0-arm64-mac.zip'), { platform: 'mac', version: '3.2.0' });
+  assert.deepEqual(versionedKey('PrepPilot-3.2.0-arm64.dmg.blockmap'), { platform: 'mac', version: '3.2.0' });
+  assert.deepEqual(versionedKey('release-notes/v3.2.0.json'), { platform: 'notes', version: '3.2.0' });
+  for (const k of ['PrepPilot-Setup-win-x64.exe', 'PrepPilot-mac-arm64.dmg', 'PrepPilot-mac-x64.dmg', 'latest.yml', 'latest-mac.yml',
+    'release-notes/latest.json', 'something-else.exe', 'backup/PrepPilot-Setup-3.0.0.exe']) assert.equal(versionedKey(k), null, k);
+});
+
+test('cleanup keeps the newest 2 versions per platform (by number, not by text), and notes while any platform has them', () => {
+  const bucket = [
+    'PrepPilot-Setup-3.1.0.exe', 'PrepPilot-Setup-3.1.0.exe.blockmap',
+    'PrepPilot-Setup-3.1.1.exe', 'PrepPilot-Setup-3.1.1.exe.blockmap',
+    'PrepPilot-Setup-3.1.10.exe', 'PrepPilot-Setup-3.1.10.exe.blockmap',
+    'PrepPilot-Setup-3.1.2.exe',
+    'PrepPilot-3.1.0-arm64.dmg', 'PrepPilot-3.1.0-arm64-mac.zip',
+    'release-notes/v3.1.0.json', 'release-notes/v3.1.1.json', 'release-notes/v3.1.2.json', 'release-notes/v3.1.10.json',
+    'PrepPilot-Setup-win-x64.exe', 'PrepPilot-mac-arm64.dmg', 'latest.yml', 'latest-mac.yml', 'release-notes/latest.json',
+  ];
+  assert.deepEqual(planCleanup(bucket), [
+    'PrepPilot-Setup-3.1.0.exe', 'PrepPilot-Setup-3.1.0.exe.blockmap',
+    'PrepPilot-Setup-3.1.1.exe', 'PrepPilot-Setup-3.1.1.exe.blockmap',
+    'release-notes/v3.1.1.json',
+  ]);
+  assert.deepEqual(planCleanup(bucket, 4), []);
+  assert.deepEqual(planCleanup(['PrepPilot-Setup-3.1.1.exe']), []);
+  assert.throws(() => planCleanup(bucket, 0));
 });

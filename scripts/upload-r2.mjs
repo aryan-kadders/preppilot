@@ -15,7 +15,11 @@
 //        PrepPilot-mac-arm64.dmg / PrepPilot-mac-x64.dmg / PrepPilot-Setup-win-x64.exe;
 //   3. release notes: release-notes/v<version>.json and release-notes/latest.json,
 //      from release-notes/v<version>.md in the repo when it exists;
-//   4. the feed itself: latest-mac.yml (macOS) / latest.yml (Windows).
+//   4. the feed itself: latest-mac.yml (macOS) / latest.yml (Windows);
+//   5. cleanup: per platform, only the newest KEEP_VERSIONS (2) versions stay;
+//      older installers, blockmaps and release notes are deleted, so the bucket
+//      stays near 7 GB for both platforms. The fixed-name copies and the feeds
+//      are never deleted (they are overwritten). `--keep N` changes how many.
 //
 // Credentials, from the environment or .env (an R2 API token with "Object
 // Read & Write" on this one bucket; Cloudflare dashboard → R2 → Manage API
@@ -47,14 +51,15 @@ const encodeSegment = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%
  * Headers for an S3 request signed with an unsigned payload (the body is
  * streamed, so it is not hashed). Pure: the time is passed in, for tests.
  */
-export function signS3Request({ method, host, path: objectPath, headers = {}, accessKeyId, secretAccessKey, region = 'auto', now = new Date() }) {
+export function signS3Request({ method, host, path: objectPath, query = {}, headers = {}, accessKeyId, secretAccessKey, region = 'auto', now = new Date() }) {
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
   const day = amzDate.slice(0, 8);
   const all = { ...Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), String(v).trim()])),
     host, 'x-amz-content-sha256': 'UNSIGNED-PAYLOAD', 'x-amz-date': amzDate };
   const names = Object.keys(all).sort();
   const canonicalUri = objectPath.split('/').map(encodeSegment).join('/');
-  const canonical = [method, canonicalUri, '', names.map((n) => `${n}:${all[n]}\n`).join(''), names.join(';'), 'UNSIGNED-PAYLOAD'].join('\n');
+  const canonicalQuery = Object.keys(query).sort().map((k) => `${encodeSegment(k)}=${encodeSegment(String(query[k]))}`).join('&');
+  const canonical = [method, canonicalUri, canonicalQuery, names.map((n) => `${n}:${all[n]}\n`).join(''), names.join(';'), 'UNSIGNED-PAYLOAD'].join('\n');
   const scope = `${day}/${region}/s3/aws4_request`;
   const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256Hex(canonical)].join('\n');
   const key = hmac(hmac(hmac(hmac(`AWS4${secretAccessKey}`, day), region), 's3'), 'aws4_request');
@@ -110,6 +115,49 @@ export function planUpload(releaseDir, list = (d) => fs.readdirSync(d), read = (
   return { version, steps, feeds: feeds.map((f) => ({ file: f, key: f, cacheControl: 'no-cache' })) };
 }
 
+// ─── Cleanup ────────────────────────────────────────────────────────────────
+export const KEEP_VERSIONS = 2;
+
+/**
+ * The platform and version of a versioned file in the bucket, or null for
+ * anything that must never be deleted (fixed-name copies, feeds, latest notes,
+ * files this script did not put there).
+ */
+export function versionedKey(key) {
+  if (Object.values(FIXED_NAMES).includes(key)) return null;
+  const notes = /^release-notes\/v(\d+\.\d+\.\d+)\.json$/.exec(key);
+  if (notes) return { platform: 'notes', version: notes[1] };
+  const m = /^PrepPilot-(?:Setup-)?(\d+\.\d+\.\d+)[^/]*\.(exe|dmg|zip)(\.blockmap)?$/.exec(key);
+  if (!m) return null;
+  return { platform: m[2] === 'exe' ? 'win' : 'mac', version: m[1] };
+}
+
+const byVersionDesc = (a, b) => {
+  const pa = a.split('.').map(Number); const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pb[i] - pa[i];
+  return 0;
+};
+
+/**
+ * The keys to delete so each platform keeps only its newest `keep` versions.
+ * A version's release notes stay while any platform still has that version.
+ */
+export function planCleanup(keys, keep = KEEP_VERSIONS) {
+  if (!(keep >= 1)) throw new Error('keep must be at least 1');
+  const parsed = keys.map((key) => ({ key, v: versionedKey(key) })).filter((x) => x.v);
+  const kept = new Set();
+  const doomed = [];
+  for (const platform of ['win', 'mac']) {
+    const files = parsed.filter((x) => x.v.platform === platform);
+    const versions = [...new Set(files.map((x) => x.v.version))].sort(byVersionDesc);
+    const keepSet = new Set(versions.slice(0, keep));
+    for (const v of keepSet) kept.add(v);
+    for (const x of files) if (!keepSet.has(x.v.version)) doomed.push(x.key);
+  }
+  for (const x of parsed) if (x.v.platform === 'notes' && !kept.has(x.v.version)) doomed.push(x.key);
+  return doomed.sort();
+}
+
 /** Release notes in the shape the app parses (GitHub's: tag_name + markdown body). */
 export function notesJson(version, markdown) {
   return JSON.stringify({ tag_name: `v${version}`, body: markdown || `## Summary\nPrepPilot ${version}.`, html_url: '' });
@@ -143,6 +191,36 @@ async function put(creds, key, body, { size, contentType, cacheControl }) {
   if (!res.ok) throw new Error(`upload of ${key} failed: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`);
 }
 
+async function s3(creds, method, key, query = {}) {
+  const host = `${creds.accountId}.r2.cloudflarestorage.com`;
+  const objectPath = key ? `/${creds.bucket}/${key}` : `/${creds.bucket}`;
+  const headers = signS3Request({ method, host, path: objectPath, query, accessKeyId: creds.accessKeyId, secretAccessKey: creds.secretAccessKey });
+  const qs = Object.keys(query).sort().map((k) => `${encodeSegment(k)}=${encodeSegment(String(query[k]))}`).join('&');
+  const res = await fetch(`https://${host}${objectPath.split('/').map(encodeSegment).join('/')}${qs ? `?${qs}` : ''}`, { method, headers });
+  if (!res.ok) throw new Error(`${method} ${key || 'bucket list'} failed: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`);
+  return res.text();
+}
+
+const xmlDecode = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+
+async function listKeys(creds) {
+  const keys = [];
+  let token;
+  do {
+    const xml = await s3(creds, 'GET', '', { 'list-type': 2, ...(token ? { 'continuation-token': token } : {}) });
+    for (const m of xml.matchAll(/<Key>([^<]*)<\/Key>/g)) keys.push(xmlDecode(m[1]));
+    token = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? xmlDecode(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] ?? '') : undefined;
+  } while (token);
+  return keys;
+}
+
+async function cleanup(creds, keep) {
+  const doomed = planCleanup(await listKeys(creds), keep);
+  if (!doomed.length) { console.log(`\nCleanup: nothing older than the newest ${keep} versions.`); return; }
+  console.log(`\nCleanup: keeping the newest ${keep} versions per platform, deleting ${doomed.length} older files:`);
+  for (const key of doomed) { await s3(creds, 'DELETE', key); console.log(`  ✗ ${key}`); }
+}
+
 async function putFile(creds, file, key, cacheControl) {
   const size = fs.statSync(file).size;
   const started = Date.now();
@@ -154,6 +232,9 @@ async function putFile(creds, file, key, cacheControl) {
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
+  const keepArg = process.argv.indexOf('--keep');
+  const keep = keepArg > 0 ? Number(process.argv[keepArg + 1]) : KEEP_VERSIONS;
+  if (!Number.isInteger(keep) || keep < 1) throw new Error('--keep needs a whole number, 1 or more');
   const releaseDir = path.join(ROOT, 'release');
   const plan = planUpload(releaseDir);
   const notesFile = path.join(ROOT, 'release-notes', `v${plan.version}.md`);
@@ -174,6 +255,9 @@ async function main() {
     console.log(`  ✓ ${key}`);
   }
   for (const s of plan.feeds) await putFile(creds, path.join(releaseDir, s.file), s.key, s.cacheControl);
+  // After the feed points at the new version, so nothing an app may be
+  // downloading right now is removed. A failed cleanup never fails the release.
+  try { await cleanup(creds, keep); } catch (e) { console.warn(`\nCleanup skipped: ${e.message}`); }
 
   if (publicUrl) {
     console.log('\nDownload links to send:');
