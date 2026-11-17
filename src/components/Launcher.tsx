@@ -1109,7 +1109,7 @@ const Launcher: React.FC<LauncherProps> = ({ request, onStartMeeting, onOpenSett
                                             <button
                                                 type="button"
                                                 onClick={() => onOpenPractice()}
-                                                className="mr-3 shrink-0 rounded-full border border-border-subtle bg-bg-elevated px-5 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                                                className="mr-3 shrink-0 rounded-full bg-gradient-to-b from-violet-400 via-violet-500 to-indigo-600 px-5 py-3 text-sm font-medium text-white shadow-md shadow-violet-900/30 transition-[filter] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400"
                                                 data-testid="launcher-mock-interview"
                                             >
                                                 Mock interview

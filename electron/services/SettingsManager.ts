@@ -415,6 +415,14 @@ export class SettingsManager {
         }
         this.settingsPath = path.join(app.getPath('userData'), 'settings.json');
         this.loadSettings();
+        // PrepPilot: every launch starts Undetectable, whatever was saved. It can
+        // still be turned off for a session; the next launch turns it back on.
+        // Done here, before anything reads the flag (the Dock/tray/taskbar and
+        // telemetry setup read it before AppState exists).
+        if (this.settings.isUndetectable !== true) {
+            this.settings.isUndetectable = true;
+            this.saveSettings();
+        }
     }
 
     public static getInstance(): SettingsManager {
