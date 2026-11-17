@@ -208,6 +208,26 @@ describe('minutes, slots and sessions', () => {
     }
   });
 
+  test('the AI plan: standard by default, only an admin changes it, and the server sees it on every call', async () => {
+    const c = await candidate(10);
+    const s = await start(c, 0);
+    assert.equal((await authz(c, s.session_id, 1)).ai_quality, 'standard');
+    await rejects(db.asUser(user('manager1'), (q) => q(`select public.pp_set_ai_quality('premium')`)), /forbidden/);
+    await rejects(db.asUser(user('admin'), (q) => q(`select public.pp_set_ai_quality('ultra')`)), /standard or premium/);
+    await db.asUser(user('admin'), (q) => q(`select public.pp_set_ai_quality('premium')`));
+    try {
+      assert.equal((await authz(c, s.session_id, 2)).ai_quality, 'premium');
+      const who = await db.asUser(user('admin'), async (q) => (await q('select public.pp_whoami() as w')).rows[0].w);
+      assert.equal(who.ai_quality, 'premium');
+      const other = (await db.admin.query('select ai_quality from public.organizations where id = $1', [ids.otherOrg])).rows[0];
+      assert.equal(other.ai_quality, 'standard');
+      const audited = (await db.admin.query(`select count(*)::int as n from public.audit_log where action = 'org.ai_quality' and org_id = $1`, [ids.org])).rows[0].n;
+      assert.equal(audited, 1);
+    } finally {
+      await db.asUser(user('admin'), (q) => q(`select public.pp_set_ai_quality('standard')`));
+    }
+  });
+
   test('a session runs to the end of the minutes, charged per heartbeat, once per seq', async () => {
     const c = await candidate(10);
     const s = await start(c, 0);

@@ -13,7 +13,17 @@ export interface Me {
   displayName: string | null;
   /** The organization only lets candidates practise inside booked slots. */
   requireSlots: boolean;
+  /** Which AI answers this organization's candidates (set by an admin). */
+  aiQuality: AiQuality;
 }
+
+export type AiQuality = 'standard' | 'premium';
+export const AI_PLANS: Array<{ id: AiQuality; name: string; model: string; cost: string; description: string }> = [
+  { id: 'standard', name: 'Standard', model: 'Claude Haiku 5.5', cost: 'about $0.02 per interview hour',
+    description: 'Starts answering in under a second. Good on technical questions; weaker on behavioural stories.' },
+  { id: 'premium', name: 'Premium', model: 'Claude Sonnet 5.5', cost: 'about $0.20–0.40 per interview hour',
+    description: 'Scored best in our blind test: the most natural spoken answers, strongest on behavioural and HR questions. Long builds use Claude Opus 5.5.' },
+];
 
 /** Everything in the organization: teams, staff, settings, the audit log. */
 export const isAdmin = (me: Me) => me.role === 'owner' || me.role === 'admin';

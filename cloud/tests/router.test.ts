@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { chat } from '../supabase/functions/_shared/router.ts';
-import { routeFor, parseRef, tierOf, FIRST_TOKEN_TIMEOUT_MS } from '../supabase/functions/_shared/models.ts';
+import { routeFor, parseRef, tierOf, qualityOf, FIRST_TOKEN_TIMEOUT_MS } from '../supabase/functions/_shared/models.ts';
 import { toClaudeRequest, type AnthropicLike } from '../supabase/functions/_shared/claude.ts';
 import type { Deps } from '../supabase/functions/_shared/core.ts';
 
@@ -66,6 +66,16 @@ describe('routes', () => {
     assert.deepEqual(routeFor('fast', { gemini: true, claude: false }).map((r) => r.model), ['gemini-3.1-flash-lite', 'gemini-3.8-flash']);
     assert.deepEqual(routeFor('long', { gemini: true, claude: true }).map((r) => r.model), ['claude-sonnet-5-5', 'gemini-3.8-flash']);
     assert.deepEqual(routeFor('long', { gemini: false, claude: false }), []);
+  });
+  test('premium plan: Sonnet first for live answers, Opus first for long builds; MODEL_ROUTES does not touch it', () => {
+    const both = { gemini: true, claude: true };
+    assert.deepEqual(routeFor('fast', both, undefined, 'premium').map((r) => r.model), ['claude-sonnet-5-5', 'gemini-3.8-flash', 'claude-haiku-5-5']);
+    assert.deepEqual(routeFor('long', both, undefined, 'premium').map((r) => r.model), ['claude-opus-5-5', 'claude-sonnet-5-5', 'gemini-4-argon']);
+    assert.deepEqual(routeFor('fast', { gemini: true, claude: false }, undefined, 'premium').map((r) => r.model), ['gemini-3.8-flash']);
+    assert.deepEqual(routeFor('fast', both, { fast: ['gemini:gemini-3.8-flash'] }, 'premium')[0].model, 'claude-sonnet-5-5');
+    assert.equal(qualityOf('premium'), 'premium');
+    assert.equal(qualityOf(undefined), 'standard');
+    assert.equal(qualityOf('PREMIUM'), 'standard');
   });
   test('MODEL_ROUTES overrides the order; bad and duplicate entries are dropped', () => {
     const r = routeFor('fast', { gemini: true, claude: true }, { fast: ['gemini:gemini-3.8-flash', 'nope', 'openai:gpt', 'gemini:gemini-3.8-flash', 'claude:claude-haiku-5-5'] });

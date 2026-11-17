@@ -45,6 +45,21 @@ export const DEFAULT_ROUTES: Record<Tier, string[]> = {
   long: ['claude:claude-sonnet-5-5', 'gemini:gemini-3.8-flash'],
 };
 
+// An organization's AI plan (organizations.ai_quality, set by its admin on the
+// dashboard). 'standard' uses DEFAULT_ROUTES (or MODEL_ROUTES); 'premium' puts
+// the stronger, pricier Claude models first. Chosen from a blind test of 9
+// models on 12 interview questions (Nov 2026): Sonnet 5.5 scored best and starts
+// answering in ~0.85s; Gemini 3.8 Flash is the best Gemini that starts within
+// ~2s; Opus 5.5 is the strongest for long builds.
+export type Quality = 'standard' | 'premium';
+export const PREMIUM_ROUTES: Record<Tier, string[]> = {
+  fast: ['claude:claude-sonnet-5-5', 'gemini:gemini-3.8-flash', 'claude:claude-haiku-5-5'],
+  long: ['claude:claude-opus-5-5', 'claude:claude-sonnet-5-5', 'gemini:gemini-4-argon'],
+};
+export function qualityOf(v: unknown): Quality {
+  return v === 'premium' ? 'premium' : 'standard';
+}
+
 // How long a model may take to its first words before the next one is tried.
 // A long build plans before it writes, so it gets more time.
 export const FIRST_TOKEN_TIMEOUT_MS: Record<Tier, number> = { fast: 6_000, long: 20_000 };
@@ -67,8 +82,9 @@ export function parseRef(s: string): ModelRef | null {
 }
 
 /** The models to try for a tier, in order, keeping only providers this server has keys for. */
-export function routeFor(tier: Tier, available: Record<Provider, boolean>, override?: Partial<Record<Tier, string[]>>): ModelRef[] {
-  const list = override?.[tier]?.length ? override[tier]! : DEFAULT_ROUTES[tier];
+export function routeFor(tier: Tier, available: Record<Provider, boolean>, override?: Partial<Record<Tier, string[]>>, quality: Quality = 'standard'): ModelRef[] {
+  // MODEL_ROUTES overrides the standard plan only; premium keeps its own list.
+  const list = quality === 'premium' ? PREMIUM_ROUTES[tier] : override?.[tier]?.length ? override[tier]! : DEFAULT_ROUTES[tier];
   const seen = new Set<string>();
   return list.map(parseRef).filter((r): r is ModelRef => {
     if (!r || !available[r.provider]) return false;

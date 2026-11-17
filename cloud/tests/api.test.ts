@@ -241,6 +241,20 @@ describe('a session', () => {
     assert.match(calls.at(-1)!.url, /gemini-3\.8-flash:streamGenerateContent/);
   });
 
+  test('a premium organization\'s live answers use the premium list (Gemini 3.8 Flash when Claude has no key)', async () => {
+    await db.asUser(ids.admin, (q: any) => q(`select public.pp_set_ai_quality('premium')`));
+    try {
+      const s = await signedIn();
+      const session = await (await call('/v1/session/start', { token: s.access_token, body: {} })).json();
+      geminiReply = () => sse([{ candidates: [{ content: { parts: [{ text: 'answer' }] } }] }]);
+      await (await call('/v1/chat', { token: s.access_token, session: session.session_id,
+        body: { messages: [{ content: 'tell me about a conflict' }], stream: true } })).text();
+      assert.match(calls.at(-1)!.url, /gemini-3\.8-flash:streamGenerateContent/);
+    } finally {
+      await db.asUser(ids.admin, (q: any) => q(`select public.pp_set_ai_quality('standard')`));
+    }
+  });
+
   test('another device\'s session cannot be used', async () => {
     const a = await signedIn();
     const b = await signedIn();

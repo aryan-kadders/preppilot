@@ -7,7 +7,7 @@
 // second model cannot continue the first one's sentence.
 import { json, type Deps } from './core.ts';
 export type { ChatBody } from './models.ts';
-import { costUsd, FIRST_TOKEN_TIMEOUT_MS, ProviderError, routeFor, tierOf, type ChatBody, type ModelEvent, type ModelRef } from './models.ts';
+import { costUsd, FIRST_TOKEN_TIMEOUT_MS, ProviderError, routeFor, tierOf, type ChatBody, type ModelEvent, type ModelRef, type Quality } from './models.ts';
 import { geminiStream } from './gemini.ts';
 import { claudeStream } from './claude.ts';
 
@@ -69,9 +69,9 @@ function record(deps: Deps, sessionId: string, model: string, usage: { input: nu
   }).catch((e) => deps.log?.('[api] usage not recorded', { error: String(e?.message ?? e) }));
 }
 
-export async function chat(body: ChatBody, sessionId: string, signal: AbortSignal, deps: Deps): Promise<Response> {
+export async function chat(body: ChatBody, sessionId: string, signal: AbortSignal, deps: Deps, quality: Quality = 'standard'): Promise<Response> {
   const tier = tierOf(body);
-  const route = routeFor(tier, { gemini: Boolean(deps.env.geminiKey), claude: Boolean(deps.anthropic) }, deps.env.routes);
+  const route = routeFor(tier, { gemini: Boolean(deps.env.geminiKey), claude: Boolean(deps.anthropic) }, deps.env.routes, quality);
   if (route.length === 0) return json(503, { error: 'upstream_unavailable' });
   const started = await start(route, body, signal, deps, FIRST_TOKEN_TIMEOUT_MS[tier]);
   if (!started) return json(502, { error: 'upstream_unavailable' });

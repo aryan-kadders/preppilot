@@ -15,7 +15,7 @@
 
 import { chat, type ChatBody } from './router.ts';
 import type { AnthropicLike } from './claude.ts';
-import type { Tier } from './models.ts';
+import { qualityOf, type Tier } from './models.ts';
 import { deepgramGrant } from './deepgram.ts';
 
 export interface Deps {
@@ -169,7 +169,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         if (route === '/v1/stt/token') return await deepgramGrant(deps);
         const body = await readJson(req);
         if (!body || !Array.isArray(body.messages) || body.messages.length === 0) return json(400, { error: 'bad_request' });
-        return await chat(body as ChatBody, sessionId, req.signal, deps);
+        return await chat(body as ChatBody, sessionId, req.signal, deps, qualityOf(auth.ai_quality));
       }
       default:
         return json(404, { error: 'not_found' });

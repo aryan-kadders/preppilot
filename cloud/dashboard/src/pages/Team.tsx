@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Copy, Plus, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react';
+import { CalendarClock, Copy, Gauge, Plus, ShieldCheck, Sparkles, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import { supabase } from '../supabase';
 import { API_URL } from '../config';
-import { ROLE_LABEL, isAdmin as isAdminFor, type Me, type Role, type Team } from '../lib/types';
+import { AI_PLANS, ROLE_LABEL, isAdmin as isAdminFor, type AiQuality, type Me, type Role, type Team } from '../lib/types';
 import { Alert, Avatar, Badge, Card, Dialog, EmptyState, Field, SRow, SkeletonRows, copyText, useAction, useToast } from '../components/ui';
 
 interface StaffRow { user_id: string; role: Role; display_name: string | null; created_at: string }
@@ -66,6 +66,13 @@ export const TeamPage: React.FC<{ me: Me; onSettingsChange: () => void }> = ({ m
     const { error } = await supabase.rpc('pp_set_require_slots', { p_require: on });
     if (error) throw error;
     toast(on ? 'Candidates now practise only inside booked slots' : 'Candidates can now practise any time they have minutes');
+    onSettingsChange();
+  });
+  const setAiQuality = (q: AiQuality) => void edit.run(async () => {
+    const { error } = await supabase.rpc('pp_set_ai_quality', { p_quality: q });
+    if (error) throw error;
+    const plan = AI_PLANS.find((p) => p.id === q)!;
+    toast(`${plan.name} plan on: answers now come from ${plan.model}`);
     onSettingsChange();
   });
   const label = (s: StaffRow) => (s.user_id === me.userId ? (s.display_name ?? me.email ?? 'You') : s.display_name ?? `Staff member ${s.user_id.slice(0, 6)}`);
@@ -145,6 +152,20 @@ export const TeamPage: React.FC<{ me: Me; onSettingsChange: () => void }> = ({ m
             aside={isAdmin
               ? <button type="button" className="toggle" role="switch" aria-checked={me.requireSlots} aria-label="Require booked slots" disabled={edit.busy} onClick={() => setRequireSlots(!me.requireSlots)} />
               : <Badge>{me.requireSlots ? 'On' : 'Off'}</Badge>} />
+        </Card>
+
+        <Card title="AI model" description="Which AI writes your candidates' answers. Applies from their next question." flush>
+          {AI_PLANS.map((p) => {
+            const current = me.aiQuality === p.id;
+            return (
+              <SRow key={p.id} icon={p.id === 'premium' ? <Sparkles size={16} /> : <Gauge size={16} />}
+                title={<>{p.name} <span className="faint">· {p.model}</span></>}
+                description={`${p.description} Cost: ${p.cost}.`}
+                aside={current
+                  ? <Badge tone="accent" dot>In use</Badge>
+                  : isAdmin ? <button type="button" className="btn" disabled={edit.busy} onClick={() => setAiQuality(p.id)}>Switch to {p.name}</button> : null} />
+            );
+          })}
         </Card>
       </div>
 

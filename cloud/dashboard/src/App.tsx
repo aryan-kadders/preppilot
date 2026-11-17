@@ -27,7 +27,7 @@ const NAV: Array<{ page: Route['page']; label: string; icon: typeof Users; show?
   { page: 'companies', label: 'Companies', icon: Building2, show: (me) => me.isOwner },
 ];
 
-interface WhoAmI { is_owner: boolean; role: Me['role'] | null; org_id: string | null; org_name: string | null; require_slots: boolean | null; display_name: string | null }
+interface WhoAmI { is_owner: boolean; role: Me['role'] | null; org_id: string | null; org_name: string | null; require_slots: boolean | null; ai_quality: string | null; display_name: string | null }
 
 export const App: React.FC = () => {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -61,7 +61,7 @@ export const App: React.FC = () => {
       setMe({
         userId: session.user.id, email: session.user.email ?? null,
         orgId: w.org_id ?? '', orgName: w.org_name ?? '', role: w.role, isOwner: w.is_owner,
-        displayName: w.display_name, requireSlots: Boolean(w.require_slots),
+        displayName: w.display_name, requireSlots: Boolean(w.require_slots), aiQuality: w.ai_quality === 'premium' ? 'premium' : 'standard',
       });
     })();
     return () => { live = false; };
