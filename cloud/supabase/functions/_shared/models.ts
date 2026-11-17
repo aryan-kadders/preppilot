@@ -7,7 +7,7 @@
 // never leaves a candidate without an answer. A provider without a key on the
 // server is skipped, so Claude switches on by itself once ANTHROPIC_API_KEY
 // is set. MODEL_ROUTES (a secret) overrides the order, e.g.
-//   {"fast":["claude:claude-haiku-5-5","gemini:gemini-3.1-flash-lite"],"long":["claude:claude-sonnet-5-5"]}
+//   {"fast":["claude:claude-haiku-5-5","gemini:gemini-3.8-flash"],"long":["claude:claude-sonnet-5-5"]}
 
 export type Provider = 'gemini' | 'claude';
 export type Tier = 'fast' | 'long';
@@ -54,8 +54,11 @@ export const FIRST_TOKEN_TIMEOUT_MS: Record<Tier, number> = { fast: 6_000, long:
 export const DEFAULT_PRICES: Record<string, [number, number]> = {
   'claude-haiku-5-5': [0.10, 0.50],
   'claude-sonnet-5-5': [2.00, 10.00],
-  'gemini-3.1-flash-lite': [0.10, 0.40],
-  'gemini-3.8-flash': [0.30, 2.50],
+  'claude-opus-5-5': [4.00, 20.00],
+  'gemini-3.1-flash-lite': [0.25, 1.50],
+  'gemini-3.5-flash-lite': [0.30, 2.50],
+  'gemini-3.8-flash': [0.75, 3.75],
+  'gemini-4-argon': [2.00, 10.00],
 };
 
 export function parseRef(s: string): ModelRef | null {

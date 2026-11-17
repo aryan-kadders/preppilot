@@ -99,6 +99,13 @@ describe('Claude request', () => {
     assert.equal(p.fallbacks, 'default');
     assert.equal(p.max_tokens, 64000);
   });
+  test('Opus: no thinking setting (it cannot be turned off), medium effort, refusal fallback', () => {
+    const p: any = toClaudeRequest({ messages: [{ role: 'user', content: 'build it' }] }, 'claude-opus-5-5');
+    assert.equal('thinking' in p, false);
+    assert.deepEqual(p.output_config, { effort: 'medium' });
+    assert.equal(p.fallbacks, 'default');
+    assert.equal(p.max_tokens, 64000);
+  });
 });
 
 describe('answering', () => {

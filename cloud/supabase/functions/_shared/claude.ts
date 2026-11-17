@@ -8,6 +8,8 @@
 //   mode; `disabled` is a 400 there) at effort medium, and the server-side
 //   refusal fallback, so a safety decline is re-run on a fallback model in
 //   the same call instead of ending the answer.
+// - Claude Opus 5.5 (long tier): thinking always on (it rejects `disabled`
+//   and `between_tools`), effort medium, same refusal fallback.
 // - The system prompt is cached (it is large and repeats every question).
 // - No temperature: non-default sampling values are rejected on these models.
 import { ProviderError, type ChatBody, type ModelEvent } from './models.ts';
@@ -31,14 +33,18 @@ export function toClaudeRequest(body: ChatBody, model: string): Record<string, u
     lastUser.content = [...images, ...lastUser.content];
   }
   const sonnet = model.includes('sonnet');
+  const opus = model.includes('opus');
+  const big = sonnet || opus;
   return {
     model,
-    max_tokens: sonnet ? 64000 : 16000,
+    max_tokens: big ? 64000 : 16000,
     ...(body.system ? { system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }] } : {}),
     messages,
-    thinking: sonnet ? { type: 'between_tools' } : { type: 'disabled' },
-    output_config: { effort: sonnet ? 'medium' : 'low' },
-    ...(sonnet ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
+    // Opus 5.5 cannot turn thinking off (any `thinking` setting but adaptive
+    // is a 400), so it is left out and effort keeps it brief.
+    ...(opus ? {} : { thinking: sonnet ? { type: 'between_tools' } : { type: 'disabled' } }),
+    output_config: { effort: big ? 'medium' : 'low' },
+    ...(big ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
   };
 }
 
