@@ -83,11 +83,15 @@ describe('size — v2 must be dramatically smaller than the legacy constants', (
   // strategy with one WRONG/RIGHT pair, the no-invented-shared-context rule and
   // the one-block paragraph rule — measured at +1.4k on the largest route
   // (sales/code_hint 18,335). Still ≤ 80% of the smallest legacy WTA prompt.
-  test('every cloud composition is under 18.5k chars (legacy mode-injected routes were 23–45k)', () => {
+  // 18.5k → 18.8k (2026-11-18, PrepPilot): two always-on rules from live demos —
+  // code is never prose (any turn answered by code gets a code block), and the
+  // transcript mishears technical words ("asylum" for Agile), so read them by
+  // sound and context. +~450 chars; still ≤ 82% of the smallest legacy prompt.
+  test('every cloud composition is under 18.8k chars (legacy mode-injected routes were 23–45k)', () => {
     for (const mode of MODES) {
       for (const action of ACTIONS) {
         const p = v2.buildSystemPromptV2({ mode, action, tier: 'cloud' });
-        assert.ok(p.length < 18_500, `cloud/${mode}/${action} is ${p.length} chars`);
+        assert.ok(p.length < 18_800, `cloud/${mode}/${action} is ${p.length} chars`);
       }
     }
   });

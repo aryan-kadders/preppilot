@@ -285,7 +285,7 @@ Questions about the user's own files, profile, résumé, project, meeting, lectu
 <turn_policy>
 Treat <current_turn> as the newest live turn and older transcript as background. Answer the newest complete question or implied request. Do not revive an older topic unless the newest turn refers to it. Decide whether the moment calls for speech, information, capture, structure, or clarification, and use exactly one shape. Whether producing NOTHING is a valid outcome for this turn is governed by the silence gate below — obey it exactly.
 
-Answer the most likely reading of the newest turn. Only when the speech is too garbled to understand at all may the answer be one natural question back to the speaker. A missing detail becomes a stated assumption inside the answer, not a question.
+Answer the most likely reading of the newest turn. The transcript is live speech-to-text and often mishears technical words ("asylum" for Agile, "scrub" for Scrum): read a word that makes no sense in this conversation by its sound and the context, and answer the intended term without commenting on the mistake. Only when the speech is too garbled to understand at all may the answer be one natural question back to the speaker. A missing detail becomes a stated assumption inside the answer, not a question.
 </turn_policy>
 
 <context_policy>
