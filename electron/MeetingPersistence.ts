@@ -1270,6 +1270,7 @@ export class MeetingPersistence {
             }
             try {
                 DatabaseManager.getInstance().saveMeeting(finalMeeting, data.startTime, data.durationMs);
+                require('./services/cloud/sessionRecords').shareSessionRecord('meeting', meetingId);
                 const wins = require('electron').BrowserWindow.getAllWindows();
                 wins.forEach((w: any) => w.webContents.send('meetings-updated'));
             } catch (e) {
@@ -1899,6 +1900,8 @@ export class MeetingPersistence {
             // inferred — see the guard at the top of the catch.
             meetingSaved = true;
             if (generationSucceeded) this.notifyNotesSaved(meetingId);
+            // PrepPilot Cloud: the team's dashboard gets the transcript, answers and notes.
+            require('./services/cloud/sessionRecords').shareSessionRecord('meeting', meetingId);
 
             // The other side's voice still unnamed ("Speaker 1"): one short call
             // proposes a name from what was said, after the save so the notes
@@ -2470,7 +2473,12 @@ export class MeetingPersistence {
             if (resumedSince()) { settleTakenOver(); return false; }
             if (isArchivableNotes(details.detailedSummary)) db.archiveNotesVersion(meetingId, details.detailedSummary);
             const ok = db.replaceDetailedSummary(meetingId, detailedSummary, { title: v3.title, summaryStatus: 'completed' });
-            if (ok) { this.notifyNotesSaved(meetingId); this.connectorsNotesReady(meetingId); }
+            if (ok) {
+                this.notifyNotesSaved(meetingId);
+                this.connectorsNotesReady(meetingId);
+                // Redone notes replace the dashboard's copy (same record).
+                require('./services/cloud/sessionRecords').shareSessionRecord('meeting', meetingId);
+            }
             try {
                 const wins = require('electron').BrowserWindow.getAllWindows();
                 wins.forEach((w: any) => w.webContents.send('meetings-updated'));

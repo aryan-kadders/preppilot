@@ -320,3 +320,111 @@ describe('dashboard: inviting staff', () => {
     assert.equal((await (await invite('admin-jwt', { email: 'a@b.co', role: 'coach', team_ids: ['x'] })).json()).error, 'bad_team');
   });
 });
+
+describe('session records (what admins see after a session)', () => {
+  const meeting = (localId: string, startedAt: string, extra: Record<string, unknown> = {}) => ({
+    kind: 'meeting', local_id: localId, title: 'Backend round', started_at: startedAt, duration_seconds: 1800.4,
+    content: {
+      transcript: [
+        { speaker: 'interviewer', text: 'Tell me about yourself.', t: 1000 },
+        { speaker: 'user', text: 'I build backends.', t: 4000 },
+        { speaker: 'user', text: '   ', t: 5000 },
+      ],
+      answers: [{ type: 'assist', t: 1500, question: 'Tell me about yourself.', answer: 'Start with your current role…', images: ['data:image/jpeg;base64,AAA'] }],
+      summary: { overview: 'Went well.', keyPoints: ['Clear intro'], actionItems: [], secretInternal: { x: 1 } },
+      ...extra,
+    },
+  });
+
+  test('a meeting is uploaded, cleaned, linked to its session, and replaced when sent again', async () => {
+    const s = await signedIn(30);
+    const session = await (await call('/v1/session/start', { token: s.access_token, body: {} })).json();
+    const startedAt = new Date().toISOString();
+
+    const r = await call('/v1/session/record', { token: s.access_token, body: meeting('m-1', startedAt) });
+    assert.equal(r.status, 200);
+    const { id } = await r.json();
+    const row = (await db.admin.query('select * from public.session_records where id = $1', [id])).rows[0];
+    assert.equal(row.session_id, session.session_id, 'linked to the session that started at the same time');
+    assert.equal(row.candidate_id, s.candidate);
+    assert.equal(row.line_count, 2, 'blank lines are dropped');
+    assert.equal(row.answer_count, 1);
+    assert.equal(row.duration_seconds, 1800);
+    assert.equal(row.content.answers[0].images, undefined, 'screenshots are never stored');
+    assert.equal(row.content.summary.secretInternal, undefined, 'only the readable summary fields');
+    assert.ok(new Date(row.expires_at).getTime() - Date.now() > 89 * 86400_000, 'kept 90 days');
+
+    const again = await call('/v1/session/record', { token: s.access_token, body: { ...meeting('m-1', startedAt), title: 'Backend round (notes redone)' } });
+    assert.equal((await again.json()).id, id, 'same record, not a second one');
+    const n = (await db.admin.query('select count(*)::int as n, max(title) as t from public.session_records where candidate_id = $1', [s.candidate])).rows[0];
+    assert.deepEqual([n.n, n.t], [1, 'Backend round (notes redone)']);
+  });
+
+  test('a mock interview keeps its questions, feedback and average score', async () => {
+    const s = await signedIn(30);
+    const r = await call('/v1/session/record', { token: s.access_token, body: {
+      kind: 'practice', local_id: 'p-1', title: 'Mock: Backend engineer', started_at: new Date().toISOString(),
+      content: {
+        config: { role: 'Backend engineer', level: 'mid', kind: 'mixed' },
+        questions: [{ id: 'q1', text: 'Why us?', kind: 'behavioral', focus: 'motivation' }],
+        answers: [{ questionId: 'q1', answer: 'Because…', feedback: { score: 7, verdict: 'Good', strengths: ['clear'], improvements: ['numbers'], betterAnswer: 'I…' }, delivery: { wpm: 140, pace: 'good', fillerCount: 2, length: 'good' } }],
+        report: { averageScore: 7, answered: 1, total: 1, focusAreas: ['numbers'], delivery: { averageWpm: 140, totalFillers: 2 } },
+      },
+    } });
+    assert.equal(r.status, 200);
+    const row = (await db.admin.query('select score, line_count, answer_count, session_id from public.session_records where id = $1', [(await r.json()).id])).rows[0];
+    assert.deepEqual([Number(row.score), row.line_count, row.answer_count, row.session_id], [7, 1, 1, null]);
+  });
+
+  test('bad or huge uploads are refused, and a signed-out device cannot upload', async () => {
+    const s = await signedIn(30);
+    const now = new Date().toISOString();
+    for (const [body, code] of [
+      [{ ...meeting('x', now), kind: 'video' }, 'bad_kind'],
+      [{ ...meeting('', now) }, 'bad_local_id'],
+      [{ ...meeting('x', 'not a date') }, 'bad_started_at'],
+      [{ ...meeting('x', now), content: [] }, 'bad_content'],
+    ] as const) {
+      const r = await call('/v1/session/record', { token: s.access_token, body });
+      assert.equal(r.status, 400);
+      assert.equal((await r.json()).error, code);
+    }
+    const big = { ...meeting('big', now) };
+    big.content = { transcript: Array.from({ length: 200 }, (_, i) => ({ speaker: 'user', text: 'x'.repeat(19_000), t: i })) } as any;
+    const tooBig = await call('/v1/session/record', { token: s.access_token, body: big });
+    assert.equal(tooBig.status, 413);
+    assert.equal((await call('/v1/session/record', { body: meeting('y', now) })).status, 401);
+  });
+
+  test('staff see the list; opening is audited; coaches cannot delete; expired records vanish', async () => {
+    const s = await signedIn(30);
+    const { id } = await (await call('/v1/session/record', { token: s.access_token, body: meeting('m-audit', new Date().toISOString()) })).json();
+
+    const list = await db.asUser(ids.admin, async (q: any) =>
+      (await q('select id, title, line_count from public.session_records where candidate_id = $1', [s.candidate])).rows);
+    assert.deepEqual(list.map((r: any) => r.id), [id]);
+    await assert.rejects(db.asUser(ids.admin, (q: any) => q('select content from public.session_records where id = $1', [id])), /permission denied/,
+      'the content is never read directly');
+
+    const opened = await db.asUser(ids.admin, async (q: any) => (await q('select public.pp_open_session_record($1) as r', [id])).rows[0].r);
+    assert.equal(opened.candidate_name, 'Asha');
+    assert.equal(opened.content.transcript.length, 2);
+    assert.equal(opened.can_delete, true);
+    const audit = (await db.admin.query(`select count(*)::int as n from public.audit_log where action = 'session_record.view' and target_id = $1`, [id])).rows[0].n;
+    assert.equal(audit, 1);
+
+    const outsider = randomUUID();
+    await db.admin.query(`insert into auth.users (id, email) values ($1, $2)`, [outsider, `out-${outsider.slice(0, 6)}@example.com`]);
+    await assert.rejects(db.asUser(outsider, (q: any) => q('select public.pp_open_session_record($1)', [id])), /not found/);
+
+    await db.admin.query(`update public.session_records set expires_at = now() - interval '1 second' where id = $1`, [id]);
+    const hidden = await db.asUser(ids.admin, async (q: any) => (await q('select id from public.session_records where id = $1', [id])).rows);
+    assert.deepEqual(hidden, [], 'past 90 days: hidden at once');
+    await call('/v1/session/record', { token: s.access_token, body: meeting('m-next', new Date().toISOString()) });
+    assert.equal((await db.admin.query('select count(*)::int as n from public.session_records where id = $1', [id])).rows[0].n, 0, 'and deleted on the next upload');
+
+    const { id: id2 } = await (await call('/v1/session/record', { token: s.access_token, body: meeting('m-del', new Date().toISOString()) })).json();
+    await db.asUser(ids.admin, (q: any) => q('select public.pp_delete_session_record($1)', [id2]));
+    assert.equal((await db.admin.query('select count(*)::int as n from public.session_records where id = $1', [id2])).rows[0].n, 0);
+  });
+});

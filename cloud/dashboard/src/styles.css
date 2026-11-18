@@ -320,3 +320,44 @@ dialog.dialog[open] { animation: dialog-in .16s ease-out; }
 /* A text button that reads as a link (a candidate's name in a table). */
 .link { background: none; border: 0; padding: 0; color: var(--text-primary); font: inherit; font-weight: 500; cursor: pointer; text-align: left; }
 .link:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--text-tertiary); }
+
+/* Session history: one session's transcript, answers, summary and mock interview. */
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+.pre { white-space: pre-wrap; }
+.record-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.record-side { position: sticky; top: 16px; display: grid; gap: 16px; }
+.timeline { list-style: none; margin: 0; padding: 8px 0 12px; max-height: 70vh; overflow-y: auto; }
+.tl-line, .tl-answer { display: grid; grid-template-columns: 56px 92px minmax(0, 1fr); gap: 10px; padding: 7px 16px; font-size: 13.5px; line-height: 1.5; }
+.tl-line:hover { background: var(--bg-row-hover); }
+.tl-time { color: var(--text-tertiary); font-size: 12px; padding-top: 1px; }
+.tl-who { color: var(--text-tertiary); font-weight: 500; font-size: 12.5px; padding-top: 1px; }
+.tl-who.is-candidate { color: var(--text-primary); }
+.tl-text { color: var(--text-secondary); }
+.tl-answer { grid-template-columns: 56px minmax(0, 1fr); }
+.tl-answer-body { border: 1px solid var(--line-strong); background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; }
+.tl-answer-head { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--text-primary); margin-bottom: 6px; }
+.tl-items { margin: 6px 0 0; padding-left: 18px; color: var(--text-secondary); }
+.summary { display: grid; gap: 14px; font-size: 13.5px; line-height: 1.55; }
+.summary p { margin: 0; color: var(--text-secondary); }
+.summary h4, .qcard h4 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-tertiary); margin: 0 0 6px; }
+.summary ul, .qcard ul, .plain-list { margin: 0; padding-left: 18px; color: var(--text-secondary); display: grid; gap: 4px; font-size: 13.5px; }
+.coach { display: grid; gap: 6px; margin-bottom: 10px; }
+.qlist { display: grid; gap: 12px; margin-top: 16px; }
+.qcard { padding: 16px 18px; }
+.qcard-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.qcard-head h3 { flex: 1; font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.answer-quote { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 12px; color: var(--text-secondary); font-size: 13.5px; line-height: 1.55; }
+.feedback { margin-top: 14px; display: grid; gap: 10px; font-size: 13.5px; }
+.feedback p { margin: 0; }
+.better summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.better .pre { margin-top: 8px; color: var(--text-secondary); font-size: 13.5px; line-height: 1.55; }
+@media (max-width: 980px) {
+  .record-grid { grid-template-columns: 1fr; }
+  .record-side { position: static; }
+}
+@media (max-width: 560px) {
+  .tl-line { grid-template-columns: 44px minmax(0, 1fr); }
+  .tl-line .tl-who { grid-column: 2; }
+  .tl-line .tl-text { grid-column: 2; }
+  .tl-answer { grid-template-columns: 44px minmax(0, 1fr); }
+}

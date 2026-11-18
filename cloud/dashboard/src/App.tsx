@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { BarChart3, Building2, CalendarCheck, ChevronRight, LogOut, ScrollText, Users, UsersRound } from 'lucide-react';
+import { BarChart3, Building2, CalendarCheck, ChevronRight, History, LogOut, ScrollText, Users, UsersRound } from 'lucide-react';
 import { supabase } from './supabase';
 import { ROLE_LABEL, isAdmin, parseRoute, routeHash, type Me, type Route } from './lib/types';
 import { Login, SetPassword } from './pages/Auth';
 import { Candidates } from './pages/Candidates';
 import { CandidateDetail } from './pages/CandidateDetail';
 import { Interviews } from './pages/Interviews';
+import { Sessions } from './pages/Sessions';
+import { SessionRecordPage } from './pages/SessionRecord';
 import { Usage } from './pages/Usage';
 import { TeamPage } from './pages/Team';
 import { Audit } from './pages/Audit';
@@ -21,6 +23,7 @@ const NEEDS_PASSWORD = LINK_TYPE === 'invite' || LINK_TYPE === 'recovery';
 const NAV: Array<{ page: Route['page']; label: string; icon: typeof Users; show?: (me: Me) => boolean }> = [
   { page: 'candidates', label: 'Candidates', icon: Users },
   { page: 'interviews', label: 'Interviews', icon: CalendarCheck },
+  { page: 'sessions', label: 'Session history', icon: History },
   { page: 'usage', label: 'Usage & cost', icon: BarChart3 },
   { page: 'team', label: 'Teams & staff', icon: UsersRound },
   { page: 'audit', label: 'Audit log', icon: ScrollText, show: isAdmin },
@@ -86,7 +89,7 @@ export const App: React.FC = () => {
   // An owner who has not picked a company yet works on the Companies page only.
   const noCompany = me.isOwner && !me.orgId;
   const page: Route['page'] = noCompany ? 'companies' : route.page;
-  const active = page === 'candidate' ? 'candidates' : page;
+  const active = page === 'candidate' ? 'candidates' : page === 'record' ? 'sessions' : page;
   const who = me.displayName ?? me.email ?? 'You';
 
   return (
@@ -122,7 +125,14 @@ export const App: React.FC = () => {
             )}
             {page === 'candidates' && <Candidates me={me} go={go} />}
             {page === 'candidate' && route.page === 'candidate' && <CandidateDetail me={me} id={route.id} go={go} onName={setCrumb} />}
+            {page === 'record' && route.page === 'record' && (
+              <nav className="crumbs" aria-label="Breadcrumb">
+                <a href="#/sessions">Session history</a><ChevronRight size={13} /><span>{crumb ?? 'Session'}</span>
+              </nav>
+            )}
             {page === 'interviews' && <Interviews me={me} go={go} />}
+            {page === 'sessions' && <Sessions me={me} go={go} />}
+            {page === 'record' && route.page === 'record' && <SessionRecordPage me={me} id={route.id} go={go} onTitle={setCrumb} />}
             {page === 'usage' && <Usage />}
             {page === 'team' && <TeamPage me={me} onSettingsChange={reloadMe} />}
             {page === 'audit' && isAdmin(me) && <Audit />}

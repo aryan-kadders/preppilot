@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Archive, CalendarClock, Eye, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
+import { Archive, CalendarClock, Eye, History, CalendarPlus, ClipboardList, Copy, DollarSign, Download, KeyRound, Laptop, MessageSquare, Plus, Timer, TrendingUp, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { canManage as canManageFor, canRecruit, type CandidateRow, type InterviewRow, type Me, type Route } from '../lib/types';
 import { dateTime, minutesLabel, money, relative, repeatedSlots, slotLabel } from '../lib/format';
@@ -8,6 +8,8 @@ import { StatusBadge } from './Candidates';
 import { RELEASES_URL } from '../config';
 import { downloadLinks, inviteMessage } from '../lib/downloads';
 import { InterviewDialog, InterviewTable } from './Interviews';
+import { RecordsTable } from './Sessions';
+import { RECORD_LIST_COLUMNS, type RecordRow } from '../lib/records';
 
 interface Ledger { id: string; seconds: number; reason: string; note: string | null; created_at: string }
 interface Invite { id: string; created_at: string; expires_at: string; redeemed_at: string | null }
@@ -20,10 +22,10 @@ interface Comment { id: string; session_id: string; body: string; created_at: st
 
 interface Data {
   c: CandidateRow; ledger: Ledger[]; invites: Invite[]; slots: SlotRow[]; assignments: Assignment[];
-  devices: Device[]; sessions: SessionRow[]; usage: Usage[]; comments: Comment[]; interviews: InterviewRow[];
+  devices: Device[]; sessions: SessionRow[]; usage: Usage[]; comments: Comment[]; interviews: InterviewRow[]; records: RecordRow[];
 }
 
-type Tab = 'overview' | 'interviews' | 'schedule' | 'assignments' | 'sessions' | 'computers';
+type Tab = 'overview' | 'interviews' | 'schedule' | 'assignments' | 'sessions' | 'history' | 'computers';
 
 const PLATFORM: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
 const END_REASON: Record<string, string> = { user: 'Stopped', time_up: 'Time up', stale: 'Connection lost', revoked: 'Signed out', replaced: 'Replaced' };
@@ -49,6 +51,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       supabase.from('usage_events').select('session_id, cost_usd').eq('candidate_id', id).limit(5000),
       supabase.from('session_comments').select('id, session_id, body, created_at').order('created_at').limit(500),
       supabase.from('interview_overview').select('*').eq('candidate_id', id).order('interview_at', { ascending: false }),
+      supabase.from('session_records').select(RECORD_LIST_COLUMNS).eq('candidate_id', id).order('started_at', { ascending: false }).limit(200),
     ]);
     const failed = q.find((r) => r.error);
     if (failed?.error) throw failed.error;
@@ -59,6 +62,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       assignments: q[4].data as Assignment[], devices: q[5].data as Device[], sessions: q[6].data as SessionRow[],
       usage: q[7].data as Usage[], comments: (q[8].data as Comment[]).filter((c) => sessionIds.has(c.session_id)),
       interviews: q[9].data as InterviewRow[],
+      records: q[10].data as unknown as RecordRow[],
     });
   }), [id, run]);
 
@@ -82,6 +86,7 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
     { id: 'schedule', label: 'Schedule', count: upcomingSlots.length },
     { id: 'assignments', label: 'Assignments', count: data.assignments.length },
     { id: 'sessions', label: 'Sessions', count: data.sessions.length },
+    { id: 'history', label: 'History', count: data.records.length },
     { id: 'computers', label: 'Computers', count: activeDevices },
   ];
 
@@ -153,7 +158,14 @@ export const CandidateDetail: React.FC<{ me: Me; id: string; go: (r: Route) => v
       )}
       {tab === 'schedule' && <ScheduleTab slots={upcomingSlots} manage={manage} requireSlots={me.requireSlots} onAdd={() => setDialog('slots')} onChange={refresh} />}
       {tab === 'assignments' && <AssignmentsTab assignments={data.assignments} sessions={data.sessions} manage={manage} onAdd={() => setDialog('assignment')} onChange={refresh} />}
-      {tab === 'sessions' && <SessionsTab me={me} data={data} onChange={refresh} />}
+      {tab === 'sessions' && <SessionsTab me={me} data={data} go={go} onChange={refresh} />}
+      {tab === 'history' && (
+        <Card title="History" description="Transcripts, PrepPilot’s answers, notes and mock interviews. Each is deleted after 90 days." flush>
+          {data.records.length === 0
+            ? <EmptyState icon={<History size={18} />} title="No sessions yet" description="Interview sessions and mock interviews appear here when the candidate finishes them." />
+            : <RecordsTable rows={data.records} showCandidate={false} go={go} />}
+        </Card>
+      )}
       {tab === 'computers' && <ComputersTab devices={data.devices} manage={canManage} onInvite={() => setDialog('invite')} onChange={refresh} />}
 
       {manage && (
@@ -250,7 +262,8 @@ const AssignmentsTab: React.FC<{ assignments: Assignment[]; sessions: SessionRow
   );
 };
 
-const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ me, data, onChange }) => {
+const SessionsTab: React.FC<{ me: Me; data: Data; go: (r: Route) => void; onChange: () => void }> = ({ me, data, go, onChange }) => {
+  const recordFor = new Map(data.records.filter((r) => r.session_id && r.kind === 'meeting').map((r) => [r.session_id!, r.id]));
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const action = useAction();
@@ -270,7 +283,7 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
     <Card title="Sessions" description="Each meeting the candidate ran, with time charged and AI cost" flush>
       {data.sessions.length === 0 ? <EmptyState icon={<TrendingUp size={18} />} title="No sessions yet" description="Sessions appear here when the candidate starts PrepPilot." /> : (
         <div className="table-wrap"><table className="table">
-          <thead><tr><th>Started</th><th>Practice</th><th className="num">Time</th><th className="num">AI cost</th><th>Result</th><th>Coach notes</th></tr></thead>
+          <thead><tr><th>Started</th><th>Practice</th><th className="num">Time</th><th className="num">AI cost</th><th>Result</th><th>Transcript</th><th>Coach notes</th></tr></thead>
           <tbody>{data.sessions.map((s) => {
             const notes = data.comments.filter((c) => c.session_id === s.id);
             return (
@@ -280,6 +293,9 @@ const SessionsTab: React.FC<{ me: Me; data: Data; onChange: () => void }> = ({ m
                 <td className="num">{minutesLabel(s.charged_seconds)}</td>
                 <td className="num">{money(cost.get(s.id) ?? 0)}</td>
                 <td>{s.ended_at ? <span className="muted">{END_REASON[s.end_reason ?? ''] ?? 'Ended'}</span> : <Badge tone="good" dot pulse>Live</Badge>}</td>
+                <td>{recordFor.has(s.id)
+                  ? <button className="link" onClick={() => go({ page: 'record', id: recordFor.get(s.id)! })}>Open</button>
+                  : <span className="faint">{s.ended_at ? 'Not sent' : 'After it ends'}</span>}</td>
                 <td style={{ minWidth: 220 }}>
                   {notes.map((n) => <div key={n.id} className="muted" style={{ fontSize: 13 }}>“{n.body}” <span className="faint">{relative(n.created_at)}</span></div>)}
                   <button className="btn btn-ghost" style={{ paddingLeft: 0 }} onClick={() => { setNoteFor(s.id); setDraft(''); }}><MessageSquare size={13} /> Add note</button>

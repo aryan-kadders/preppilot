@@ -115,7 +115,7 @@ export const TeamSetupCard: React.FC<{ className?: string; children?: React.Reac
             <p className="mt-1 text-xs text-text-secondary">
               {revoked
                 ? t('This computer was signed out by your manager. Enter a new invite code to sign in again.')
-                : t('Enter the invite code from your manager. You then practise on your team’s account, and your manager can see your progress.')}
+                : t('Enter the invite code from your manager. You then practise on your team’s account. Your team’s admins can see your sessions: transcripts, PrepPilot’s answers, notes and mock interview results, kept for 90 days.')}
             </p>
             {nudge && <p role="alert" className="mt-3 text-xs font-medium text-amber-300">{nudge}</p>}
             <div className="mt-4 flex items-center gap-2">

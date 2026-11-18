@@ -7608,7 +7608,11 @@ export class AppState {
       const cloud = getCloudClient();
       this.wireCloudEvents(cloud);
       this.applyCloudMode(cloud.signedIn);
-      if (cloud.signedIn) console.log('[Cloud] signed in: answers and transcription use PrepPilot Cloud');
+      if (cloud.signedIn) {
+        console.log('[Cloud] signed in: answers and transcription use PrepPilot Cloud');
+        // Sessions an earlier run could not send (offline, quit) go to the dashboard now.
+        require('./services/cloud/sessionRecords').flushSessionRecords();
+      }
     } catch (e) {
       console.warn('[Cloud] not available:', (e as Error)?.message);
     }
@@ -7636,6 +7640,8 @@ export class AppState {
         this.applyCloudMode(e.state === 'signed_in');
         // Transcription switches between the cloud's Deepgram and the user's own provider.
         this.reconfigureSttProvider().catch((err) => console.warn('[Cloud] transcription not switched:', err?.message ?? err));
+        // Sessions waiting to be sent go to the dashboard once signed in.
+        if (e.state === 'signed_in') require('./services/cloud/sessionRecords').flushSessionRecords();
       }
       if (e.type === 'ended' && this.isMeetingActive) {
         console.log(`[Cloud] session ended by the server (${e.reason}); stopping the meeting`);

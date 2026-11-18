@@ -89,7 +89,10 @@ export function registerPracticeIpc(safeHandle: SafeHandle, appState: AppStateLi
 
   safeHandle('practice:finish', async (_e, sessionId: string) => {
     try {
-      return { ok: true, session: getService().finish(String(sessionId)) };
+      const session = getService().finish(String(sessionId));
+      // PrepPilot Cloud: the team's dashboard gets the questions, scores and report.
+      require('../services/cloud/sessionRecords').shareSessionRecord('practice', session.id);
+      return { ok: true, session };
     } catch (e) {
       return { ok: false, error: errorOf(e) };
     }

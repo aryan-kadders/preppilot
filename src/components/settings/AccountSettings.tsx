@@ -4,7 +4,7 @@
 // the server (main: ipcHandlers 'cloud-status'). While signed in, answers and
 // transcription run on the organization's account and the time is counted.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Building2, Clock, CalendarClock, ListChecks, LogOut, KeyRound } from 'lucide-react';
+import { Building2, Clock, CalendarClock, ListChecks, LogOut, KeyRound, Eye } from 'lucide-react';
 import { useT } from '../../i18n';
 import { SettingsRow, SETTINGS_BTN, SETTINGS_CARD, SETTINGS_INPUT, SETTINGS_FIELD_LABEL } from './SettingsRow';
 import type { CloudAccountStatus } from '../../types/electron';
@@ -72,7 +72,7 @@ export const AccountSettings: React.FC = () => {
           title={t('Join your organization')}
           description={account.state === 'revoked'
             ? t('This computer was signed out by your manager. Enter a new invite code to sign in again.')
-            : t('Enter the invite code from your manager. Your practice time, slots and assignments then come from your organization, and answers use its AI account.')}
+            : t('Enter the invite code from your manager. Your practice time, slots and assignments then come from your organization, and answers use its AI account. Your organization’s admins can see your sessions, kept for 90 days.')}
         />
         <div className={`${SETTINGS_CARD} p-4 space-y-3`}>
           <label className={SETTINGS_FIELD_LABEL} htmlFor="cloud-invite-code">{t('Invite code')}</label>
@@ -110,6 +110,11 @@ export const AccountSettings: React.FC = () => {
             <LogOut size={14} /> {t('Sign out')}
           </button>
         )}
+      />
+      <SettingsRow
+        icon={<Eye size={20} />}
+        title={t('Your sessions are shared with your team')}
+        description={t('When a meeting or mock interview ends, its transcript, PrepPilot’s answers, notes and scores go to your organization’s admins. They are kept for 90 days. Screenshots stay on this computer.')}
       />
       {account.error && <p role="alert" className="text-xs text-red-400 px-1">{account.error}</p>}
       {error && <p role="alert" className="text-xs text-red-400 px-1">{error}</p>}

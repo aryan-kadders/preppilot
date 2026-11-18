@@ -94,6 +94,8 @@ export type Route =
   | { page: 'candidates' }
   | { page: 'candidate'; id: string }
   | { page: 'interviews' }
+  | { page: 'sessions' }
+  | { page: 'record'; id: string }
   | { page: 'usage' }
   | { page: 'team' }
   | { page: 'audit' }
@@ -103,6 +105,8 @@ export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'candidates' && parts[1] && /^[0-9a-f-]{36}$/i.test(parts[1])) return { page: 'candidate', id: parts[1] };
   if (parts[0] === 'interviews') return { page: 'interviews' };
+  if (parts[0] === 'sessions' && parts[1] && /^[0-9a-f-]{36}$/i.test(parts[1])) return { page: 'record', id: parts[1] };
+  if (parts[0] === 'sessions') return { page: 'sessions' };
   if (parts[0] === 'companies') return { page: 'companies' };
   if (parts[0] === 'usage') return { page: 'usage' };
   if (parts[0] === 'team') return { page: 'team' };
@@ -111,5 +115,7 @@ export function parseRoute(hash: string): Route {
 }
 
 export function routeHash(r: Route): string {
-  return r.page === 'candidate' ? `#/candidates/${r.id}` : `#/${r.page}`;
+  if (r.page === 'candidate') return `#/candidates/${r.id}`;
+  if (r.page === 'record') return `#/sessions/${r.id}`;
+  return `#/${r.page}`;
 }

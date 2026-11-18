@@ -84,3 +84,40 @@ test('download links and the invite message', async () => {
   assert.match(msg, /A146-5560-9438-D08B/);
   assert.doesNotMatch(inviteMessage('K', 'X', ''), /https:/);
 });
+
+test('session history: routes, speakers, times, one timeline, search, the text copy', async () => {
+  const { speakerLabel, offsetLabel, timeline, matches, recordToText, daysLeft } = await import('../src/lib/records.ts');
+  const id = '0f8e1c2a-1111-4222-8333-944455556666';
+  assert.deepEqual(parseRoute(`#/sessions/${id}`), { page: 'record', id });
+  assert.deepEqual(parseRoute('#/sessions'), { page: 'sessions' });
+  assert.equal(routeHash({ page: 'record', id }), `#/sessions/${id}`);
+
+  assert.equal(speakerLabel('user'), 'Candidate');
+  assert.equal(speakerLabel('interviewer'), 'Interviewer');
+  assert.equal(speakerLabel('speaker_2'), 'Interviewer');
+  assert.equal(speakerLabel('assistant'), 'PrepPilot');
+
+  const start = Date.parse('2026-11-18T10:00:00Z');
+  assert.equal(offsetLabel(start + 65_000, start), '1:05');
+  assert.equal(offsetLabel(start + 3_725_000, start), '1:02:05');
+  assert.equal(offsetLabel(12_000, start), '0:12', 'an offset already');
+  assert.equal(offsetLabel(null, start), '');
+
+  const content = {
+    transcript: [{ speaker: 'interviewer', text: 'Tell me about Kafka', t: start + 1000 }, { speaker: 'user', text: 'We used it for orders', t: start + 9000 }],
+    answers: [{ type: 'assist', t: start + 2000, question: 'Tell me about Kafka', answer: 'Kafka is a log', items: [] }],
+    summary: { overview: 'Solid.', tldr: [], keyPoints: ['Knows Kafka'], actionItems: [], sections: [], coaching: [] },
+  };
+  assert.deepEqual(timeline(content).map((x) => x.kind), ['line', 'answer', 'line']);
+  assert.equal(timeline(content).filter((x) => matches(x, 'ORDERS')).length, 1);
+
+  const text = recordToText({ id, candidate_id: id, session_id: null, kind: 'meeting', title: 'Round 1', started_at: '2026-11-18T10:00:00Z',
+    duration_seconds: 600, line_count: 2, answer_count: 1, score: null, expires_at: '2027-02-16T10:00:00Z',
+    candidate_name: 'Asha', content, created_at: '', updated_at: '', can_delete: true });
+  assert.match(text, /Candidate: Asha/);
+  assert.match(text, /\[0:01\] Interviewer: Tell me about Kafka/);
+  assert.match(text, /\[0:02\] PrepPilot answer to "Tell me about Kafka": Kafka is a log/);
+  assert.match(text, /KEY POINTS\n- Knows Kafka/);
+
+  assert.equal(daysLeft('2026-11-20T00:00:00Z', Date.parse('2026-11-18T00:00:00Z')), 2);
+});

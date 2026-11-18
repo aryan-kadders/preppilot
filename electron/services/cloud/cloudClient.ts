@@ -221,6 +221,11 @@ export class CloudClient {
     return this.call('/v1/me', { method: 'GET' });
   }
 
+  /** Sends a finished meeting or mock interview to the team's dashboard (sessionRecords.ts builds it). */
+  async uploadSessionRecord(record: unknown): Promise<{ ok: boolean; id: string }> {
+    return this.call('/v1/session/record', { body: record });
+  }
+
   /** Opens the paid session (or resumes this computer's open one). */
   async startSession(assignmentId?: string): Promise<CloudSessionView> {
     if (this.session) return this.heartbeat();

@@ -17,6 +17,7 @@ import { chat, type ChatBody } from './router.ts';
 import type { AnthropicLike } from './claude.ts';
 import { qualityOf, type Tier } from './models.ts';
 import { deepgramGrant } from './deepgram.ts';
+import { cleanRecord, MAX_RECORD_BYTES } from './records.ts';
 
 export interface Deps {
   /** Calls a Postgres function with the service role; returns its result. */
@@ -158,6 +159,19 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         if (!body || !isUuid(body.session_id) || !Number.isInteger(body.seq) || body.seq < 1) return json(400, { error: 'bad_request' });
         const fn = route === '/v1/session/end' ? 'pp_session_end' : 'pp_session_heartbeat';
         const r = await deps.rpc(fn, { p_device: device.device_id, p_session: body.session_id, p_seq: body.seq });
+        return r?.error ? errorResponse(r.error) : json(200, r);
+      }
+      case '/v1/session/record': {
+        // Raw size first: a cleaned record is capped too, but parsing 50 MB is not free.
+        const declared = Number(req.headers.get('content-length') ?? 0);
+        if (declared > MAX_RECORD_BYTES * 2) return json(413, { error: 'record_too_large' });
+        const rec = cleanRecord(await readJson(req));
+        if ('error' in rec) return json(rec.error === 'record_too_large' ? 413 : 400, { error: rec.error });
+        const r = await deps.rpc('pp_save_session_record', {
+          p_device: device.device_id, p_kind: rec.kind, p_local_id: rec.localId, p_title: rec.title,
+          p_started_at: rec.startedAt, p_duration_seconds: rec.durationSeconds, p_line_count: rec.lineCount,
+          p_answer_count: rec.answerCount, p_score: rec.score, p_content: rec.content,
+        });
         return r?.error ? errorResponse(r.error) : json(200, r);
       }
       case '/v1/chat':
