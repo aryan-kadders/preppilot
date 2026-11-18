@@ -10,7 +10,9 @@
 //   {"fast":["claude:claude-haiku-5-5","gemini:gemini-3.8-flash"],"long":["claude:claude-sonnet-5-5"]}
 
 export type Provider = 'gemini' | 'claude';
-export type Tier = 'fast' | 'long';
+// 'decision': the app's yes/no checks (should Auto Answer reply?). They gate every
+// live answer, so they always use the fastest model, whatever the plan.
+export type Tier = 'fast' | 'long' | 'decision';
 
 export interface ModelRef { provider: Provider; model: string }
 
@@ -21,6 +23,8 @@ export interface ChatBody {
   images?: Array<{ mime_type?: string; data?: string }>;
   /** "long" for a whole-project build; anything else is a live answer. */
   model_tier?: string;
+  /** The app's hint: "decision" for an Auto Answer yes/no check. */
+  purpose?: string;
 }
 
 export interface ModelEvent { text?: string; usage?: { input: number; output: number } }
@@ -43,6 +47,7 @@ export class ProviderError extends Error {
 export const DEFAULT_ROUTES: Record<Tier, string[]> = {
   fast: ['claude:claude-haiku-5-5', 'gemini:gemini-3.1-flash-lite', 'gemini:gemini-3.8-flash'],
   long: ['claude:claude-sonnet-5-5', 'gemini:gemini-3.8-flash'],
+  decision: ['claude:claude-haiku-5-5', 'gemini:gemini-3.1-flash-lite'],
 };
 
 // An organization's AI plan (organizations.ai_quality, set by its admin on the
@@ -55,6 +60,7 @@ export type Quality = 'standard' | 'premium';
 export const PREMIUM_ROUTES: Record<Tier, string[]> = {
   fast: ['claude:claude-sonnet-5-5', 'gemini:gemini-3.8-flash', 'claude:claude-haiku-5-5'],
   long: ['claude:claude-opus-5-5', 'claude:claude-sonnet-5-5', 'gemini:gemini-4-argon'],
+  decision: ['claude:claude-haiku-5-5', 'gemini:gemini-3.1-flash-lite'],
 };
 export function qualityOf(v: unknown): Quality {
   return v === 'premium' ? 'premium' : 'standard';
@@ -62,7 +68,7 @@ export function qualityOf(v: unknown): Quality {
 
 // How long a model may take to its first words before the next one is tried.
 // A long build plans before it writes, so it gets more time.
-export const FIRST_TOKEN_TIMEOUT_MS: Record<Tier, number> = { fast: 6_000, long: 20_000 };
+export const FIRST_TOKEN_TIMEOUT_MS: Record<Tier, number> = { fast: 6_000, long: 20_000, decision: 1_500 };
 
 // USD per 1M tokens [input, output]. Claude: Anthropic list prices. Gemini:
 // estimates; set MODEL_PRICES (same shape) to your bill's rates.
@@ -95,7 +101,8 @@ export function routeFor(tier: Tier, available: Record<Provider, boolean>, overr
   });
 }
 
-export function tierOf(body: { model_tier?: unknown }): Tier {
+export function tierOf(body: { model_tier?: unknown; purpose?: unknown }): Tier {
+  if (body.purpose === 'decision') return 'decision';
   return body.model_tier === 'long' ? 'long' : 'fast';
 }
 

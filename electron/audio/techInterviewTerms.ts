@@ -7,17 +7,23 @@
 //
 // Pure: the résumé and JD facts are passed in. No platform branches.
 
+// In priority order: Deepgram keeps only the first ~600 characters of hints
+// (~450 on its multilingual model), after the résumé's and JD's own words. So
+// the interview words speech-to-text gets WRONG come first (measured
+// 2026-11-18 on Indian-accented speech: "Scrum" written in Telugu script,
+// "Agile" heard as "asylum", "Docker" as "doctor", "SOW" as "ESOde Blue"),
+// and the everyday ones it already hears right ("Python", "Java") last.
 export const TECH_INTERVIEW_TERMS: readonly string[] = [
-  'React', 'React Native', 'Next.js', 'Angular', 'Vue', 'Node.js', 'Express', 'TypeScript', 'JavaScript',
-  'Python', 'Django', 'Flask', 'FastAPI', 'Java', 'Spring Boot', 'Kotlin', 'Swift', 'Go', 'Golang', 'Rust',
-  'C++', 'C#', '.NET', 'PHP', 'Laravel', 'Ruby on Rails',
-  'SQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Kafka', 'RabbitMQ', 'Elasticsearch', 'DynamoDB', 'GraphQL', 'REST API',
-  'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins', 'CI/CD', 'Git', 'GitHub', 'Linux',
-  'microservices', 'system design', 'load balancer', 'caching', 'sharding', 'API gateway',
-  'data structures', 'algorithms', 'linked list', 'binary tree', 'hash map', 'Big O', 'recursion', 'dynamic programming',
-  'OOP', 'polymorphism', 'inheritance', 'encapsulation', 'SOLID', 'design patterns', 'multithreading', 'async await',
-  'machine learning', 'TensorFlow', 'PyTorch', 'pandas', 'NumPy', 'LLM',
-  'Agile', 'Scrum', 'JIRA', 'unit testing', 'Jest', 'Selenium',
+  'Agile', 'Scrum', 'Scrum master', 'sprint', 'product backlog', 'user story', 'Kanban', 'JIRA', 'waterfall',
+  'BRD', 'SRS', 'SOW', 'FRD', 'stakeholder', 'requirement gathering', 'UAT', 'SDLC',
+  'Kubernetes', 'Docker', 'microservices', 'REST API', 'GraphQL', 'Kafka', 'Redis', 'MongoDB', 'PostgreSQL',
+  'DynamoDB', 'Terraform', 'CI/CD', 'Jenkins', 'AWS', 'Azure', 'GCP',
+  'OOP', 'polymorphism', 'encapsulation', 'inheritance', 'SOLID', 'multithreading', 'recursion', 'Big O',
+  'hash map', 'linked list', 'binary tree', 'dynamic programming', 'system design', 'load balancer', 'sharding', 'caching',
+  'React', 'Next.js', 'Angular', 'Node.js', 'TypeScript', 'Django', 'FastAPI', 'Flask', 'Spring Boot', '.NET', 'C#', 'C++',
+  'Golang', 'Kotlin', 'pandas', 'NumPy', 'PyTorch', 'TensorFlow', 'LLM', 'ETL', 'Power BI', 'Tableau', 'Spark', 'Snowflake',
+  'Selenium', 'Jest', 'unit testing', 'design patterns', 'API gateway', 'Elasticsearch', 'RabbitMQ',
+  'JavaScript', 'Python', 'Java', 'SQL', 'MySQL', 'Git', 'Linux',
 ];
 
 /** Résumé and JD tech words first (the ones this interview will use), then the general list. */

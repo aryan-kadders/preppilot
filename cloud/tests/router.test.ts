@@ -67,6 +67,17 @@ describe('routes', () => {
     assert.deepEqual(routeFor('long', { gemini: true, claude: true }).map((r) => r.model), ['claude-sonnet-5-5', 'gemini-3.8-flash']);
     assert.deepEqual(routeFor('long', { gemini: false, claude: false }), []);
   });
+  test('an Auto Answer yes/no check always goes to the fastest model, on either plan', async () => {
+    const { tierOf } = await import('../supabase/functions/_shared/models.ts');
+    assert.equal(tierOf({ purpose: 'decision' }), 'decision');
+    assert.equal(tierOf({ purpose: 'decision', model_tier: 'long' }), 'decision');
+    assert.equal(tierOf({}), 'fast');
+    const both = { gemini: true, claude: true };
+    for (const plan of ['standard', 'premium'] as const) {
+      assert.deepEqual(routeFor('decision', both, undefined, plan).map((r) => r.model), ['claude-haiku-5-5', 'gemini-3.1-flash-lite'], plan);
+    }
+  });
+
   test('premium plan: Sonnet first for live answers, Opus first for long builds; MODEL_ROUTES does not touch it', () => {
     const both = { gemini: true, claude: true };
     assert.deepEqual(routeFor('fast', both, undefined, 'premium').map((r) => r.model), ['claude-sonnet-5-5', 'gemini-3.8-flash', 'claude-haiku-5-5']);

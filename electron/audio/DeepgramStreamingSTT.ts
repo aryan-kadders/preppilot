@@ -11,6 +11,9 @@ import { EventEmitter } from 'events';
 import { nextVoiceEpoch } from './sttDiarization';
 import { deepgramHintParams, getSttContextTerms } from './sttContextTerms';
 import { RECOGNITION_LANGUAGES } from '../config/languages';
+
+/** English regions Nova-3 transcribes as their own model (developers.deepgram.com, language codes). */
+const DEEPGRAM_ENGLISH_REGIONS: ReadonlySet<string> = new Set(['en-US', 'en-GB', 'en-AU', 'en-IN', 'en-NZ']);
 import { RealtimeSilenceTail } from './realtimeSilenceTail';
 import { isEnglishOnlySttModel, sttModelRejectsLanguage, resolveSttModel } from './sttModelCatalog';
 import { probeDeepgramHandshake, deepgramHandshakeVerdict } from './deepgramHandshakeProbe';
@@ -142,6 +145,12 @@ export class DeepgramStreamingSTT extends EventEmitter {
     }
 
     public setRecognitionLanguage(key: string): void {
+        // PrepPilot Cloud is for interviews held in English. Its "Auto" used Nova-3
+        // multilingual, which on Indian-accented speech wrote "What is Scrum" in Telugu
+        // script and heard "Docker" as "doctor": 11/14 exact on recorded interview
+        // questions, against 14/14 for en-IN with the interview hint words (2026-11-18).
+        // A language the user picks in Settings is still used as picked.
+        if (key === 'auto' && this.tokenProvider) key = 'english-in';
         if (key === 'auto') {
             if (this.languageCode === 'multi') return;
             this.languageCode = 'multi';
@@ -150,8 +159,11 @@ export class DeepgramStreamingSTT extends EventEmitter {
             return;
         }
         const config = RECOGNITION_LANGUAGES[key];
-        if (config && this.languageCode !== config.iso639) {
-            this.languageCode = config.iso639;
+        // English keeps its region where Nova-3 has one (en-IN, en-GB...): the
+        // regional model knows the accent. Other languages use the ISO code.
+        const code = config && DEEPGRAM_ENGLISH_REGIONS.has(config.bcp47) ? config.bcp47 : config?.iso639;
+        if (config && code && this.languageCode !== code) {
+            this.languageCode = code;
             console.log(`[DeepgramStreaming] Language set to ${this.languageCode}`);
             if (this.isActive) this.restartStream();
         }

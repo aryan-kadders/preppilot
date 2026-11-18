@@ -39,7 +39,13 @@ describe('tech interview words as transcription hints', { skip: SKIP }, () => {
   test('the JD and résumé words come first, then the general list', () => {
     const terms = techInterviewTerms({ jd: { technologies: ['Snowflake', 7] }, resume: { skills_flat: ['Airflow'], skills: null } });
     assert.deepEqual(terms.slice(0, 2), ['Snowflake', 'Airflow']);
-    for (const w of ['React', 'Python', 'Kubernetes', 'PostgreSQL']) assert.ok(TECH_INTERVIEW_TERMS.includes(w), w);
+    for (const w of ['React', 'Python', 'Kubernetes', 'PostgreSQL', 'Agile', 'Scrum', 'BRD', 'SRS', 'SOW']) assert.ok(TECH_INTERVIEW_TERMS.includes(w), w);
+    // The words speech-to-text gets wrong survive Deepgram's hint budget on both models.
+    const { capDeepgramTerms } = mod('sttContextTerms.js');
+    for (const lang of ['multi', 'en-IN']) {
+      const kept = capDeepgramTerms(TECH_INTERVIEW_TERMS, lang);
+      for (const w of ['Agile', 'Scrum', 'Scrum master', 'BRD', 'SRS', 'SOW', 'Kubernetes', 'Docker']) assert.ok(kept.includes(w), `${lang}: ${w}`);
+    }
     assert.equal(techInterviewTerms().length, TECH_INTERVIEW_TERMS.length);
   });
   test('they reach Deepgram keyterms after the name and dictionary, and stay out of Whisper prompts', () => {
@@ -47,9 +53,9 @@ describe('tech interview words as transcription hints', { skip: SKIP }, () => {
     t.setSttDictionaryTerms(['Kadders']);
     t.setSttDomainTerms(techInterviewTerms());
     const all = t.getSttContextTerms();
-    assert.deepEqual(all.slice(0, 3), ['Aryan', 'Kadders', 'React']);
+    assert.deepEqual(all.slice(0, 3), ['Aryan', 'Kadders', 'Agile']);
     assert.ok(all.length <= 100);
-    assert.deepEqual(t.deepgramHintParams('nova-3', all).keyterm.slice(0, 3), ['Aryan', 'Kadders', 'React']);
+    assert.deepEqual(t.deepgramHintParams('nova-3', all).keyterm.slice(0, 3), ['Aryan', 'Kadders', 'Agile']);
     assert.deepEqual(t.getSttDictionaryTerms(), ['Kadders'], 'the Whisper glossary reads only the dictionary');
     t.setSttContextTerms([]); t.setSttDictionaryTerms([]); t.setSttDomainTerms([]);
     assert.deepEqual(t.getSttContextTerms(), []);
@@ -81,4 +87,23 @@ describe('Deepgram hint budget (400 "Keyterm limit exceeded" refuses the whole s
 
 test('answers default to English (Auto answered English questions in Hindi on an India-region Mac)', () => {
   assert.match(read('electron/services/CredentialsManager.ts'), /getAiResponseLanguage\(\): string \{[\s\S]{0,300}return this\.credentials\.aiResponseLanguage \|\| 'English';/);
+});
+
+describe('PrepPilot Cloud transcribes interviews as English (India) unless a language is picked', { skip: SKIP }, () => {
+  const { DeepgramStreamingSTT } = mod('DeepgramStreamingSTT.js');
+  const langOf = (stt) => stt.connectLanguage();
+  test('Cloud + Auto: en-IN (multi wrote "Scrum" in Telugu script); a picked language is kept', () => {
+    const cloud = new DeepgramStreamingSTT('preppilot-cloud', 'nova-3', async () => 'tok');
+    cloud.setRecognitionLanguage('auto');
+    assert.equal(langOf(cloud), 'en-IN');
+    cloud.setRecognitionLanguage('english-uk');
+    assert.equal(langOf(cloud), 'en-GB', 'English keeps its region');
+    cloud.setRecognitionLanguage('hindi');
+    assert.equal(langOf(cloud), 'hi', 'a picked non-English language is used as picked');
+  });
+  test('an own Deepgram key keeps Auto as multilingual', () => {
+    const own = new DeepgramStreamingSTT('dg-key', 'nova-3');
+    own.setRecognitionLanguage('auto');
+    assert.equal(langOf(own), 'multi');
+  });
 });
