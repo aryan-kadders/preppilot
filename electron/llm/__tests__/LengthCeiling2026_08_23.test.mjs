@@ -26,10 +26,11 @@ const { HARD_MAX_WORDS, SPOKEN_FULL_MAX_WORDS, SPOKEN_FULL_PROMPT_MAX_WORDS } = 
 const plan = (answerType, question) => ({ answerType, answerStyle: undefined, question });
 
 describe('SPOKEN_SHORT bands carry a clamped hard ceiling', () => {
-  test('the 40-60 band gets a 75-word ceiling (live E-4 overshot it to 124w)', () => {
+  // PrepPilot 2026-11-18: complete interview answers (90-130 words), not one-liners.
+  test('the standard band (90-130) gets a 163-word ceiling', () => {
     const d = renderLengthDirectiveForPlan(plan('general_meeting_answer', 'What questions would you ask me?'));
-    assert.match(d, /roughly 40 to 60 words/);
-    assert.match(d, /Hard ceiling: never go past 75 words/);
+    assert.match(d, /roughly 90 to 130 words/);
+    assert.match(d, /Hard ceiling: never go past 163 words/);
   });
 
   test('no short-band ceiling ever exceeds HARD_MAX_WORDS (review: 85x1.25=106 crossed 100)', () => {
@@ -52,8 +53,8 @@ describe('SPOKEN_FULL gets its own budget, never the outer cap', () => {
   // the 180-word telemetry ceiling — the ~30-second live-answer target.
   test('a behavioral STAR story is capped at SPOKEN_FULL_PROMPT_MAX_WORDS', () => {
     const d = renderLengthDirectiveForPlan(plan('behavioral_interview_answer', 'Tell me about a time you disagreed with your manager.'));
-    assert.match(d, new RegExp(`at most ${SPOKEN_FULL_PROMPT_MAX_WORDS} words \\(~45 seconds spoken\\)`));
-    assert.doesNotMatch(d, /130 words|180 words|60 seconds/);
+    assert.match(d, new RegExp(`at most ${SPOKEN_FULL_PROMPT_MAX_WORDS} words \\(about a minute spoken\\)`));
+    assert.doesNotMatch(d, /240 words/);
     assert.match(d, /a hard cap, not a target/);
     assert.ok(SPOKEN_FULL_PROMPT_MAX_WORDS < SPOKEN_FULL_MAX_WORDS, 'the prompt cap sits under the telemetry ceiling');
   });

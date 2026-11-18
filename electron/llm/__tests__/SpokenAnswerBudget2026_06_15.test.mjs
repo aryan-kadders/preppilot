@@ -51,8 +51,8 @@ describe('estimateSpeakSeconds — ~140 wpm', () => {
 });
 
 describe('decideSpeakability — over budget vs exceptions', () => {
-  test('a 130-word interview answer is over budget', () => {
-    const d = decideSpeakability(proseOf(130), 'jd_fit_answer', 'default', 'why should we hire you?', false);
+  test('a 220-word interview answer is over budget (PrepPilot ceiling: 190)', () => {
+    const d = decideSpeakability(proseOf(220), 'jd_fit_answer', 'default', 'why should we hire you?', false);
     assert.equal(d.overBudget, true);
     assert.equal(d.exception, false);
   });
@@ -165,8 +165,8 @@ describe('SPOKEN_FULL tier — never trimmed (soft 180, prompt-only)', () => {
     });
   }
 
-  test('SPOKEN_FULL_MAX_WORDS is the documented soft ceiling (180), not a trim threshold', () => {
-    assert.equal(SPOKEN_FULL_MAX_WORDS, 180);
+  test('SPOKEN_FULL_MAX_WORDS is the documented soft ceiling (240), not a trim threshold', () => {
+    assert.equal(SPOKEN_FULL_MAX_WORDS, 240);
   });
 });
 
@@ -174,15 +174,15 @@ describe('SPOKEN_SHORT tier — measured but NEVER trimmed (no output truncation
   // The deterministic trimmer was removed 2026-06-16: it cropped the conclusion off long
   // answers. A long SPOKEN_SHORT answer is now MEASURED (over_budget for telemetry) but ships
   // WHOLE — length is the model's job via the prompt, never a deterministic cut.
-  test('a 150-word answer is flagged over_budget but ships verbatim (not trimmed)', () => {
-    const long = proseOf(150);
+  test('a 220-word answer is flagged over_budget but ships verbatim (not trimmed)', () => {
+    const long = proseOf(220);
     const d = decideSpeakability(long, 'jd_fit_answer', 'default', 'why should we hire you', false);
     assert.equal(d.target, 'SPOKEN_SHORT');
     assert.equal(d.overBudget, true); // still measured as long, for telemetry
     const r = applySpeakabilityBudget(long, 'jd_fit_answer', 'default', 'why should we hire you', false);
     assert.equal(r.speakability_budget_applied, false, 'must NOT trim');
     assert.equal(r.text, long, 'answer ships verbatim — no truncation');
-    assert.equal(r.spoken_word_count, 150);
+    assert.equal(r.spoken_word_count, 220);
     assert.equal(r.speakability_class, 'over_budget');
   });
 
@@ -245,13 +245,13 @@ describe('classifyShortBand — adaptive 15-30s band (signal-based)', () => {
 });
 
 describe('shortBandTargetWords — monotonic, within the soft ceiling', () => {
-  test('BRIEF < STANDARD < FULLER, all <= SOFT_MAX_WORDS (85)', () => {
+  test('BRIEF < STANDARD < FULLER, all <= SOFT_MAX_WORDS (160)', () => {
     const b = shortBandTargetWords('BRIEF');
     const s = shortBandTargetWords('STANDARD');
     const f = shortBandTargetWords('FULLER');
     assert.ok(b.max < s.max, 'BRIEF max < STANDARD max');
     assert.ok(s.max < f.max, 'STANDARD max < FULLER max');
-    assert.ok(f.max <= SOFT_MAX_WORDS, 'FULLER max <= 85');
+    assert.ok(f.max <= SOFT_MAX_WORDS, 'FULLER max <= 160');
     assert.ok(f.max <= HARD_MAX_WORDS, 'all bands stay within the hard ceiling');
     // seconds rise with the band.
     assert.ok(b.seconds < s.seconds && s.seconds <= f.seconds);
@@ -308,22 +308,23 @@ describe('formatAnswerPlanForPrompt — injects a concrete LENGTH target for SPO
     return { plan, line: m ? m[0] : null };
   };
 
-  test('a BRIEF question gets a ~15s / smaller-word target', () => {
+  test('a BRIEF question (a definition) gets a ~35s, 60-90-word target: complete, not a one-liner', () => {
     const { line } = lengthLine('What is CORS?');
     assert.ok(line, 'expected a LENGTH directive');
-    assert.match(line, /about 15s/);
+    assert.match(line, /about 35s/);
+    assert.match(line, /roughly 60 to 90 words/);
   });
 
-  test('a FULLER question gets a ~30s / larger-word target', () => {
+  test('a FULLER question gets a ~65s / larger-word target', () => {
     const { line } = lengthLine('Why would you pick Redis over Memcached?');
     assert.ok(line, 'expected a LENGTH directive');
-    assert.match(line, /about 30s/);
+    assert.match(line, /about 65s/);
   });
 
-  test('a STANDARD question gets a ~20-25s target', () => {
+  test('a STANDARD question gets a ~50s target', () => {
     const { line } = lengthLine('Why should we hire you?');
     assert.ok(line);
-    assert.match(line, /about 2\ds/);
+    assert.match(line, /about 50s/);
   });
 
   test('NO length directive for an explicit style (e.g. code only)', () => {
@@ -388,9 +389,9 @@ describe('classifySpeakability — coarse marker mapping (Fix D)', () => {
 
   // Real-path checks via decideSpeakability (no synthetic objects): these are the
   // exact scenarios the task spec calls out.
-  test('real path: long (>100w) experience_answer, no detail cue → over_budget', () => {
-    const d = decideSpeakability(proseOf(130), 'experience_answer', 'default', 'tell me about your work', false);
-    const r = applySpeakabilityBudget(proseOf(130), 'experience_answer', 'default', 'tell me about your work', false);
+  test('real path: long (>190w) experience_answer, no detail cue → over_budget', () => {
+    const d = decideSpeakability(proseOf(220), 'experience_answer', 'default', 'tell me about your work', false);
+    const r = applySpeakabilityBudget(proseOf(220), 'experience_answer', 'default', 'tell me about your work', false);
     assert.equal(d.exception, false);
     assert.equal(d.overBudget, true);
     // applySpeakabilityBudget classifies on the ORIGINAL decision (pre-trim), so the

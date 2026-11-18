@@ -23,23 +23,26 @@
 import type { AnswerType } from './AnswerPlanner';
 import type { AnswerStyle } from './answerStyle';
 
-// Spoken-length thresholds. Soft target 45-85 words; SPOKEN_SHORT hard ceiling 100 words / 35s.
-export const SOFT_MIN_WORDS = 45;
-export const SOFT_MAX_WORDS = 85;
-export const HARD_MAX_WORDS = 100;
-export const HARD_MAX_SECONDS = 35;
+// Spoken-length thresholds. PrepPilot (2026-11-18): interview answers are read off the
+// screen, so they are complete answers (what it is, how it works, an example), not
+// one-liners — the earlier 25-60-word targets read as too short to candidates.
+// Soft target 70-160 words; SPOKEN_SHORT hard ceiling 190 words / 85s.
+export const SOFT_MIN_WORDS = 70;
+export const SOFT_MAX_WORDS = 160;
+export const HARD_MAX_WORDS = 190;
+export const HARD_MAX_SECONDS = 85;
 // SPOKEN_FULL soft ceiling. A fuller spoken answer (negotiation, ethical, tradeoff, behavioral
 // with context, multi-part) targets ~100-180 words. This is PROMPT-ONLY guidance: the
 // deterministic trimmer never fires on SPOKEN_FULL (it would risk cutting a nuanced answer
 // mid-thought). Only SPOKEN_SHORT is auto-trimmed (above HARD_MAX_WORDS).
-export const SPOKEN_FULL_MAX_WORDS = 180;
+export const SPOKEN_FULL_MAX_WORDS = 240;
 // The per-turn PROMPT cap for a fuller spoken answer (2026-09-29): about 45
 // seconds at a natural pace. The directive used to quote SPOKEN_FULL_MAX_WORDS
 // ("at most 180 words, ~60 seconds") and sat last in the user message, so a
 // plain "how do you handle conflict?" or "explain REST APIs" came back at
 // 118-141 words against a ~30-second product target. The 180 above stays the
 // telemetry / never-trim ceiling; only what the model is told changes.
-export const SPOKEN_FULL_PROMPT_MAX_WORDS = 110;
+export const SPOKEN_FULL_PROMPT_MAX_WORDS = 170;
 // Average speaking rate for an interview/meeting answer (words per minute).
 const WORDS_PER_MINUTE = 140;
 
@@ -217,12 +220,12 @@ export interface ShortBandTarget {
 }
 
 const SHORT_BAND_TARGETS: Record<ShortLengthBand, ShortBandTarget> = {
-  BRIEF:    { min: 25, max: 40, seconds: 15, guidance: 'a tight, direct answer — lead with the point and stop' },
-  STANDARD: { min: 40, max: 60, seconds: 22, guidance: 'a normal spoken answer — the point plus one supporting line' },
-  FULLER:   { min: 55, max: 85, seconds: 30, guidance: 'a slightly fuller answer — the point, a reason, and one concrete detail' },
+  BRIEF:    { min: 60, max: 90, seconds: 35, guidance: 'a clear, complete answer — what it is, how it works or why it matters, and one example' },
+  STANDARD: { min: 90, max: 130, seconds: 50, guidance: 'a complete interview answer — the point, how it works, and one concrete example' },
+  FULLER:   { min: 120, max: 160, seconds: 65, guidance: 'a fuller answer — the point, the reasoning, and concrete detail or an example' },
 };
 
-/** Target words/seconds for a SPOKEN_SHORT band. All maxes stay within SOFT_MAX_WORDS (85). */
+/** Target words/seconds for a SPOKEN_SHORT band. Prompt ceilings (max x 1.25) stay within HARD_MAX_WORDS. */
 export function shortBandTargetWords(band: ShortLengthBand): ShortBandTarget {
   return SHORT_BAND_TARGETS[band];
 }

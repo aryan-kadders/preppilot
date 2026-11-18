@@ -2172,7 +2172,7 @@ const SPEAKABLE_RENDERING_DIRECTIVE =
 
 // The fuller-spoken-answer cap (STAR stories, multi-part, pressured negotiation).
 const spokenFullDirective = (): string =>
-  `LENGTH LIMIT: at most ${SPOKEN_FULL_PROMPT_MAX_WORDS} words (~45 seconds spoken) — a hard cap, not a target. This is a LIVE spoken answer: make the point completely, then stop — do not enumerate every angle. If your draft runs past ${SPOKEN_FULL_PROMPT_MAX_WORDS} words, cut whole branches, not adjectives.`;
+  `LENGTH LIMIT: at most ${SPOKEN_FULL_PROMPT_MAX_WORDS} words (about a minute spoken) — a hard cap, not a target. This is a LIVE spoken answer: make the point completely, then stop — do not enumerate every angle. If your draft runs past ${SPOKEN_FULL_PROMPT_MAX_WORDS} words, cut whole branches, not adjectives.`;
 
 /**
  * The adaptive per-turn LENGTH directive as a bare line ('' when the plan's
