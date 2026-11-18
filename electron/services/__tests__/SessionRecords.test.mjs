@@ -37,7 +37,7 @@ test('a mock interview record is titled by role and company', () => {
 
 test('network, sign-in and server trouble are retried; a refused record is not', () => {
   assert.equal(shouldRetry(new Error('fetch failed')), true);
-  for (const status of [401, 408, 429, 500, 503]) assert.equal(shouldRetry({ status }), true, String(status));
+  for (const status of [401, 404, 408, 429, 500, 503]) assert.equal(shouldRetry({ status }), true, String(status));
   for (const status of [400, 403, 413]) assert.equal(shouldRetry({ status }), false, String(status));
 });
 

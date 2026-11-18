@@ -70,7 +70,8 @@ export function buildPracticeRecord(p: PracticeLike) {
 export function shouldRetry(err: { status?: unknown; code?: unknown } | null | undefined): boolean {
   const status = typeof err?.status === 'number' ? err.status : 0;
   if (!status) return true;
-  if (status === 401 || status === 408 || status === 429 || status >= 500) return true;
+  // 404: a server without this route yet (the app updated first); it is sent once the server is.
+  if (status === 401 || status === 404 || status === 408 || status === 429 || status >= 500) return true;
   return false;
 }
 
