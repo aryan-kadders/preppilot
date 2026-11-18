@@ -30,6 +30,8 @@ export const JUDGE_DEADLINE_MS = 2500;
 export const JUDGE_MIN_WORDS = 4;
 /** questionText from the judge must be grounded in the candidate at least this much. */
 export const JUDGE_CONTAINMENT_MIN = 0.65;
+/** understood_question must share at least this share of its words with the speech (it fixes misheard words, so less than verbatim). */
+export const UNDERSTOOD_MIN_OVERLAP = 0.25;
 /** How many hot-window turns of context the judge sees. */
 export const JUDGE_CONTEXT_TURNS = 8;
 
@@ -207,6 +209,13 @@ export interface JudgeVerdict {
     answerability: number;
     /** The extracted ask itself, when the turn carried more than it. */
     questionText: string | null;
+    /**
+     * The ask as the speaker MEANT it: split parts joined, and words the
+     * speech-to-text misheard fixed from context ("what is asylum" in an
+     * interview → "What is Agile?"). The answer is written to this, so the
+     * answer never has to guess aloud ("sounds like you said…").
+     */
+    understoodQuestion: string | null;
     /** What to do about it. Absent from an older/degraded reply → derived from answerability. */
     action: JudgeAction;
 }
@@ -362,8 +371,9 @@ action — what the assistant should DO, and the field that actually decides:
 WHEN IN DOUBT, ANSWER. There are only these two outcomes: a drafted answer the user can ignore in a glance costs them nothing, while a missed one costs them the moment. Reserve "silent" for the cases the rules above make clear.
 
 Reply with ONLY this JSON object, no prose, no code fences:
-{"is_ask": boolean, "directed_at_user": boolean, "complete": boolean, "act": "question"|"follow_up"|"coding_task"|"behavioral"|"technical"|"rhetorical"|"statement"|"social"|"incomplete", "action": "answer"|"offer"|"silent", "answerability": number 0..1, "question_text": string|null}
+{"is_ask": boolean, "directed_at_user": boolean, "complete": boolean, "act": "question"|"follow_up"|"coding_task"|"behavioral"|"technical"|"rhetorical"|"statement"|"social"|"incomplete", "action": "answer"|"offer"|"silent", "answerability": number 0..1, "question_text": string|null, "understood_question": string|null}
 question_text: the ask itself, quoted VERBATIM from the candidate — the WHOLE ask, so a task stated in several parts keeps all of them, not just the last part. Use null when the entire candidate is the ask, or when there is no ask.
+understood_question: the same ask as the speaker MEANT it, written as one clear question in English. The transcript is speech-to-text and often mishears terms, especially accented speech: fix any word or phrase that makes no sense in its sentence into what it sounds like, using the conversation and the meeting's subject (in a job interview every question is about the job, the role's field or the candidate: "what is asylum" means "What is Agile?", "scrub master" means "Scrum master", "H1 visa experience in Scrum ceremonies" means "hands-on experience in Scrum ceremonies"). Join an ask split over several lines. Keep the speaker's meaning; never add a new topic. Null when there is no ask.
 `;
 
 /**
@@ -394,6 +404,14 @@ export function parseJudgeVerdict(raw: string | null | undefined, candidateText:
         const grounded = tokenContainment(obj.question_text, candidateText) >= JUDGE_CONTAINMENT_MIN;
         questionText = grounded ? obj.question_text.trim() : null;
     }
+    // Rewritten on purpose (misheard words fixed), so it is not held to the
+    // verbatim grounding above — only to sharing SOME words with the speech,
+    // which drops an invented question about something else entirely.
+    let understoodQuestion: string | null = null;
+    if (typeof obj.understood_question === 'string') {
+        const u = obj.understood_question.trim().slice(0, JUDGE_CANDIDATE_CHAR_CAP);
+        if (u && tokenContainment(u, candidateText) >= UNDERSTOOD_MIN_OVERLAP) understoodQuestion = u;
+    }
     // `action` is authoritative when present. A reply that omits it (older
     // prompt, degraded model) still works: fall back to the old banding so the
     // parser never gets stricter than the model it is reading.
@@ -403,13 +421,13 @@ export function parseJudgeVerdict(raw: string | null | undefined, candidateText:
         : rawAction === 'silent'
             ? 'silent'
             : (!isAsk || !directed ? 'silent' : 'answer');
-    return { isAsk, directedAtUser: directed, complete, act, answerability, questionText, action };
+    return { isAsk, directedAtUser: directed, complete, act, answerability, questionText, understoodQuestion, action };
 }
 
 export type JudgedRoute =
     | { route: 'wait_incomplete' }
     | { route: 'ignore'; reason: 'not_question' | 'low_answerability' | 'rhetorical' }
-    | { route: 'evaluate'; action: JudgeAction; answerability: number; act: AutoAnswerDialogueAct; questionText: string | null };
+    | { route: 'evaluate'; action: JudgeAction; answerability: number; act: AutoAnswerDialogueAct; questionText: string | null; understoodQuestion?: string | null };
 
 /**
  * Turn a verdict into the controller's routing. The judge is TRUSTED in both
@@ -424,5 +442,5 @@ export function routeForVerdict(v: JudgeVerdict): JudgedRoute {
     if (v.act === 'rhetorical') return { route: 'ignore', reason: 'rhetorical' };
     if (!v.directedAtUser) return { route: 'ignore', reason: 'not_question' };
     if (v.action === 'silent') return { route: 'ignore', reason: 'low_answerability' };
-    return { route: 'evaluate', action: v.action, answerability: v.answerability, act: v.act, questionText: v.questionText };
+    return { route: 'evaluate', action: v.action, answerability: v.answerability, act: v.act, questionText: v.questionText, understoodQuestion: v.understoodQuestion ?? null };
 }

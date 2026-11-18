@@ -120,10 +120,21 @@ test('route: incomplete → wait; non-ask/undirected/silent → ignore; rhetoric
   // The action is authoritative: 'silent' never reaches the engine, whatever the score.
   assert.deepEqual(routeForVerdict({ ...base, action: 'silent', answerability: 0.99 }), { route: 'ignore', reason: 'low_answerability' });
   assert.deepEqual(routeForVerdict({ ...base, act: 'coding_question', questionText: 'q' }),
-    { route: 'evaluate', action: 'answer', answerability: 0.9, act: 'coding_question', questionText: 'q' });
+    { route: 'evaluate', action: 'answer', answerability: 0.9, act: 'coding_question', questionText: 'q', understoodQuestion: null });
   // 'offer' is retired at parse time, so routing only ever sees answer/silent.
   assert.deepEqual(routeForVerdict({ ...base, answerability: 0.4 }),
-    { route: 'evaluate', action: 'answer', answerability: 0.4, act: 'general_question', questionText: null });
+    { route: 'evaluate', action: 'answer', answerability: 0.4, act: 'general_question', questionText: null, understoodQuestion: null });
+});
+
+test('understood_question: the ask as meant (misheard words fixed) is carried to the answer; an unrelated one is dropped', () => {
+  const said = 'What is asylum?';
+  const reply = (u) => JSON.stringify({ is_ask: true, directed_at_user: true, complete: true, act: 'question', action: 'answer', answerability: 0.95, question_text: null, understood_question: u });
+  const v = parseJudgeVerdict(reply('What is Agile?'), said);
+  assert.equal(v.understoodQuestion, 'What is Agile?');
+  assert.equal(routeForVerdict(v).understoodQuestion, 'What is Agile?');
+  assert.equal(parseJudgeVerdict(reply('Describe your favourite holiday destination in Europe'), said).understoodQuestion, null, 'shares no words: invented');
+  assert.equal(parseJudgeVerdict(reply(''), said).understoodQuestion, null);
+  assert.equal(parseJudgeVerdict(reply(null), said).understoodQuestion, null);
 });
 
 test('parse: doubt resolves toward ANSWERING — a missing or retired action never means silence', () => {

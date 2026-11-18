@@ -1045,7 +1045,9 @@ export class SimpleAutoAnswerEngine {
             this.judgedParts = partsAtConsult;
             return;
         }
-        const text = route.questionText ?? candidate;
+        // The question as the interviewer MEANT it (misheard words fixed by the judge),
+        // so the answer is written to the right question and never guesses aloud.
+        const text = route.understoodQuestion ?? route.questionText ?? candidate;
         // Answer or nothing. The judge decides, and the only number left in
         // the decision is ANSWER_FLOOR — the per-mode bars no longer gate a
         // dispatch, because the thing they used to demote to (the offer card)
