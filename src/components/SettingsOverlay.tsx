@@ -106,6 +106,7 @@ import { NVIDIA_NIM_STT_MODELS, DEFAULT_NVIDIA_NIM_STT_MODEL, allowedLanguageKey
 import { STT_MODEL_CATALOG, isEnglishOnlySttModel, sttModelRejectsLanguage, type SttModelProvider } from '../../electron/audio/sttModelCatalog';
 import { isDefaultOpenAiSttBase } from '../../electron/audio/openaiSttBaseUrl';
 import { isRecognitionLanguageOffered, PARAKEET_ONLY_LANGUAGE_KEYS } from '../../electron/config/languages';
+import { useCloudSignedIn } from './overlay/useCloudSignedIn';
 
 // ---------------------------------------------------------------------------
 // StarRating — renders filled/empty stars for culture ratings
@@ -550,6 +551,11 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     const isLight = resolvedTheme === 'light';
     const { t, lang, setLang } = useLanguage();
     const [activeTab, setActiveTab] = useState(() => withoutRemovedTab(initialTab));
+    // Signed in with an invite code: the team's plan picks the AI, so no AI Providers tab.
+    const cloudSignedIn = useCloudSignedIn();
+    useEffect(() => {
+        if (cloudSignedIn && activeTab === 'ai-providers') setActiveTab('account');
+    }, [cloudSignedIn, activeTab]);
     // In-window confirms only: see ConfirmDialog.tsx for why never confirm().
     const { confirm: askConfirm, dialog: confirmDialog } = useConfirmDialog();
 
@@ -2356,6 +2362,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                         {activeTab === 'account' && navActivePill}
                                         <Building2 size={16} /> {t('Account')}
                                     </button>
+                                    {!cloudSignedIn && (
                                     <button
                                         onClick={() => setActiveTab('ai-providers')}
                                         className={navItemClass(activeTab === 'ai-providers')}
@@ -2363,6 +2370,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                         {activeTab === 'ai-providers' && navActivePill}
                                         <FlaskConical size={16} /> {t('AI Providers')}
                                     </button>
+                                    )}
                                     {/* One entry for both halves of document search. The
                                         legacy 'embedding' and 'reranker' ids still render
                                         here (see isRetrievalTab) so existing deep links

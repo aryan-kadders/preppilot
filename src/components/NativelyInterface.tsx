@@ -452,6 +452,7 @@ import ScreenshotTray from './overlay/ScreenshotTray';
 import ChromeFold from './overlay/ChromeFold';
 import { AutoStopNoticeBanner, useMeetingAutoStopNotice } from './overlay/AutoStopNotice';
 import { CloudTimeNoticeBanner, useCloudTimeWarning } from './overlay/CloudTimeNotice';
+import { useCloudSignedIn } from './overlay/useCloudSignedIn';
 import { useAmbientChatMeeting } from './overlay/AmbientChatNotice';
 import { LastTimeRecapBanner, useLastTimeRecap } from './overlay/LastTimeRecapNotice';
 import type { LiveHelperAction } from '../types/assist';
@@ -1462,6 +1463,8 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const autoStop = useMeetingAutoStopNotice();
   // PrepPilot Cloud: "5 minutes left in this session" (overlay/CloudTimeNotice.tsx).
   const cloudSecondsLeft = useCloudTimeWarning();
+  // Signed in with an invite code: the admin's plan picks the model, so the chip is a fixed label.
+  const cloudSignedIn = useCloudSignedIn();
   // Ambient AI Chat: this meeting captures no audio (overlay/AmbientChatNotice.tsx).
   const ambientChat = useAmbientChatMeeting();
   // Such a meeting says so from its start ("Mic is off"). ✕ hides it until the
@@ -13090,7 +13093,10 @@ Provide only the answer, nothing else.`;
                   <div className="flex items-center gap-1.5">
                     <button
                       data-model-selector-toggle="true"
+                      disabled={cloudSignedIn}
+                      title={cloudSignedIn ? 'Your team chooses the AI model' : undefined}
                       onClick={(e) => {
+                        if (cloudSignedIn) return;
                         // Calculate position for detached window
                         if (!contentRef.current) return;
                         const contentRect = contentRef.current.getBoundingClientRect();
@@ -13120,6 +13126,7 @@ Provide only the answer, nothing else.`;
                         {/* The model's own name only, in every style: no
                             provider, no prefix, no slug (modelChipName). */}
                         {modelChipName((() => {
+                          if (cloudSignedIn) return 'PrepPilot Cloud';
                           const m = currentModel;
                           const codexCliName = getCodexCliModelDisplayName(m);
                           if (codexCliName) return codexCliName;
@@ -13176,7 +13183,7 @@ Provide only the answer, nothing else.`;
                           return m;
                         })())}
                       </ModelSelectorLabel>
-                      {isLavenderTheme ? (
+                      {cloudSignedIn ? null : isLavenderTheme ? (
                         <svg className="shrink-0" width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M3 4l2 2 2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
                       ) : (
                         <ChevronDown size={12} className="shrink-0 transition-transform" />
