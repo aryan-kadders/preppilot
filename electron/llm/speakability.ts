@@ -220,9 +220,12 @@ export interface ShortBandTarget {
 }
 
 const SHORT_BAND_TARGETS: Record<ShortLengthBand, ShortBandTarget> = {
-  BRIEF:    { min: 60, max: 90, seconds: 35, guidance: 'a clear, complete answer — what it is, how it works or why it matters, and one example' },
-  STANDARD: { min: 90, max: 130, seconds: 50, guidance: 'a complete interview answer — the point, how it works, and one concrete example' },
-  FULLER:   { min: 120, max: 160, seconds: 65, guidance: 'a fuller answer — the point, the reasoning, and concrete detail or an example' },
+  // Shape (PrepPilot 2026-11-19, asked for after live tests): a direct opening, then
+  // short "- " bullet points. Said here as well as in the mode, because this line sits
+  // beside the question and the small live model follows it over the system prompt.
+  BRIEF:    { min: 60, max: 90, seconds: 35, guidance: 'one or two sentences saying what it is, then 3 or 4 short "- " bullet points (how it works, an example); a plain yes/no needs only the opening' },
+  STANDARD: { min: 90, max: 130, seconds: 50, guidance: 'one or two direct opening sentences, then 3 to 5 short "- " bullet points (how it works, key points, an example)' },
+  FULLER:   { min: 120, max: 160, seconds: 65, guidance: 'one or two direct opening sentences, then 4 to 6 short "- " bullet points with the reasoning and an example' },
 };
 
 /** Target words/seconds for a SPOKEN_SHORT band. Prompt ceilings (max x 1.25) stay within HARD_MAX_WORDS. */

@@ -87,11 +87,13 @@ describe('size — v2 must be dramatically smaller than the legacy constants', (
   // code is never prose (any turn answered by code gets a code block), and the
   // transcript mishears technical words ("asylum" for Agile), so read them by
   // sound and context. +~450 chars; still ≤ 82% of the smallest legacy prompt.
-  test('every cloud composition is under 18.8k chars (legacy mode-injected routes were 23–45k)', () => {
+  // 18.8k → 19.2k (2026-11-19, PrepPilot): interview modes carry their answer shape
+  // (a direct opening, then 3-6 bullet points), asked for by the team after live tests.
+  test('every cloud composition is under 19.2k chars (legacy mode-injected routes were 23–45k)', () => {
     for (const mode of MODES) {
       for (const action of ACTIONS) {
         const p = v2.buildSystemPromptV2({ mode, action, tier: 'cloud' });
-        assert.ok(p.length < 18_800, `cloud/${mode}/${action} is ${p.length} chars`);
+        assert.ok(p.length < 19_200, `cloud/${mode}/${action} is ${p.length} chars`);
       }
     }
   });
@@ -405,7 +407,7 @@ describe('spoken-format rules are actually in the composed prompts', () => {
     const p = v2.buildSystemPromptV2({ mode: 'general', action: 'answer', tier: 'cloud' });
     // Phase 4 replaced the compressed ban-list phrasing with worked examples;
     // assert the RULES (in either form), not the old sentence.
-    for (const needle of ['The em dash is the strongest AI tell', 'Never use a semicolon in spoken prose', 'Never start a line with "- "', 'coaching wrapper', 'offer to do more']) {
+    for (const needle of ['The em dash is the strongest AI tell', 'Never use a semicolon in spoken prose', 'never start a line with "- " unless the active mode\'s answer shape asks for bullets', 'coaching wrapper', 'offer to do more']) {
       assert.ok(p.includes(needle), `cloud core missing rule: ${needle}`);
     }
     // Premise updated 2026-08-02: v2 now mandates BOUNDED hot-word marks (the
@@ -648,7 +650,9 @@ describe('format worked examples (Phase 4: em dash 148, headings 41, bullets 38,
     assert.ok(p.includes('WRONG: "I led the migration — it took about six months."'), 'em-dash WRONG example missing');
     assert.ok(p.includes('RIGHT: "I led the migration. It took about six months."'), 'em-dash RIGHT example missing');
     assert.ok(p.includes('WRONG: "The cache is warm; reads are fast."'), 'semicolon WRONG example missing');
-    assert.ok(p.includes('WRONG: "## My approach\n- fast\n- reliable"'), 'heading/bullet WRONG example missing');
+    // PrepPilot 2026-11-19: bullets are allowed where a mode's answer shape asks for
+    // them (interview modes), so the example now shows the heading alone.
+    assert.ok(p.includes('WRONG: "## My approach"'), 'heading WRONG example missing');
     assert.ok(p.includes('RIGHT: "My approach keeps it fast and reliable."'), 'heading/bullet RIGHT example missing');
   });
 

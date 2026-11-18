@@ -363,7 +363,8 @@ describe('Prompt System v2 carries the same contract', () => {
     // Measured 2026-09-29: without the exception, "walk me through the steps"
     // lost its numbered list on the typed box (3/3 → 0/3 on both models).
     const p = v2.buildSystemPromptV2({ mode: 'general', action: 'answer', tier: 'cloud', surface: 'live' });
-    assert.match(p, /write one cohesive paragraph/);
+    // PrepPilot 2026-11-19: the paragraph is the default; interview modes set their own shape (opening + bullets).
+    assert.match(p, /write spoken output as one cohesive paragraph/);
     assert.match(p, /A request for steps or a set \("walk me through the steps", "three reasons"\) is the exception: use the numbered list/);
   });
 
