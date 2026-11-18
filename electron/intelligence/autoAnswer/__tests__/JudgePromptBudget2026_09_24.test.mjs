@@ -36,9 +36,10 @@ test('eight rambling turns cannot blow the prompt open', () => {
     role: i % 2 ? 'interviewer' : 'user', text: longTurn('T' + i),
   }));
   const prompt = buildJudgePrompt({ recentTurns, candidateText: longTurn('CAND') });
-  // Boilerplate (~7819) plus the declared variable ceiling, with a little slack
-  // for the scaffolding lines between blocks.
-  assert.ok(prompt.length <= 7819 + JUDGE_PROMPT_MAX_VARIABLE_CHARS + 600,
+  // Boilerplate (~8620 since 2026-11-18: + the understood_question field, the
+  // ask as meant with misheard words fixed) plus the declared variable ceiling,
+  // with a little slack for the scaffolding lines between blocks.
+  assert.ok(prompt.length <= 8620 + JUDGE_PROMPT_MAX_VARIABLE_CHARS + 600,
     `prompt was ${prompt.length} chars - the cap is not being applied`);
 });
 
