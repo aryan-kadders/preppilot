@@ -98,6 +98,7 @@ export function timeReasonMessage(reason: string | undefined): string {
     case 'attempts_exhausted': return 'You have used all attempts for this assignment.';
     case 'session_ended': return 'This session has ended.';
     case 'device_revoked': return 'This computer was signed out by your manager.';
+    case 'offsession_limit': return 'PrepPilot is busy for a few minutes. Try again shortly, or start a session.';
     default: return 'PrepPilot Cloud is not available right now.';
   }
 }
@@ -295,10 +296,15 @@ export class CloudClient {
     return r.access_token;
   }
 
-  /** Headers for the app's hosted-provider client (LLMHelper) to call /v1/chat. */
+  /**
+   * Headers for the app's hosted-provider client (LLMHelper) to call /v1/chat.
+   * With no session open (a meeting's notes after Stop, a mock interview) the
+   * call goes without one: the server allows that for background work, capped
+   * per hour and without using practice minutes.
+   */
   async chatHeaders(): Promise<Record<string, string>> {
-    if (!this.session) throw new CloudError('time_quota_exceeded', 429, 'session_ended');
-    return { 'x-natively-key': await this.accessToken(), 'x-preppilot-session': this.session.id, 'x-preppilot-version': this.deps.appVersion };
+    const base = { 'x-natively-key': await this.accessToken(), 'x-preppilot-version': this.deps.appVersion };
+    return this.session ? { ...base, 'x-preppilot-session': this.session.id } : base;
   }
 
   get chatUrl(): string { return `${this.baseUrl}/v1/chat`; }

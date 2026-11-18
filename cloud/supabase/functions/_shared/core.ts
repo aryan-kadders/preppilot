@@ -82,7 +82,7 @@ export function compareVersions(a: string, b: string): number {
 }
 
 // Session refusals the app shows as "your time" messages, not as failures.
-const TIME_ERRORS = new Set(['no_active_slot', 'no_minutes', 'time_up', 'session_ended', 'attempts_exhausted']);
+const TIME_ERRORS = new Set(['no_active_slot', 'no_minutes', 'time_up', 'session_ended', 'attempts_exhausted', 'offsession_limit']);
 
 /** The HTTP answer for an error code from the database functions. */
 export function errorResponse(code: string, extra: Record<string, unknown> = {}): Response {
@@ -177,6 +177,16 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case '/v1/chat':
       case '/v1/stt/token': {
         const sessionId = req.headers.get('x-preppilot-session');
+        // No session: background AI work only (a meeting's notes after Stop, mock
+        // interview questions and feedback). Capped per hour; transcription still
+        // needs a running session, so live answering does too.
+        if (!sessionId && route === '/v1/chat') {
+          const off = await deps.rpc('pp_authorize_offsession', { p_device: device.device_id });
+          if (off?.error) return errorResponse(off.error);
+          const body = await readJson(req);
+          if (!body || !Array.isArray(body.messages) || body.messages.length === 0) return json(400, { error: 'bad_request' });
+          return await chat(body as ChatBody, { candidate: off.candidate_id }, req.signal, deps, qualityOf(off.ai_quality));
+        }
         if (!isUuid(sessionId)) return json(400, { error: 'session_required' });
         const auth = await deps.rpc('pp_authorize_call', { p_device: device.device_id, p_session: sessionId });
         if (auth?.error) return errorResponse(auth.error, auth.end_reason ? { end_reason: auth.end_reason } : {});

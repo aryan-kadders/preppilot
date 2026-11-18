@@ -211,12 +211,15 @@ describe('sessions', () => {
     assert.match(timeReasonMessage('no_minutes'), /no practice minutes left/);
   });
 
-  test('the Deepgram key and the chat headers need an open session', async () => {
+  test('the Deepgram key needs an open session; chat headers name it when there is one', async () => {
     const server = fakeServer();
     const { c } = client(server);
     await c.redeem(CODE);
     await assert.rejects(c.sttToken(), (e) => e.code === 'session_required');
-    await assert.rejects(c.chatHeaders(), (e) => e.status === 429);
+    // No session: notes and mock interviews still reach the server, without a session id.
+    const off = await c.chatHeaders();
+    assert.equal(off['x-preppilot-session'], undefined);
+    assert.ok(off['x-natively-key'].startsWith('acc-'));
     await c.startSession();
     assert.equal(await c.sttToken(), 'dg-temp');
     const h = await c.chatHeaders();

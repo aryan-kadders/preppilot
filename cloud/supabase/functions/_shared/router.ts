@@ -62,14 +62,20 @@ async function start(route: ModelRef[], body: ChatBody, signal: AbortSignal, dep
   return null;
 }
 
-function record(deps: Deps, sessionId: string, model: string, usage: { input: number; output: number }) {
-  return deps.rpc('pp_record_usage', {
-    p_session: sessionId, p_kind: 'llm', p_model: model, p_input: usage.input, p_output: usage.output,
-    p_audio_seconds: null, p_cost: costUsd(model, usage.input, usage.output, deps.env.prices ?? {}),
-  }).catch((e) => deps.log?.('[api] usage not recorded', { error: String(e?.message ?? e) }));
+/** Whose call it is: a running session, or (notes, mock interview feedback) the candidate outside one. */
+export type Caller = { session: string } | { candidate: string };
+
+function record(deps: Deps, who: Caller, model: string, usage: { input: number; output: number }) {
+  const cost = costUsd(model, usage.input, usage.output, deps.env.prices ?? {});
+  const common = { p_kind: 'llm', p_model: model, p_input: usage.input, p_output: usage.output, p_audio_seconds: null, p_cost: cost };
+  const call = 'session' in who
+    ? deps.rpc('pp_record_usage', { p_session: who.session, ...common })
+    : deps.rpc('pp_record_offsession_usage', { p_candidate: who.candidate, ...common });
+  return call.catch((e) => deps.log?.('[api] usage not recorded', { error: String(e?.message ?? e) }));
 }
 
-export async function chat(body: ChatBody, sessionId: string, signal: AbortSignal, deps: Deps, quality: Quality = 'standard'): Promise<Response> {
+export async function chat(body: ChatBody, who: string | Caller, signal: AbortSignal, deps: Deps, quality: Quality = 'standard'): Promise<Response> {
+  const sessionId: Caller = typeof who === 'string' ? { session: who } : who;
   const tier = tierOf(body);
   const route = routeFor(tier, { gemini: Boolean(deps.env.geminiKey), claude: Boolean(deps.anthropic) }, deps.env.routes, quality);
   if (route.length === 0) return json(503, { error: 'upstream_unavailable' });

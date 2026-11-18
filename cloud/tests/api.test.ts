@@ -221,6 +221,24 @@ describe('a session', () => {
     assert.deepEqual(JSON.parse(grant.init.body), { ttl_seconds: 60 });
   });
 
+  test('outside a session: notes and mock interview calls work, cost the candidate no minutes, and are capped at 60 an hour', async () => {
+    const s = await signedIn(0);
+    geminiReply = () => sse([{ candidates: [{ content: { parts: [{ text: 'Notes.' }] } }], usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 5 } }]);
+    const r = await call('/v1/chat', { token: s.access_token, body: { messages: [{ role: 'user', content: 'Summarise the meeting' }] } });
+    assert.equal(r.status, 200, 'no minutes and no session, still answered');
+    assert.equal((await r.json()).content, 'Notes.');
+    const used = (await db.admin.query('select session_id, input_tokens from public.usage_events where candidate_id = $1', [s.candidate])).rows;
+    assert.deepEqual(used.map((u: any) => [u.session_id, u.input_tokens]), [[null, 100]], 'cost recorded for the candidate');
+    const ledger = (await db.admin.query(`select count(*)::int as n from public.time_ledger where candidate_id = $1 and reason = 'usage'`, [s.candidate])).rows[0].n;
+    assert.equal(ledger, 0, 'no practice minutes used');
+
+    await db.admin.query(`insert into public.usage_events (candidate_id, kind, model, input_tokens, output_tokens)
+      select $1, 'llm', 'x', 1, 1 from generate_series(1, 59)`, [s.candidate]);
+    const capped = await call('/v1/chat', { token: s.access_token, body: { messages: [{ role: 'user', content: 'again' }] } });
+    assert.equal(capped.status, 429);
+    assert.deepEqual(await capped.json(), { error: 'time_quota_exceeded', reason: 'offsession_limit' });
+  });
+
   test('a provider refusal is reported without the provider\'s account details', async () => {
     const s = await signedIn();
     const session = await (await call('/v1/session/start', { token: s.access_token, body: {} })).json();
