@@ -7791,6 +7791,13 @@ export function initializeIpcHandlers(appState: AppState): void {
     return appState.getAutoAnswerEnabled();
   });
 
+  // Practice alone: the user's mic counts as the interviewer (Settings > Audio).
+  safeHandle('get-practice-mic-as-interviewer', async () => appState.practiceMicAsInterviewer());
+  safeHandle('set-practice-mic-as-interviewer', async (_, enabled: boolean) => {
+    const { SettingsManager } = require('./services/SettingsManager');
+    const ok = SettingsManager.getInstance().set('practiceMicAsInterviewer', Boolean(enabled));
+    return ok ? { success: true } : { success: false, error: 'Settings store is unavailable; the change was not saved.' };
+  });
   safeHandle('set-auto-answer-enabled', async (_, enabled: boolean) => {
     const persisted = appState.setAutoAnswerEnabled(Boolean(enabled));
     return persisted
@@ -14688,6 +14695,9 @@ export function initializeIpcHandlers(appState: AppState): void {
     const { devOwnAiAllowed } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
     const devOwnAi = devOwnAiAllowed(process.env, app.isPackaged);
     if (!cloud.signedIn) return { state: cloud.state, ...(devOwnAi ? { devOwnAi } : {}) };
+    // Development: PREPPILOT_LOCAL_KEYS=1 answers on this computer's own keys while signed in.
+    const { devLocalKeysForced } = require('./services/cloud/cloudAccount') as typeof import('./services/cloud/cloudAccount');
+    if (devLocalKeysForced(process.env, app.isPackaged)) return { state: cloud.state, localKeys: true, sessionId: cloud.sessionId };
     try {
       return { state: cloud.state, status: await cloud.status(), sessionId: cloud.sessionId };
     } catch (e: any) {

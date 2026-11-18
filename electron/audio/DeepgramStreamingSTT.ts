@@ -145,12 +145,12 @@ export class DeepgramStreamingSTT extends EventEmitter {
     }
 
     public setRecognitionLanguage(key: string): void {
-        // PrepPilot Cloud is for interviews held in English. Its "Auto" used Nova-3
-        // multilingual, which on Indian-accented speech wrote "What is Scrum" in Telugu
-        // script and heard "Docker" as "doctor": 11/14 exact on recorded interview
-        // questions, against 14/14 for en-IN with the interview hint words (2026-11-18).
-        // A language the user picks in Settings is still used as picked.
-        if (key === 'auto' && this.tokenProvider) key = 'english-in';
+        // "Auto" stays Nova-3 multilingual, PrepPilot Cloud included. Forcing en-IN
+        // (2026-11-18) scored better on synthetic all-English recordings but, in live
+        // Hinglish interviews, returned empty finals for every Hindi or mixed line —
+        // worse, measured live 2026-11-19. Misheard English terms are fixed by the
+        // Auto Answer judge's understood_question instead; "English (India)" stays a
+        // choice in Settings for English-only interviews.
         if (key === 'auto') {
             if (this.languageCode === 'multi') return;
             this.languageCode = 'multi';

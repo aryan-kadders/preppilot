@@ -13,6 +13,9 @@ export interface AppSettings {
     // In the future, other non-secret data like 'language' or 'theme'
     // can be moved here from CredentialsManager to allow early boot access.
     isUndetectable?: boolean;
+    /** Practice alone: speech from the user's own microphone is treated as the
+     *  interviewer's, so questions asked aloud are answered. Default off. */
+    practiceMicAsInterviewer?: boolean;
     disguiseMode?: 'terminal' | 'settings' | 'activity' | 'none';
     verboseLogging?: boolean;
     // Windows only, default on (explicit false opts out). A WH_KEYBOARD_LL hook

@@ -89,21 +89,18 @@ test('answers default to English (Auto answered English questions in Hindi on an
   assert.match(read('electron/services/CredentialsManager.ts'), /getAiResponseLanguage\(\): string \{[\s\S]{0,300}return this\.credentials\.aiResponseLanguage \|\| 'English';/);
 });
 
-describe('PrepPilot Cloud transcribes interviews as English (India) unless a language is picked', { skip: SKIP }, () => {
+describe('Deepgram language: Auto stays multilingual (Hinglish interviews); English keeps its region', { skip: SKIP }, () => {
   const { DeepgramStreamingSTT } = mod('DeepgramStreamingSTT.js');
   const langOf = (stt) => stt.connectLanguage();
-  test('Cloud + Auto: en-IN (multi wrote "Scrum" in Telugu script); a picked language is kept', () => {
+  test('Cloud + Auto: multi (en-IN emptied every Hindi line live); a picked language is kept', () => {
     const cloud = new DeepgramStreamingSTT('preppilot-cloud', 'nova-3', async () => 'tok');
     cloud.setRecognitionLanguage('auto');
-    assert.equal(langOf(cloud), 'en-IN');
+    assert.equal(langOf(cloud), 'multi');
+    cloud.setRecognitionLanguage('english-in');
+    assert.equal(langOf(cloud), 'en-IN', 'English (India) keeps its region');
     cloud.setRecognitionLanguage('english-uk');
-    assert.equal(langOf(cloud), 'en-GB', 'English keeps its region');
+    assert.equal(langOf(cloud), 'en-GB');
     cloud.setRecognitionLanguage('hindi');
-    assert.equal(langOf(cloud), 'hi', 'a picked non-English language is used as picked');
-  });
-  test('an own Deepgram key keeps Auto as multilingual', () => {
-    const own = new DeepgramStreamingSTT('dg-key', 'nova-3');
-    own.setRecognitionLanguage('auto');
-    assert.equal(langOf(own), 'multi');
+    assert.equal(langOf(cloud), 'hi');
   });
 });

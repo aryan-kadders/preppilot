@@ -46,8 +46,22 @@ export function getCloudClient(): CloudClient {
   return client;
 }
 
+/**
+ * Development only: PREPPILOT_LOCAL_KEYS=1 runs this computer on the keys in its
+ * own .env (Claude, Gemini, Deepgram) while it stays signed in, to compare against
+ * Cloud or test without using the team's account. A packaged build ignores it.
+ */
+export function devLocalKeysForced(env: NodeJS.ProcessEnv = process.env, isPackaged = true): boolean {
+  return !isPackaged && env.PREPPILOT_LOCAL_KEYS === '1';
+}
+
+function localKeysForcedHere(): boolean {
+  try { return devLocalKeysForced(process.env, require('electron').app.isPackaged); } catch { return false; }
+}
+
 /** True when answers and transcription must go through PrepPilot Cloud. */
 export function cloudModeActive(): boolean {
+  if (localKeysForcedHere()) return false;
   try { return getCloudClient().signedIn; } catch { return false; }
 }
 

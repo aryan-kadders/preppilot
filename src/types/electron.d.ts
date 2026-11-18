@@ -124,6 +124,8 @@ export interface CloudAccountStatus {
   state: 'signed_out' | 'signed_in' | 'revoked'
   /** Development builds started with PREPPILOT_ALLOW_OWN_AI=1 only: no invite code needed. */
   devOwnAi?: boolean
+  /** Development builds started with PREPPILOT_LOCAL_KEYS=1 only: signed in, but answers use this computer's keys. */
+  localKeys?: boolean
   sessionId?: string | null
   error?: string
   status?: {
@@ -1326,6 +1328,8 @@ export interface ElectronAPI {
   onMeetingAudioCapture?: (callback: (data: { withoutAudio: boolean }) => void) => () => void;
   getAutoAnswerEnabled: () => Promise<boolean>;
   setAutoAnswerEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+  getPracticeMicAsInterviewer?: () => Promise<boolean>;
+  setPracticeMicAsInterviewer?: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   getDirectAssistEnabled: () => Promise<boolean>;
   setDirectAssistEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   onDirectAssistEnabledChanged: (callback: (enabled: boolean) => void) => () => void;

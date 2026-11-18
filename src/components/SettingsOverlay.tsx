@@ -553,6 +553,13 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     const [activeTab, setActiveTab] = useState(() => withoutRemovedTab(initialTab));
     // Signed in with an invite code: the team's plan picks the AI, so no AI Providers tab.
     const cloudSignedIn = useCloudSignedIn();
+    // Practice alone (Settings > Audio): the user's own mic counts as the interviewer.
+    const [practiceMic, setPracticeMic] = useState(false);
+    useEffect(() => {
+        let alive = true;
+        window.electronAPI?.getPracticeMicAsInterviewer?.().then((v) => { if (alive) setPracticeMic(v === true); }).catch(() => {});
+        return () => { alive = false; };
+    }, []);
     useEffect(() => {
         if (cloudSignedIn && activeTab === 'ai-providers') setActiveTab('account');
     }, [cloudSignedIn, activeTab]);
@@ -3524,6 +3531,23 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
 
                             {activeTab === 'audio' && (
                                 <div className="space-y-6 animated fadeIn" data-settings-stagger>
+                                    {/* ── Practice alone: the mic counts as the interviewer ── */}
+                                    <div className="bg-bg-card rounded-xl border border-border-subtle flex items-center justify-between px-4 py-3">
+                                        <div className="pr-4">
+                                            <h3 className="text-sm font-bold text-text-primary">{t('Practice alone')}</h3>
+                                            <p className="text-xs text-text-secondary mt-0.5">{t('Answer questions you ask into your own microphone, so you can test PrepPilot without a call. Turn this off for a real interview.')}</p>
+                                        </div>
+                                        <SettingsToggle
+                                            checked={practiceMic}
+                                            label={t('Practice alone')}
+                                            onChange={() => {
+                                                const next = !practiceMic;
+                                                setPracticeMic(next);
+                                                void window.electronAPI?.setPracticeMicAsInterviewer?.(next);
+                                            }}
+                                            className={practiceMic ? 'bg-accent-primary border border-transparent' : 'bg-bg-toggle-switch border border-border-muted'}
+                                        />
+                                    </div>
                                     {/* ── Speech Provider Section ── */}
                                     <div>
                                         <h3 className="text-lg font-bold text-text-primary mb-1">{t('Speech Provider')}</h3>

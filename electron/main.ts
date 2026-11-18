@@ -1737,6 +1737,11 @@ export class AppState {
    */
   private _meetingWithoutAudio: boolean = false;
   private _autoAnswerEnabled: boolean = false;
+
+  /** Practice alone (Settings > Audio): the user's mic counts as the interviewer. */
+  public practiceMicAsInterviewer(): boolean {
+    try { return SettingsManager.getInstance().get('practiceMicAsInterviewer') === true; } catch { return false; }
+  }
   // Tracks whether STT sample-rate has been applied for the current capture
   // session. Reset on every reconfigureAudio / new pipeline build so the next
   // first-chunk handler reads the freshly-detected native rate.
@@ -4274,10 +4279,14 @@ export class AppState {
         return;
       }
 
+      // Practice alone (Settings > Audio): the user asks the questions into their own
+      // mic, so the mic is the interviewer and gets answered. Off in a real interview.
+      const asSpeaker: 'interviewer' | 'user' = speaker === 'user' && this.practiceMicAsInterviewer() ? 'interviewer' : speaker;
+
       // PrepPilot: on laptop speakers the microphone hears the call, so each
       // interviewer sentence came back as the user's too. Drop the mic's copy
       // (audio/speakerEchoFilter.ts); headphones never trigger it.
-      if (speaker === 'interviewer') {
+      if (asSpeaker === 'interviewer') {
         this.speakerEcho.noteInterviewer(segment.text);
       } else if (this.speakerEcho.isEcho(segment.text)) {
         if (segment.isFinal && this.speakerEcho.dropped === 1) {
@@ -4293,12 +4302,12 @@ export class AppState {
         ? withVoiceEpoch(segment.speakerId, segment.voiceEpoch)
         : segment.speakerId;
 
-      if (this.isMeetingActive) this.meetingAutoStop.noteTranscript(speaker, segment.text, segment.isFinal);
+      if (this.isMeetingActive) this.meetingAutoStop.noteTranscript(asSpeaker, segment.text, segment.isFinal);
       // Any text proves the connection works: closes an open outage (sttGapRecovery.ts).
       this.sttGap.onTranscript(gapSource, segment.text, segment.isFinal);
 
       this.intelligenceManager.handleTranscript({
-        speaker: speaker,
+        speaker: asSpeaker,
         ...(speakerId ? { speakerId } : {}),
         text: segment.text,
         timestamp: Date.now(),
@@ -4321,12 +4330,12 @@ export class AppState {
       // Same gate: the raw STT stream, so a stoppage that judged the "wrong"
       // words can be traced back to the segments that built it.
       if (this.contentTraceEnabled()) {
-        console.log(`[STT:${speaker}${segment.isFinal ? '' : '~'}] ${segment.text}`);
+        console.log(`[STT:${asSpeaker}${segment.isFinal ? '' : '~'}] ${segment.text}`);
       }
 
       if (this._autoAnswerEnabled) {
         this.simpleAutoAnswer.ingest({
-          speaker,
+          speaker: asSpeaker,
           text: segment.text,
           timestamp: Date.now(),
           final: segment.isFinal,
@@ -4340,14 +4349,14 @@ export class AppState {
       // Feed final transcript to JIT RAG indexer
       if (segment.isFinal && this.ragManager) {
         this.ragManager.feedLiveTranscript([{
-          speaker: speaker,
+          speaker: asSpeaker,
           text: segment.text,
           timestamp: Date.now()
         }]);
       }
 
       const payload = {
-        speaker: speaker,
+        speaker: asSpeaker,
         ...(speakerId ? { speakerId } : {}),
         text: segment.text,
         timestamp: Date.now(),
@@ -7587,6 +7596,8 @@ export class AppState {
     const cloud = getCloudClient();
     this.wireCloudEvents(cloud);
     if (!cloud.signedIn) return;
+    // Development: PREPPILOT_LOCAL_KEYS=1 runs on this computer's keys — no paid session, no team minutes.
+    if (!require('./services/cloud/cloudAccount').cloudModeActive()) return;
     try {
       await cloud.startSession(typeof metadata?.cloudAssignmentId === 'string' ? metadata.cloudAssignmentId : undefined);
     } catch (e: any) {
@@ -7621,6 +7632,11 @@ export class AppState {
   /** Signed in: the AI layer's only provider is the cloud. Signed out: the user's own setup again. */
   private applyCloudMode(on: boolean): void {
     const { CLOUD_SENTINEL_KEY } = require('./config/constants') as typeof import('./config/constants');
+    // Development: PREPPILOT_LOCAL_KEYS=1 keeps the .env keys in charge (cloudAccount.devLocalKeysForced).
+    if (on && !require('./services/cloud/cloudAccount').cloudModeActive()) {
+      console.log('[Cloud] PREPPILOT_LOCAL_KEYS=1: answers and transcription use this computer\'s own keys');
+      on = false;
+    }
     const llm = this.processingHelper.getLLMHelper() as any;
     if (on) {
       llm.setNativelyKey(CLOUD_SENTINEL_KEY);

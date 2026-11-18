@@ -11,7 +11,7 @@ export function useCloudSignedIn(): boolean {
     const api = window.electronAPI;
     let alive = true;
     api?.cloudStatus?.()
-      .then((s) => { if (alive) setSignedIn(s?.state === 'signed_in'); })
+      .then((s) => { if (alive) setSignedIn(s?.state === 'signed_in' && !s?.localKeys); })
       .catch(() => { /* stays false: the app's own setup */ });
     const off = api?.onCloudUpdate?.((e) => {
       if (e.type === 'state') setSignedIn(e.state === 'signed_in');
