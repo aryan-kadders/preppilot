@@ -1,0 +1,110 @@
+name: Build Mac installer
+
+# PrepPilot's Mac installer for Apple silicon (M1 and newer): PrepPilot-<version>-arm64.dmg
+# and the .zip the app updates from. Built on a GitHub Mac because the native
+# module (Rust, ScreenCaptureKit) needs full Xcode to compile, which a Mac with only
+# the command-line tools does not have. Unsigned: on first open, right-click the app
+# and choose Open (until an Apple Developer ID is added).
+#
+# Run it from GitHub: Actions -> Build Mac installer -> Run workflow, or push a tag
+# like v3.1.1. The .dmg is attached to the run as an artifact, and with the R2
+# secrets set it is published to the release bucket like the Windows build.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac-installer:
+    name: Mac installer (Apple silicon)
+    runs-on: macos-14
+    timeout-minutes: 90
+    env:
+      PREPPILOT_RELEASES_URL: ${{ vars.PREPPILOT_RELEASES_URL }}
+      VITE_RELEASES_URL: ${{ vars.VITE_RELEASES_URL }}
+      # No Google Calendar client secret in CI: package without calendar sync, as dist:mac does.
+      PREPPILOT_ALLOW_NO_CALENDAR: '1'
+      # electron-builder must not try to publish or sign from CI.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      GH_TOKEN: ''
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-darwin
+          rustc --version
+          xcodebuild -version
+
+      # postinstall downloads the bundled local models and rebuilds the native
+      # npm dependencies for Electron on this Mac.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck Electron main process
+        run: npm run typecheck:electron
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build Electron main process
+        run: npm run build:electron
+
+      - name: Build native module (Apple silicon)
+        run: npm run build:native
+
+      - name: Mac native dependencies
+        run: |
+          node scripts/ensure-sharp-mac-deps.js
+          node scripts/ensure-napi-canvas-mac-deps.js
+          node scripts/ensure-node-llama-cpp-mac-deps.js
+          node scripts/ensure-sqlite-vec.js
+
+      - name: Verify bundled models and local assets
+        run: |
+          node scripts/download-models.js --verify
+          npm run verify:packaged-local-assets
+
+      - name: Package installer (dmg + zip, arm64)
+        run: node scripts/package-app.js --mac dmg:arm64 zip:arm64 -c.mac.icon=assets/natively.icns --publish never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrepPilot-Mac-arm64
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
+          if-no-files-found: error
+          retention-days: 14
+
+      # Installers before the feed (the script's own order), so an installed
+      # app never sees an update whose files are not there yet.
+      - name: Publish to the release bucket
+        if: env.R2_BUCKET != '' && env.PREPPILOT_RELEASES_URL != ''
+        run: npm run release:upload
