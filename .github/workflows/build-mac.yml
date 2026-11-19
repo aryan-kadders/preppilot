@@ -26,7 +26,7 @@ concurrency:
 jobs:
   mac-installer:
     name: Mac installer (Apple silicon)
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 90
     env:
       PREPPILOT_RELEASES_URL: ${{ vars.PREPPILOT_RELEASES_URL }}
